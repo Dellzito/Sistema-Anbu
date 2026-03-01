@@ -32,6 +32,9 @@
             background-color: #ef4444; 
             color: #fff;
         }
+        .healer-tag {
+            background-color: #10b981; /* green-500 para diferenciar healers */
+        }
         .executor-remove-btn {
             margin-left: 6px;
             cursor: pointer;
@@ -58,13 +61,13 @@
         
         <header class="pb-4 border-b border-red-700/50">
             <h1 id="main-title" class="text-4xl font-bold text-red-500 text-center mb-4">📜 Sistema de Registro — Esquadrão ANBU</h1>
-            <nav class="flex justify-center bg-gray-900 rounded-xl shadow-lg p-1">
+            <nav class="flex flex-wrap justify-center bg-gray-900 rounded-xl shadow-lg p-1 gap-2">
                 <a class="nav-link" onclick="window.renderPage('home')" id="nav-home">Home</a>
                 <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Ver Rank</a>
-                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico</a>
-                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Painel de ANBUs</a>
-                <a class="nav-link" onclick="window.renderPage('report_form')" id="nav-report_form">Criar Relatório</a>
-                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização</a>
+                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico de BTs</a>
+                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do ANBU</a>
+                <a class="nav-link" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar BT</a>
+                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização / Gerenciamento</a>
             </nav>
         </header>
         
@@ -79,13 +82,6 @@
         <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
             <h3 id="modal-title" class="text-xl font-bold text-red-400">Título</h3>
             <p id="modal-message" class="text-gray-300">Mensagem</p>
-            <div id="modal-input-container" class="space-y-3 hidden">
-                <label id="input-label-1" for="modal-input-1" class="block text-sm font-medium text-gray-300">Input 1</label>
-                <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white" />
-                <label id="input-label-2" for="modal-input-2" class="block text-sm font-medium text-gray-300">Input 2</label>
-                <select id="modal-input-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white"></select>
-                <span id="modal-error" class="text-red-400 text-sm hidden"></span>
-            </div>
             <div id="modal-actions" class="flex justify-end gap-3 pt-2">
                 <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
                 <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
@@ -95,7 +91,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
             updateDoc, getDoc, deleteDoc, getDocs, setLogLevel, addDoc 
@@ -107,8 +103,7 @@
             projectId: "g-2cb53",
             storageBucket: "g-2cb53.firebasestorage.app",
             messagingSenderId: "292095146978",
-            appId: "1:292095146978:web:836d833230907d081017bb",
-            measurementId: "G-B2EXQ2Z75D"
+            appId: "1:292095146978:web:836d833230907d081017bb"
         };
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : CUSTOM_FIREBASE_CONFIG.projectId || 'g-2cb53';
@@ -123,28 +118,18 @@
         let userId = null;
         let currentReportId = ''; 
         let selectedExecutors = []; 
+        let selectedHealers = []; // Nova lista para os healers selecionados
         
-        let missionsData = {}; 
         let ninjasData = {}; 
         let reportsData = []; 
         let accessKeysData = {}; 
         
         const COLLECTIONS = {
-            MISSIONS: `artifacts/${appId}/public/data/missions`,
             REPORTS: `artifacts/${appId}/public/data/reports`,
             NINJAS: `artifacts/${appId}/public/data/ninjas`, 
             ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`, 
             AUDIT_LOG: `artifacts/${appId}/users/audit_user_log/audit_events` 
         };
-
-        const RANK_POINTS = {
-            'SRANK': 5, 'ARANK': 4, 'BRANK': 3, 'CRANK': 2, 'DRANK': 1,
-            'DEFESARAID': 10, 'NPCQUEST': 0, 'STORYLINE': 0, 'ANYLEVEL': 0
-        };
-        const RANK_OPTIONS = ["S-Rank", "A-Rank", "B-Rank", "C-Rank", "D-Rank", "Defesa/Raid", "NPC Quest", "Storyline"];
-        const RANK_ORDER = ['S', 'A', 'B', 'C', 'D', 'DEFESA', 'BT'];
-
-        setLogLevel('debug'); 
 
         window.logAction = async function(action, details) {
             if (!db) return;
@@ -152,39 +137,17 @@
                 const logData = {
                     timestamp: new Date().toISOString(),
                     actorAccessId: currentAccessId,
-                    actorUserId: auth.currentUser?.uid || 'anon',
+                    actorUserId: auth?.currentUser?.uid || 'anon',
                     action: action,
                     details: details,
                     level: isMasterAdminMode ? 'MASTER_ADMIN' : (isWriterMode ? 'WRITER' : 'ANON')
                 };
                 await addDoc(collection(db, COLLECTIONS.AUDIT_LOG), logData);
             } catch (e) {
-                console.error("[AUDIT] Falha ao registrar log:", e);
+                console.error("Falha ao registrar log:", e);
             }
         }
         
-        function getRankIcon(rank) {
-            if (rank === 1) return '🥇';
-            if (rank === 2) return '🥈';
-            if (rank === 3) return '🥉';
-            return `#${rank}`;
-        }
-
-        function getRankColor(rank) {
-            if (!rank) return 'text-gray-400';
-            if (rank.includes('S')) return 'text-red-500';
-            if (rank.includes('A')) return 'text-orange-500';
-            if (rank.includes('B')) return 'text-yellow-500';
-            if (rank.includes('C')) return 'text-green-500';
-            if (rank.includes('D')) return 'text-blue-500';
-            if (rank.includes('BT')) return 'text-red-400';
-            return 'text-gray-400';
-        }
-
-        function cleanRankForLookup(rank) {
-            return rank.toUpperCase().replace('-', '').replace('/', '');
-        }
-
         function normalizeId(id) {
             return id.trim().toLowerCase();
         }
@@ -196,17 +159,11 @@
                 const modal = document.getElementById('custom-modal');
                 const modalTitle = document.getElementById('modal-title');
                 const modalMessage = document.getElementById('modal-message');
-                const inputContainer = document.getElementById('modal-input-container');
-                const input1 = document.getElementById('modal-input-1');
-                const selectRank = document.getElementById('modal-input-2');
                 const confirmBtn = document.getElementById('modal-confirm-btn');
                 const cancelBtn = document.getElementById('modal-cancel-btn');
                 
                 modalTitle.textContent = title;
                 modalMessage.textContent = message;
-                inputContainer.classList.add('hidden');
-                input1.value = '';
-                selectRank.innerHTML = ''; 
                 confirmBtn.onclick = null;
                 cancelBtn.onclick = null;
                 confirmBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'bg-orange-600', 'hover:bg-orange-700');
@@ -246,19 +203,10 @@
         
         function _gatherReportData() {
             const btInput = document.getElementById('bt-points');
+            const targetInput = document.getElementById('target-name');
             const isSpecial = document.getElementById('chk-special') ? document.getElementById('chk-special').checked : false;
             const isTrashTalk = document.getElementById('chk-trashtalk') ? document.getElementById('chk-trashtalk').checked : false;
-            const targetInput = document.getElementById('target-name');
 
-            // Captura os Healers selecionados (se existirem e estiverem marcados)
-            const healers = [];
-            const healer1 = document.getElementById('healer-1');
-            const healer2 = document.getElementById('healer-2');
-            
-            if (healer1 && healer1.checked) healers.push(normalizeId(healer1.value));
-            if (healer2 && healer2.checked) healers.push(normalizeId(healer2.value));
-
-            // Lógica Matemática
             let btBase = parseInt(btInput ? btInput.value : '0', 10);
             if (isNaN(btBase)) btBase = 0;
 
@@ -266,9 +214,10 @@
             if (isSpecial) totalPointsRaw *= 3;
             if (isTrashTalk) totalPointsRaw += 20;
 
-            // Divisão pelos membros da PT (Executores + Healers)
-            const partySize = selectedExecutors.length + healers.length;
-            const pointsPerPerson = partySize > 0 ? Math.round(totalPointsRaw / partySize) : 0;
+            // MATEMÁTICA DA DIVISÃO
+            const attackersCount = selectedExecutors.length;
+            const pointsPerAttacker = attackersCount > 0 ? Math.round(totalPointsRaw / attackersCount) : 0;
+            const pointsPerHealer = totalPointsRaw; // Healer sempre recebe integral
 
             return {
                 reportId: currentReportId,
@@ -276,25 +225,22 @@
                 isSpecial: isSpecial,
                 isTrashTalk: isTrashTalk,
                 executorIds: selectedExecutors,
-                healerIds: healers, // Salva os healers para registro
-                targetName: targetInput ? targetInput.value.trim() : '', // Nick do inimigo
+                healerIds: selectedHealers, 
+                targetName: targetInput ? targetInput.value.trim() : '', 
                 totalPointsRaw: totalPointsRaw,
-                pointsPerPerson: pointsPerPerson, // Pontos que cada um vai receber
-                finalReportRank: 'BT',
-                timestamp: new Date().toISOString(),
-                serviceNames: ['Caça (BT)'],
-                clients: [] 
+                pointsPerAttacker: pointsPerAttacker,
+                pointsPerHealer: pointsPerHealer,
+                timestamp: new Date().toISOString()
             };
         }
 
         window.generateReportId = function() {
             const reportIdElement = document.getElementById('report-id-display');
             if (!reportIdElement) return;
-
             const now = new Date();
             const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
             const uuidPart = crypto.randomUUID().substring(0, 8);
-            currentReportId = `RPT-${datePart}-${uuidPart}`;
+            currentReportId = `BT-${datePart}-${uuidPart}`;
             reportIdElement.value = currentReportId;
         }
 
@@ -305,8 +251,7 @@
 
             if (!data || !totalPointsInput || !submitBtn) return;
             
-            // Mostra o total para conferência no formulário
-            totalPointsInput.value = `${data.totalPointsRaw} (Divisão: ${data.pointsPerPerson} Pts p/ membro)`;
+            totalPointsInput.value = `BT Total: ${data.totalPointsRaw} (PT ganha ${data.pointsPerAttacker} pts cada | Healers ganham ${data.pointsPerHealer} pts)`;
 
             const hasPartyMembers = (data.executorIds.length + data.healerIds.length) > 0;
             const isReady = isWriterMode && hasPartyMembers && data.totalPointsRaw > 0; 
@@ -328,120 +273,194 @@
             const data = _gatherReportData();
             let previewText = `Bounty Base: ${data.btBase} pts. `;
 
-            if (data.targetName) previewText += `[Alvo: ${data.targetName}]. `;
-            if (data.isSpecial) previewText += `[ALVO ESPECIAL: Dakotinha/Guinho (x3)]. `;
-            if (data.isTrashTalk) previewText += `[TRASH TALK (+20)]. `;
+            if (data.targetName) previewText += `[Alvo Morto: ${data.targetName}]. `;
+            if (data.isSpecial) previewText += `[Alvo Especial x3]. `;
+            if (data.isTrashTalk) previewText += `[Trash Talk +20]. `;
 
-            const allPT = [...data.executorIds, ...data.healerIds];
-            if (allPT.length > 0) {
-                previewText += `PT (${allPT.length} membros): ${allPT.join(', ')}. `;
-            } else {
-                previewText += `[Nenhum ANBU/Healer selecionado]. `;
+            if (data.executorIds.length > 0) {
+                previewText += `PT Ataque: ${data.executorIds.join(', ')} (${data.pointsPerAttacker} pts cada). `;
+            }
+            if (data.healerIds.length > 0) {
+                previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts cada). `;
+            }
+            if (data.executorIds.length === 0 && data.healerIds.length === 0) {
+                previewText += `[Nenhum ANBU selecionado]. `;
             }
 
-            previewText += `=> TOTAL BT: ${data.totalPointsRaw} Pts | DIVISÃO: ${data.pointsPerPerson} Pts p/ cada.`;
-
+            previewText += `=> TOTAL BT DA CAÇADA: ${data.totalPointsRaw} Pts.`;
             previewDiv.textContent = previewText.trim();
             window.calculateTotalPoints();
         }
 
         window.submitReport = async function() {
-            if (!isWriterMode) {
-                 window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para registrar BTs.', 'info');
-                 return;
-            }
+            if (!isWriterMode) return;
 
             const data = _gatherReportData();
             const statusElement = document.getElementById('status');
 
             if (!data || (data.executorIds.length === 0 && data.healerIds.length === 0) || data.totalPointsRaw === 0) {
-                 window.openCustomModal('Erro', 'O registro deve ter pelo menos um membro na PT e um valor de BT preenchido (maior que 0).', 'info');
+                 window.openCustomModal('Erro', 'Preencha o valor do BT e adicione pelo menos um ANBU na PT.', 'info');
                  return;
             }
 
             statusElement.classList.remove('hidden');
             statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
-            statusElement.textContent = `Registrando Relatório ${data.reportId} e atualizando Rank...`;
+            statusElement.textContent = `Registrando BT e atualizando Rank...`;
 
             const batch = writeBatch(db);
-            const pointsToAward = data.pointsPerPerson; // Agora usa o valor dividido
-            const missionsCount = 1; 
 
             try {
-                // 1. Set Report
+                // Salva o relatório
                 const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
                 batch.set(reportRef, data);
 
-                // 2. Update all Party Members (NINJAS collection - Executors + Healers)
-                const allParticipants = [...data.executorIds, ...data.healerIds];
-                for (const participantId of allParticipants) {
+                // Atualiza pontos dos Atacantes (PT dividida)
+                for (const participantId of data.executorIds) {
                     const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
                     batch.set(ninjaRef, { 
-                        rankPoints: (ninjasData[participantId]?.rankPoints || 0) + pointsToAward,
-                        missionsCompleted: (ninjasData[participantId]?.missionsCompleted || 0) + missionsCount,
+                        rankPoints: (ninjasData[participantId]?.rankPoints || 0) + data.pointsPerAttacker,
+                        missionsCompleted: (ninjasData[participantId]?.missionsCompleted || 0) + 1,
+                    }, { merge: true });
+                }
+
+                // Atualiza pontos dos Healers (Integral)
+                for (const healerId of data.healerIds) {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, healerId);
+                    batch.set(ninjaRef, { 
+                        rankPoints: (ninjasData[healerId]?.rankPoints || 0) + data.pointsPerHealer,
+                        missionsCompleted: (ninjasData[healerId]?.missionsCompleted || 0) + 1,
                     }, { merge: true });
                 }
                 
                 await batch.commit();
 
-                statusElement.textContent = `✅ Sucesso! Registro finalizado. ${pointsToAward} pontos aplicados para cada membro.`;
+                statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 
-                // Reset Form UI
+                // Reseta tudo
                 selectedExecutors = [];
+                selectedHealers = [];
                 window.updateExecutorTags();
                 window.generateReportId();
                 if(document.getElementById('bt-points')) document.getElementById('bt-points').value = '';
                 if(document.getElementById('chk-special')) document.getElementById('chk-special').checked = false;
                 if(document.getElementById('chk-trashtalk')) document.getElementById('chk-trashtalk').checked = false;
                 if(document.getElementById('target-name')) document.getElementById('target-name').value = '';
-                if(document.getElementById('healer-1')) document.getElementById('healer-1').checked = false;
-                if(document.getElementById('healer-2')) document.getElementById('healer-2').checked = false;
                 window.updateDescriptionPreview(); 
 
             } catch (e) {
-                console.error("Erro no registro do Firebase Batch:", e);
-                statusElement.textContent = `❌ Erro no Registro: ${e.message}. Verifique permissões de escrita/internet.`;
+                statusElement.textContent = `❌ Erro no Registro: ${e.message}.`;
                 statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
             }
             setTimeout(() => statusElement.classList.add('hidden'), 7000);
         }
 
         window.updateExecutorSelect = function() {
-            const select = document.getElementById('new-executor-id-select');
-            if (!select) return;
+            const selectAtk = document.getElementById('new-executor-id-select');
+            const selectHeal = document.getElementById('new-healer-id-select');
+            if (!selectAtk || !selectHeal) return;
             
             const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
+            activeNinjas.sort((a, b) => a.id.localeCompare(b.id));
 
-            select.innerHTML = '<option value="" disabled selected>Selecione um ANBU Ativo</option>';
-            activeNinjas.sort((a, b) => a.id.localeCompare(b.id)).forEach(ninja => {
-                if (!selectedExecutors.includes(ninja.id)) {
-                    const option = document.createElement('option');
-                    option.value = ninja.id;
-                    option.textContent = ninja.id;
-                    select.appendChild(option);
+            let optionsAtk = '<option value="" disabled selected>Selecione um Atacante</option>';
+            let optionsHeal = '<option value="" disabled selected>Selecione um Healer</option>';
+
+            activeNinjas.forEach(ninja => {
+                const elementLabel = ninja.element ? ` (${ninja.element})` : '';
+                // Não deixa selecionar se já estiver em alguma das listas
+                if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
+                    optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                 }
             });
+
+            selectAtk.innerHTML = optionsAtk;
+            selectHeal.innerHTML = optionsHeal;
+        }
+
+        window.addExecutor = function(isHealer = false) {
+            const selectId = isHealer ? 'new-healer-id-select' : 'new-executor-id-select';
+            const select = document.getElementById(selectId);
+            if (!select || !select.value) return;
+
+            const ninjaId = select.value;
+            if (isHealer) {
+                selectedHealers.push(ninjaId);
+            } else {
+                selectedExecutors.push(ninjaId);
+            }
+            
+            select.value = ''; 
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+        
+        window.removeExecutor = function(ninjaId, isHealer) {
+            if (isHealer) {
+                selectedHealers = selectedHealers.filter(id => id !== ninjaId);
+            } else {
+                selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
+            }
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+
+        window.updateExecutorTags = function() { 
+            const containerAtk = document.getElementById('executors-tag-container');
+            const containerHeal = document.getElementById('healers-tag-container');
+            if (!containerAtk || !containerHeal) return;
+            
+            // Renderiza Atacantes
+            let htmlAtk = '';
+            if (selectedExecutors.length === 0) {
+                htmlAtk = '<span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>';
+            } else {
+                selectedExecutors.forEach(id => {
+                    htmlAtk += `
+                        <span class="executor-tag">
+                            ${id}
+                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}', false)">✖</span>
+                        </span>
+                    `;
+                });
+            }
+            containerAtk.innerHTML = htmlAtk;
+
+            // Renderiza Healers
+            let htmlHeal = '';
+            if (selectedHealers.length === 0) {
+                htmlHeal = '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>';
+            } else {
+                selectedHealers.forEach(id => {
+                    htmlHeal += `
+                        <span class="executor-tag healer-tag">
+                            ${id}
+                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}', true)">✖</span>
+                        </span>
+                    `;
+                });
+            }
+            containerHeal.innerHTML = htmlHeal;
         }
 
         window.addNinja = async function() {
-            if (!isMasterAdminMode) {
-                window.openCustomModal('Acesso Negado', 'Você precisa de permissão Master para adicionar ANBUs.', 'info');
-                return;
-            }
+            if (!isMasterAdminMode) return;
 
             const newNinjaIdInput = document.getElementById('new-ninja-id');
+            const elementSelect = document.getElementById('new-ninja-element');
+            
             const ninjaId = newNinjaIdInput.value.trim();
+            const element = elementSelect.value;
             const normalizedId = normalizeId(ninjaId);
             const statusElement = document.getElementById('status');
-
-            statusElement.classList.remove('hidden');
-            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
-            statusElement.textContent = `Processando adição de ANBU...`;
 
             if (!ninjaId) {
                 statusElement.textContent = '❌ O ID do ANBU não pode ser vazio.';
                 statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
                 setTimeout(() => statusElement.classList.add('hidden'), 5000);
                 return;
             }
@@ -449,6 +468,7 @@
             if (ninjasData[normalizedId]) {
                 statusElement.textContent = `❌ O ANBU '${normalizedId}' já está cadastrado.`;
                 statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
                 setTimeout(() => statusElement.classList.add('hidden'), 5000);
                 return;
             }
@@ -456,23 +476,23 @@
             try {
                 await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
                     id: normalizedId, 
+                    element: element,
                     isActive: true, 
                     rankPoints: 0, 
                     missionsCompleted: 0
                 });
                 
                 newNinjaIdInput.value = ''; 
-                statusElement.textContent = `✅ ANBU '${normalizedId}' adicionado com sucesso!`;
+                statusElement.textContent = `✅ ANBU '${normalizedId}' (${element}) adicionado com sucesso!`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
                 setTimeout(() => statusElement.classList.add('hidden'), 5000);
 
                 window.updateExecutorSelect();
-                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId });
+                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId, element: element });
 
             } catch (e) {
-                console.error("Erro ao adicionar ANBU:", e);
-                statusElement.textContent = `❌ Erro ao adicionar ANBU: ${e.message}`;
-                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                console.error(e);
             }
         }
         
@@ -480,21 +500,16 @@
             if (!isMasterAdminMode) return;
             window.openCustomModal('Confirmação de Exclusão', `Excluir permanentemente o ANBU '${id}'?`, 'confirm', async (confirmed) => {
                  if (confirmed) {
-                     const statusElement = document.getElementById('status');
                      try {
                          await deleteDoc(doc(db, COLLECTIONS.NINJAS, id));
                          selectedExecutors = selectedExecutors.filter(execId => execId !== id);
+                         selectedHealers = selectedHealers.filter(execId => execId !== id);
                          window.updateExecutorTags();
                          window.updateExecutorSelect(); 
                          window.logAction('DELETE_GUARDIAN', { guardianId: id });
-                         statusElement.textContent = `✅ ANBU excluído!`;
-                         statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                      } catch (e) {
-                         statusElement.textContent = `❌ Erro: ${e.message}`;
-                         statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                         console.error(e);
                      }
-                     statusElement.classList.remove('hidden');
-                     setTimeout(() => statusElement.classList.add('hidden'), 5000);
                  }
             });
         }
@@ -514,50 +529,6 @@
                      }
                  }
             });
-        }
-
-        window.addExecutor = function() {
-            const select = document.getElementById('new-executor-id-select');
-            if (!select || !select.value) return;
-
-            const ninjaId = select.value;
-            if (!selectedExecutors.includes(ninjaId)) {
-                selectedExecutors.push(ninjaId);
-                select.value = ''; 
-                window.updateExecutorTags();
-                window.updateExecutorSelect(); 
-                window.updateDescriptionPreview(); 
-            }
-        }
-        
-        window.removeExecutor = function(ninjaId) {
-            selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
-            window.updateExecutorTags();
-            window.updateExecutorSelect(); 
-            window.updateDescriptionPreview(); 
-        }
-
-        window.updateExecutorTags = function() { 
-            const container = document.getElementById('executors-tag-container');
-            if (!container) return;
-            
-            let contentHTML = '';
-            if (selectedExecutors.length === 0) {
-                contentHTML = '<span id="no-executor-message" class="text-gray-400 text-sm italic">Nenhum ANBU selecionado.</span>';
-            } else {
-                selectedExecutors.forEach(id => {
-                    contentHTML += `
-                        <span class="executor-tag" id="executor-tag-${id}">
-                            ${id}
-                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}')">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </span>
-                        </span>
-                    `;
-                });
-            }
-            container.innerHTML = contentHTML;
-            window.updateDescriptionPreview();
         }
         
         window.copyReportId = function() { 
@@ -610,7 +581,7 @@
             if (!isWriterMode) return;
             if (!calledInternally) {
                 const confirmed = await window.openCustomModal(
-                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks? Isso irá recontar os pontos com base no histórico.', 'confirm'
+                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks? Isso irá recontar os pontos com base no histórico de BTs.', 'confirm'
                 );
                 if (!confirmed) return;
             }
@@ -637,17 +608,20 @@
                 
                 let applyBatch = writeBatch(db);
                 reportsData.forEach((report) => {
-                    // Usar a pontuação por pessoa do banco de dados (novo formato) ou manter compatibilidade
-                    const pointsToGive = report.pointsPerPerson || report.totalPointsRaw || 0;
-                    
-                    const allParticipants = [...(report.executorIds || []), ...(report.healerIds || [])];
-                    if (allParticipants.length > 0 && pointsToGive > 0) {
-                        allParticipants.forEach(participantId => {
-                             if (!tempNinjas[participantId]) {
-                                 tempNinjas[participantId] = { id: participantId, isActive: true, rankPoints: 0, missionsCompleted: 0 };
-                             }
-                             tempNinjas[participantId].rankPoints += pointsToGive;
-                             tempNinjas[participantId].missionsCompleted += 1;
+                    // Soma pros atacantes
+                    if (report.executorIds && report.executorIds.length > 0 && report.pointsPerAttacker > 0) {
+                        report.executorIds.forEach(id => {
+                             if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
+                             tempNinjas[id].rankPoints += report.pointsPerAttacker;
+                             tempNinjas[id].missionsCompleted += 1;
+                        });
+                    }
+                    // Soma pros healers
+                    if (report.healerIds && report.healerIds.length > 0 && report.pointsPerHealer > 0) {
+                        report.healerIds.forEach(id => {
+                             if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
+                             tempNinjas[id].rankPoints += report.pointsPerHealer;
+                             tempNinjas[id].missionsCompleted += 1;
                         });
                     }
                 }); 
@@ -685,10 +659,11 @@
 
             guardians.forEach((ninja, index) => {
                 const rankIcon = getRankIcon(index + 1);
+                const elementIcon = ninja.element ? ` <span class="text-xs text-gray-500">(${ninja.element})</span>` : '';
                 scoreboardBody.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
                         <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
-                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-red-300">${ninja.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-red-300">${ninja.id}${elementIcon}</td>
                         <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-green-400">${Math.round(ninja.rankPoints)} Pts</td>
                         <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${ninja.missionsCompleted || 0}</td>
                     </tr>
@@ -717,10 +692,11 @@
             sortedNinjas.forEach(data => {
                 const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
                 const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                const elementText = data.element ? data.element : 'Não definido';
                 
                 const actionCell = showActionColumn ? `
                     <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn mr-2">Editar Status</button>
+                        <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn mr-2">Status</button>
                         <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-red-700 transition duration-150">Excluir</button>
                     </td>
                 ` : '';
@@ -728,6 +704,7 @@
                 ninjasBody.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
                         <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-white">${data.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${elementText}</td>
                         <td class="px-6 py-2 whitespace-nowrap text-sm ${statusClass}">${statusText}</td>
                         ${actionCell}
                     </tr>
@@ -756,7 +733,7 @@
                 if (ninjaData) {
                     guardianSummaryDiv.innerHTML = `
                         <p class="text-xl font-bold text-yellow-400">${filterId.toUpperCase()}</p>
-                        <p class="text-sm text-gray-300">${ninjaData.isActive ? 'ANBU Ativo' : 'ANBU Inativo'}</p>
+                        <p class="text-sm text-gray-300">${ninjaData.isActive ? 'ANBU Ativo' : 'ANBU Inativo'} ${ninjaData.element ? `(${ninjaData.element})` : ''}</p>
                         <p class="text-lg text-green-400">Total de Pontos: ${Math.round(ninjaData.rankPoints)} Pts</p>
                         <p class="text-gray-300">Total de BTs Participados: ${ninjaData.missionsCompleted}</p>
                     `;
@@ -778,28 +755,25 @@
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 });
                 
-                const allPT = [...(data.executorIds || []), ...(data.healerIds || [])];
-                const ptText = allPT.length > 0 ? allPT.join(', ') : 'N/A';
+                const atkText = data.executorIds && data.executorIds.length > 0 ? data.executorIds.join(', ') : '';
+                const healText = data.healerIds && data.healerIds.length > 0 ? `<span class="text-green-400 text-xs">Healers: ${data.healerIds.join(', ')}</span>` : '';
                 const targetText = data.targetName ? data.targetName : 'N/A';
                 
-                let finalDesc = `BT: ${data.btBase || data.totalPointsRaw}. ` + 
-                                (data.isSpecial ? '[Alvo Especial x3]. ' : '') + 
-                                (data.isTrashTalk ? '[Trash Talk +20]. ' : '') + 
-                                `(Divisão: ${data.pointsPerPerson || data.totalPointsRaw} Pts p/ membro)`;
+                let finalDesc = `BT: ${data.totalPointsRaw}. ` + 
+                                (data.isSpecial ? '[Alvo x3]. ' : '') + 
+                                (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
+                                `<br><span class="text-xs text-gray-500">PT: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
 
                 reportsLog.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
                         <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-1/12">${data.reportId}</td>
-                        <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
-                            <span class="text-xs text-gray-400 block">Caça (BT)</span>
-                            <span class="text-sm text-red-400 font-bold mt-1 block">(BT)</span>
-                        </td>
-                        <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
-                            <span class="font-bold text-red-300">${ptText}</span>
+                        <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12">
+                            <span class="font-bold text-red-300">${atkText}</span><br>
+                            ${healText}
                         </td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold">${targetText}</td>
-                        <td class="px-4 py-2 whitespace-normal text-sm italic text-gray-400 w-3/12">${finalDesc}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12">
+                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-4/12">${finalDesc}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm w-2/12">
                             <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
                         </td>
                     </tr>
@@ -820,9 +794,9 @@
                 <section class="space-y-6 pt-4">
                     <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        Painel ANBU - Histórico Completo
+                        Perfil do ANBU e Histórico
                     </h2>
-                    <p class="text-center text-gray-400">Selecione qualquer ID de ANBU para ver seu histórico de registros.</p>
+                    <p class="text-center text-gray-400">Selecione qualquer ID de ANBU para ver seu histórico detalhado.</p>
 
                     <div class="max-w-md mx-auto space-y-2">
                         <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
@@ -834,17 +808,15 @@
 
                     <div id="guardian-summary" class="max-w-md mx-auto p-4 bg-gray-700 rounded-lg shadow-inner text-center hidden"></div>
 
-                    <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
-                        <h3 class="text-xl font-medium text-gray-300 mb-4">Registros Envolvidos:</h3>
+                    <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto mt-4">
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Serviços/Rank</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Descrição/Pontos</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Divisão / Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
                                 </tr>
                             </thead>
                             <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -864,7 +836,7 @@
                 userId = anonUser.user.uid;
                 currentAccessId = 'ANONYMOUS'; 
                 
-                document.getElementById('auth-info').textContent = `Usuário ID (Anon): ${userId} | App ID: ${appId}`;
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
                 setupFirestoreListeners(); 
                 window.renderPage(currentPage);
                 window.generateReportId(); 
@@ -881,7 +853,7 @@
             onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snapshot) => {
                 accessKeysData = {};
                 snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
-                if (currentPage === 'admin_panel' || currentPage === 'report_form') window.renderPage(currentPage); 
+                if (currentPage === 'admin_panel') window.renderPage(currentPage); 
             }, (error) => {});
 
             onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
@@ -938,6 +910,7 @@
                 }
                 keyInput.value = ''; 
                 idInput.value = '';
+                statusElement.classList.remove('hidden');
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 setTimeout(() => statusElement.classList.add('hidden'), 5000);
                 window.renderPage(currentPage);
@@ -945,6 +918,7 @@
                 currentAccessId = 'ANONYMOUS'; 
                 window.toggleWriterUI(false);
                 window.toggleMasterAdminUI(false);
+                statusElement.classList.remove('hidden');
                 statusElement.textContent = '❌ Autorização Negada. ID ou Senha Incorreta.';
                 statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
                 setTimeout(() => statusElement.classList.add('hidden'), 7000);
@@ -986,8 +960,6 @@
                     window.updateExecutorSelect();
                     window.updateExecutorTags(); 
                     window.generateReportId(); 
-                    const addExecutorBtn = document.getElementById('add-executor-btn');
-                    if (addExecutorBtn) addExecutorBtn.onclick = window.addExecutor;
                     window.updateDescriptionPreview(); 
                     break;
                 case 'admin_panel':
@@ -1016,31 +988,33 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     
                     <div class="space-y-2 lg:col-span-3">
-                        <label class="block text-sm font-medium text-gray-300">Selecionar ANBUs da PT</label>
+                        <label class="block text-sm font-medium text-gray-300">ANBUs na PT de Ataque (Dividem os Pontos)</label>
                         <div class="flex gap-2">
                             <select id="new-executor-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
-                                <option value="" disabled selected>Selecione um ANBU Ativo</option>
+                                <option value="" disabled selected>Selecione um Atacante</option>
                             </select>
-                            <button type="button" id="add-executor-btn" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">
-                                Adicionar ANBU
+                            <button type="button" onclick="window.addExecutor(false)" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">
+                                Adicionar
                             </button>
                         </div>
                         <div id="executors-tag-container" class="executor-list-container">
-                            <span id="no-executor-message" class="text-gray-400 text-sm italic">Nenhum ANBU selecionado.</span>
+                            <span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>
                         </div>
                     </div>
 
                     <div class="space-y-2 lg:col-span-3">
-                        <label class="block text-sm font-medium text-gray-300">Healer(s) na PT (Se houver)</label>
-                        <div class="flex gap-6 p-3 bg-gray-700 rounded-lg border border-gray-600">
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="healer-1" value="Healer1" class="form-checkbox h-5 w-5 text-red-600 bg-gray-900 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
-                                <span class="text-gray-200 font-bold">Healer1</span> </label>
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="healer-2" value="Healer2" class="form-checkbox h-5 w-5 text-red-600 bg-gray-900 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
-                                <span class="text-gray-200 font-bold">Healer2</span> </label>
+                        <label class="block text-sm font-medium text-gray-300">Healers na PT (Recebem BT Integral)</label>
+                        <div class="flex gap-2">
+                            <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner">
+                                <option value="" disabled selected>Selecione um Healer</option>
+                            </select>
+                            <button type="button" onclick="window.addExecutor(true)" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">
+                                Adicionar Healer
+                            </button>
                         </div>
-                        <p class="text-xs text-gray-400 mt-1">Dica: Os healers marcados entrarão na divisão matemática dos pontos.</p>
+                        <div id="healers-tag-container" class="executor-list-container">
+                            <span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>
+                        </div>
                     </div>
 
                     <div class="space-y-2 lg:col-span-3">
@@ -1056,7 +1030,7 @@
                     <div class="space-y-4 lg:col-span-2 flex flex-col justify-center mt-6">
                         <label class="flex items-center space-x-3 cursor-pointer">
                             <input type="checkbox" id="chk-special" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
-                            <span class="text-gray-200 font-medium">Pontuação especial: Dakotinha ou guinho? (Multiplica o BT por 3)</span>
+                            <span class="text-gray-200 font-medium">Alvo especial: Dakotinha ou guinho? (Multiplica o BT por 3)</span>
                         </label>
                         
                         <label class="flex items-center space-x-3 cursor-pointer">
@@ -1069,29 +1043,29 @@
                         <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
                         <div class="flex gap-2">
                             <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed" value="Gerado Automaticamente">
-                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID para o Discord">
+                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700/50">
-                    <div class="space-y-2 lg:col-span-2">
-                        <label class="block text-sm font-medium text-gray-300">Total Dividido pela PT</label>
-                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="0">
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t border-gray-700/50">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300">Distribuição Matemática</label>
+                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="Preencha o BT acima">
                     </div>
                 </div>
 
                 <div class="pt-4 space-y-2 border-t border-gray-700/50">
-                    <h3 class="text-xl font-medium text-gray-300">Preview do Registro:</h3>
+                    <h3 class="text-xl font-medium text-gray-300">Resumo do Registro:</h3>
                     <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]">
-                        Preencha os dados acima para gerar o preview.
+                        O resumo aparecerá aqui.
                     </div>
                 </div>
 
                 <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
-                    Registrar BT e Atualizar Rank
+                    Salvar Caçada e Atualizar Rank
                 </button>
             </section>
         `; }
@@ -1129,11 +1103,10 @@
                             <thead class="bg-gray-700">
                                 <tr>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Serviços/Rank</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Descrição/Pontos</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Divisão / Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
                                 </tr>
                             </thead>
                             <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -1153,23 +1126,32 @@
                 <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
                      <h2 class="text-2xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm2 5v2h-4V7a3 3 0 016 0z"/></svg>
-                         Autorização de Escrita (ID & Senha Única)
+                         Autorização de Escrita (Login)
                      </h2>
                      <div id="admin-status-display">${accessStatus}</div>
                      <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
-                         <input id="access-id-input" type="text" placeholder="Seu ID de ANBU/Admin" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
-                         <input id="access-key-input" type="password" placeholder="Sua Senha Única" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
                          <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">
-                             Verificar Acesso
+                             Logar
                          </button>
                      </div>
                 </section>
                 
                 <section class="space-y-4 pt-8 pb-16">
                     <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
+                    
                     <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only ${isMasterAdminMode ? '' : 'hidden'}">
-                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU (Ex: Dellzito)" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
-                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Adicionar ANBU</button>
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                        <select id="new-ninja-element" class="w-full sm:w-48 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="Fogo">Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Médico (Healer)">Médico (Healer)</option>
+                        </select>
+                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Cadastrar ANBU</button>
                     </div>
 
                     <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
@@ -1177,8 +1159,9 @@
                             <thead class="bg-gray-700">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Elemento</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider admin-only ${isMasterAdminMode ? '' : 'hidden'}">Ação</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider admin-only ${isMasterAdminMode ? '' : 'hidden'}">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -1187,9 +1170,9 @@
                 </section>
 
                 <div id="writer-tools" class="pt-8 space-y-4 writer-only ${isWriterMode ? '' : 'hidden'}">
-                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Recálculo</h3>
+                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Manutenção</h3>
                     <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
-                        🔄 Recalcular Todos os Ranks Agora
+                        🔄 Recalcular Todos os Ranks
                     </button>
                 </div>
 

@@ -1,0 +1,2047 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Registro - Esquadrão ANBU (ONLINE - FIREBASE)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
+        /* Estilo para a lista de executores */
+        .executor-list-container {
+            min-height: 50px;
+            padding: 8px;
+            border: 1px solid #4b5563; /* gray-600 */
+            border-radius: 8px;
+            background-color: #374151; /* gray-700 */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .executor-tag {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 9999px; /* full rounded */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 600;
+            background-color: #ef4444; /* red-500 */
+            color: #fff;
+        }
+        .executor-remove-btn {
+            margin-left: 6px;
+            cursor: pointer;
+            color: #fecaca; /* red-200 */
+        }
+        /* Estilo para a Navegação */
+        .nav-link {
+            cursor: pointer;
+            padding: 10px 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .nav-link:hover:not(.active) {
+            background-color: #1e293b; /* slate-800 */
+        }
+        .nav-link.active {
+            color: #f87171; /* red-400 */
+            border-bottom: 2px solid #f87171;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 text-gray-100">
+
+    <div id="app" class="max-w-6xl mx-auto space-y-8">
+        
+        <header class="pb-4 border-b border-red-700/50">
+            <h1 id="main-title" class="text-4xl font-bold text-red-500 text-center mb-4">📜 Sistema de Registro — Esquadrão ANBU</h1>
+            <nav class="flex justify-center bg-gray-900 rounded-xl shadow-lg p-1">
+                <a class="nav-link" onclick="window.renderPage('home')" id="nav-home">Home</a>
+                <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Ver Rank</a>
+                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico</a>
+                <a class="nav-link" onclick="window.renderPage('auxiliary_log')" id="nav-auxiliary_log">Auxílio</a>
+                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Painel de ANBUs</a>
+                <a class="nav-link" onclick="window.renderPage('report_form')" id="nav-report_form">Criar Relatório</a>
+                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização</a>
+            </nav>
+        </header>
+        
+        <div id="content" class="min-h-[60vh]">
+            </div>
+
+        <div id="status" class="text-center p-4 rounded-lg hidden"></div>
+        
+        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
+    </div>
+
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
+            <h3 id="modal-title" class="text-xl font-bold text-red-400">Título do Modal</h3>
+            <p id="modal-message" class="text-gray-300">Mensagem do Modal.</p>
+            <div id="modal-input-container" class="space-y-3 hidden">
+                <label id="input-label-1" for="modal-input-1" class="block text-sm font-medium text-gray-300">Input 1</label>
+                <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white" />
+                <label id="input-label-2" for="modal-input-2" class="block text-sm font-medium text-gray-300">Input 2 (Rank)</label>
+                <select id="modal-input-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white">
+                    </select>
+                <span id="modal-error" class="text-red-400 text-sm hidden"></span>
+            </div>
+            <div id="modal-actions" class="flex justify-end gap-3 pt-2">
+                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
+            updateDoc, getDoc, deleteDoc, getDocs, setLogLevel, addDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ====================================================================
+        // CONFIGURAÇÕES FIREBASE & CHAVE MESTRA
+        // ====================================================================
+        
+        const CUSTOM_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
+            authDomain: "g-2cb53.firebaseapp.com",
+            projectId: "g-2cb53",
+            storageBucket: "g-2cb53.firebasestorage.app",
+            messagingSenderId: "292095146978",
+            appId: "1:292095146978:web:836d833230907d081017bb",
+            measurementId: "G-B2EXQ2Z75D"
+        };
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : CUSTOM_FIREBASE_CONFIG.projectId || 'g-2cb53';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : CUSTOM_FIREBASE_CONFIG;
+        
+        const MASTER_ADMIN_ID = 'master_admin_key'; 
+        const WRITER_MODE_ID = 'writer_mode_key'; 
+
+        let isMasterAdminMode = false; 
+        let isWriterMode = false; 
+        let currentPage = 'home';
+        let currentAccessId = 'ANONYMOUS'; 
+        
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let currentReportId = ''; 
+        let selectedExecutors = []; 
+        
+        let missionsData = {}; 
+        let ninjasData = {}; 
+        let auxiliaryData = {}; 
+        let reportsData = []; 
+        let accessKeysData = {}; 
+        
+        const COLLECTIONS = {
+            MISSIONS: `artifacts/${appId}/public/data/missions`,
+            REPORTS: `artifacts/${appId}/public/data/reports`,
+            NINJAS: `artifacts/${appId}/public/data/ninjas`, 
+            AUXILIARY_LOG: `artifacts/${appId}/public/data/auxiliary_log`,
+            ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`, 
+            AUDIT_LOG: `artifacts/${appId}/users/audit_user_log/audit_events` 
+        };
+
+        const RANK_POINTS = {
+            'SRANK': 5, 'ARANK': 4, 'BRANK': 3, 'CRANK': 2, 'DRANK': 1,
+            'DEFESARAID': 10, 'NPCQUEST': 0, 'STORYLINE': 0, 'ANYLEVEL': 0
+        };
+        const RANK_OPTIONS = [
+            "S-Rank", "A-Rank", "B-Rank", "C-Rank", "D-Rank", 
+            "Defesa/Raid", "NPC Quest", "Storyline"
+        ];
+        const RANK_ORDER = ['S', 'A', 'B', 'C', 'D', 'DEFESA', 'BT'];
+
+        setLogLevel('debug'); 
+
+        // ====================================================================
+        // FUNÇÕES DE LOG E UTILIDADE
+        // ====================================================================
+        
+        window.logAction = async function(action, details) {
+            if (!db) return;
+            try {
+                const logData = {
+                    timestamp: new Date().toISOString(),
+                    actorAccessId: currentAccessId,
+                    actorUserId: auth.currentUser?.uid || 'anon',
+                    action: action,
+                    details: details,
+                    level: isMasterAdminMode ? 'MASTER_ADMIN' : (isWriterMode ? 'WRITER' : 'ANON')
+                };
+                await addDoc(collection(db, COLLECTIONS.AUDIT_LOG), logData);
+                console.log(`[AUDIT] Log registrado: ${action} por ${currentAccessId}`);
+            } catch (e) {
+                console.error("[AUDIT] Falha ao registrar log:", e);
+            }
+        }
+        
+        function getRankIcon(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return `#${rank}`;
+        }
+        function getRankColor(rank) {
+            if (!rank) return 'text-gray-400';
+            if (rank.includes('S')) return 'text-red-500';
+            if (rank.includes('A')) return 'text-orange-500';
+            if (rank.includes('B')) return 'text-yellow-500';
+            if (rank.includes('C')) return 'text-green-500';
+            if (rank.includes('D')) return 'text-blue-500';
+            if (rank.includes('BT')) return 'text-red-400';
+            return 'text-gray-400';
+        }
+        function cleanRankForLookup(rank) {
+            return rank.toUpperCase().replace('-', '').replace('/', '');
+        }
+        function normalizeId(id) {
+            return id.trim().toLowerCase();
+        }
+        
+        // --- FUNÇÕES DO MODAL ---
+        let resolveModalPromise = null; 
+
+        window.openCustomModal = function(title, message, type, data = {}) {
+            return new Promise(resolve => {
+                resolveModalPromise = resolve;
+
+                const modal = document.getElementById('custom-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalMessage = document.getElementById('modal-message');
+                const inputContainer = document.getElementById('modal-input-container');
+                const input1 = document.getElementById('modal-input-1');
+                const selectRank = document.getElementById('modal-input-2');
+                const label1 = document.getElementById('input-label-1');
+                const label2 = document.getElementById('input-label-2');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+                const errorSpan = document.getElementById('modal-error');
+                
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                errorSpan.classList.add('hidden');
+                inputContainer.classList.add('hidden');
+                input1.value = '';
+                selectRank.innerHTML = ''; 
+                input1.type = 'text'; 
+                confirmBtn.onclick = null;
+                cancelBtn.onclick = null;
+                confirmBtn.classList.remove('hidden'); 
+                
+                confirmBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                confirmBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                confirmBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+
+                if (type === 'confirm') {
+                    confirmBtn.textContent = 'Confirmar';
+                    confirmBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    confirmBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                } else if (type === 'input') {
+                    inputContainer.classList.remove('hidden');
+                    label1.textContent = 'Novo Nome da Missão:';
+                    input1.value = data.name || ''; 
+                    label2.textContent = 'Novo Rank:';
+                    
+                    RANK_OPTIONS.forEach(rank => {
+                        const option = document.createElement('option');
+                        option.value = rank;
+                        option.textContent = rank;
+                        if (rank === data.rank) option.selected = true;
+                        selectRank.appendChild(option);
+                    });
+
+                    confirmBtn.textContent = 'Salvar Alterações';
+
+                    confirmBtn.onclick = () => {
+                        const newName = input1.value.trim();
+                        const newRank = selectRank.value;
+                        if (!newName || !newRank) {
+                            errorSpan.textContent = 'Nome e Rank não podem ser vazios.';
+                            errorSpan.classList.remove('hidden');
+                            return;
+                        }
+                        closeCustomModal({ name: newName, rank: newRank });
+                    };
+                } else if (type === 'ninjaEdit') {
+                    const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                    const newStatusText = data.isActive ? 'INATIVO' : 'ATIVO';
+                    modalMessage.innerHTML = `O ANBU **${data.id}** está atualmente <span class="font-bold ${data.isActive ? 'text-green-400' : 'text-red-400'}">${statusText}</span>. Deseja alternar o status para **${newStatusText}**?`;
+                    confirmBtn.textContent = `Alternar para ${newStatusText}`;
+                    confirmBtn.classList.add('bg-orange-600', 'hover:bg-orange-700'); 
+                }
+
+                cancelBtn.onclick = () => closeCustomModal(false);
+                if (type === 'confirm' || type === 'ninjaEdit') {
+                     confirmBtn.onclick = confirmBtn.onclick || (() => closeCustomModal(true));
+                }
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        }
+
+        function closeCustomModal(result) {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (resolveModalPromise) {
+                resolveModalPromise(result);
+                resolveModalPromise = null;
+            }
+        }
+        
+        // NOVO: Coleta de dados adaptada para o sistema de BT (ANBU)
+        function _gatherReportData() {
+            const btInput = document.getElementById('bt-points');
+            const isSpecial = document.getElementById('chk-special') ? document.getElementById('chk-special').checked : false;
+            const isTrashTalk = document.getElementById('chk-trashtalk') ? document.getElementById('chk-trashtalk').checked : false;
+            const supportInput = document.getElementById('support-ids');
+
+            // Lógica Matemática
+            let btBase = parseInt(btInput ? btInput.value : '0', 10);
+            if (isNaN(btBase)) btBase = 0;
+
+            let totalPointsRaw = btBase;
+            if (isSpecial) totalPointsRaw *= 3;
+            if (isTrashTalk) totalPointsRaw += 20;
+
+            const supportIdsRaw = supportInput ? supportInput.value.split(',').map(id => normalizeId(id)).filter(id => id) : [];
+
+            return {
+                reportId: currentReportId,
+                btBase: btBase,
+                isSpecial: isSpecial,
+                isTrashTalk: isTrashTalk,
+                executorIds: selectedExecutors,
+                supportIds: supportIdsRaw,
+                description: '', // Removido o campo antigo de detalhes manuais
+                totalPointsRaw: totalPointsRaw,
+                finalReportRank: 'BT', // Hardcoded rank to BT
+                timestamp: new Date().toISOString(),
+                serviceNames: ['Caça (BT)'], // Mantido para retrocompatibilidade do histórico
+                clients: [] // Deixado vazio para retrocompatibilidade
+            };
+        }
+
+        window.generateReportId = function() {
+            const reportIdElement = document.getElementById('report-id-display');
+            if (!reportIdElement) return;
+
+            const now = new Date();
+            const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            const uuidPart = crypto.randomUUID().substring(0, 8);
+            currentReportId = `RPT-${datePart}-${uuidPart}`;
+            reportIdElement.value = currentReportId;
+        }
+
+        // NOVO: Calcula pontos com lógica de BT
+        window.calculateTotalPoints = function() {
+            const data = _gatherReportData();
+            const totalPointsInput = document.getElementById('total-points');
+            const submitBtn = document.getElementById('submit-report');
+
+            if (!data || !totalPointsInput || !submitBtn) return;
+            
+            const totalPoints = data.totalPointsRaw;
+            totalPointsInput.value = totalPoints;
+
+            const hasExecutors = data.executorIds.length > 0;
+            const isReady = isWriterMode && hasExecutors && totalPoints > 0; 
+            submitBtn.disabled = !isReady;
+            
+            if (isReady) {
+                 submitBtn.classList.remove('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            } else {
+                 submitBtn.classList.add('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            }
+        }
+        
+        // NOVO: Atualiza a descrição com detalhes de multiplicadores
+        window.updateDescriptionPreview = function() {
+            const previewDiv = document.getElementById('description-preview');
+            if (!previewDiv) return;
+
+            const data = _gatherReportData();
+            let previewText = `Bounty Base: ${data.btBase} pts. `;
+
+            if (data.isSpecial) previewText += `[ALVO ESPECIAL: Dakotinha/Guinho (x3)]. `;
+            if (data.isTrashTalk) previewText += `[TRASH TALK (+20)]. `;
+
+            if (data.executorIds.length > 0) {
+                previewText += `ANBU(s): ${data.executorIds.join(', ')}. `;
+            } else {
+                previewText += `[Nenhum ANBU selecionado]. `;
+            }
+
+            if (data.supportIds.length > 0) {
+                previewText += `Auxílio: ${data.supportIds.join(', ')}. `;
+            }
+
+            previewText += `=> TOTAL: ${data.totalPointsRaw} Pts.`;
+
+            previewDiv.textContent = previewText.trim();
+            window.calculateTotalPoints();
+        }
+
+        window.submitReport = async function() {
+            if (!isWriterMode) {
+                 window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para registrar BTs.', 'info');
+                 return;
+            }
+
+            const data = _gatherReportData();
+            const statusElement = document.getElementById('status');
+
+            // NOVA VALIDAÇÃO BT
+            if (!data || data.executorIds.length === 0 || data.totalPointsRaw === 0) {
+                 window.openCustomModal('Erro', 'O registro deve ter pelo menos um ANBU selecionado e um valor de BT preenchido (maior que 0).', 'info');
+                 return;
+            }
+
+            statusElement.classList.remove('hidden');
+            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+            statusElement.textContent = `Registrando Relatório ${data.reportId} e atualizando Rank...`;
+
+            const batch = writeBatch(db);
+            const pointsToAward = data.totalPointsRaw;
+            // No sistema de BT, cada submissão conta como 1 "missão/caçada" concluída
+            const missionsCount = 1; 
+            const currentTime = data.timestamp;
+
+            try {
+                // 1. Set/Add Report
+                const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
+                batch.set(reportRef, data);
+
+                // 2. Update Executors (NINJAS collection)
+                for (const executorId of data.executorIds) {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, executorId);
+                    batch.set(ninjaRef, { 
+                        rankPoints: (ninjasData[executorId]?.rankPoints || 0) + pointsToAward,
+                        missionsCompleted: (ninjasData[executorId]?.missionsCompleted || 0) + missionsCount,
+                    }, { merge: true });
+                }
+
+                // 3. Update Auxiliary Log (AUXILIARY_LOG collection)
+                for (const supportId of data.supportIds) {
+                    if (data.executorIds.includes(supportId)) continue; 
+                    
+                    const auxRef = doc(db, COLLECTIONS.AUXILIARY_LOG, supportId);
+                    batch.set(auxRef, {
+                        id: supportId,
+                        rankPoints: (auxiliaryData[supportId]?.rankPoints || 0) + pointsToAward,
+                        lastParticipation: currentTime
+                    }, { merge: true });
+                }
+                
+                await batch.commit();
+
+                statusElement.textContent = `✅ Sucesso! Registro ${data.reportId} finalizado. ${pointsToAward} pontos aplicados.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                
+                // Reset Form UI
+                selectedExecutors = [];
+                window.updateExecutorTags();
+                window.generateReportId();
+                if(document.getElementById('bt-points')) document.getElementById('bt-points').value = '';
+                if(document.getElementById('chk-special')) document.getElementById('chk-special').checked = false;
+                if(document.getElementById('chk-trashtalk')) document.getElementById('chk-trashtalk').checked = false;
+                if(document.getElementById('support-ids')) document.getElementById('support-ids').value = '';
+                window.updateDescriptionPreview(); 
+
+            } catch (e) {
+                console.error("Erro no registro do Firebase Batch:", e);
+                statusElement.textContent = `❌ Erro no Registro: ${e.message}. Verifique permissões de escrita/internet.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+            }
+            setTimeout(() => statusElement.classList.add('hidden'), 7000);
+        }
+
+        window.updateExecutorSelect = function() {
+            const select = document.getElementById('new-executor-id-select');
+            if (!select) return;
+            
+            const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
+
+            select.innerHTML = '<option value="" disabled selected>Selecione um ANBU Ativo</option>';
+            activeNinjas.sort((a, b) => a.id.localeCompare(b.id)).forEach(ninja => {
+                if (!selectedExecutors.includes(ninja.id)) {
+                    const option = document.createElement('option');
+                    option.value = ninja.id;
+                    option.textContent = ninja.id;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Deixado por retrocompatibilidade com a aba Gerenciamento de Missões
+        window.updateMissionSelects = function(resetMissionEntries = true) {
+            const missionSelects = document.querySelectorAll('.mission-select');
+            const missionOptions = Object.values(missionsData)
+                .map(m => `<option value="${m.name}" data-rank="${m.baseRank}" data-points="${m.points}">${m.name} (${m.baseRank.replace('-Rank', '')} - ${m.points} Pts)</option>`)
+                .sort((a, b) => a.localeCompare(b))
+                .join('');
+
+            missionSelects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = `<option value="" disabled selected>Selecione a Missão</option>` + missionOptions;
+                if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                    select.value = currentValue;
+                } else {
+                     select.selectedIndex = 0;
+                }
+            });
+            if (resetMissionEntries) window.updateDescriptionPreview();
+        }
+
+        // Funções de CRUD
+        window.addNinja = async function() {
+            if (!isMasterAdminMode) {
+                window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Admin Master para adicionar ANBUs.', 'info');
+                return;
+            }
+
+            const newNinjaIdInput = document.getElementById('new-ninja-id');
+            const ninjaId = newNinjaIdInput.value.trim();
+            const normalizedId = normalizeId(ninjaId);
+            const statusElement = document.getElementById('status');
+
+            statusElement.classList.remove('hidden');
+            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+            statusElement.textContent = `Processando adição de ANBU...`;
+
+            if (!ninjaId) {
+                statusElement.textContent = '❌ O ID do ANBU não pode ser vazio.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            if (ninjasData[normalizedId]) {
+                statusElement.textContent = `❌ O ANBU '${normalizedId}' já está cadastrado.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            try {
+                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
+                    id: normalizedId, 
+                    isActive: true, 
+                    rankPoints: 0, 
+                    missionsCompleted: 0
+                });
+                
+                newNinjaIdInput.value = ''; 
+                statusElement.textContent = `✅ ANBU '${normalizedId}' adicionado com sucesso!`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+
+                window.updateExecutorSelect();
+                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId });
+
+            } catch (e) {
+                console.error("Erro ao adicionar ANBU:", e);
+                statusElement.textContent = `❌ Erro ao adicionar ANBU: ${e.message}`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+        
+        window.deleteNinja = function(id) { 
+            if (!isMasterAdminMode) {
+                 window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Admin Master para excluir ANBUs.', 'info');
+                 return;
+            }
+            window.openCustomModal('Confirmação de Exclusão', `Tem certeza que deseja excluir o ANBU '${id}'? (Ação permanente e exige Admin Master).`, 'confirm', async (confirmed) => {
+                 if (confirmed) {
+                     const statusElement = document.getElementById('status');
+                     statusElement.classList.remove('hidden');
+                     statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                     statusElement.textContent = `Excluindo ANBU '${id}'...`;
+
+                     try {
+                         await deleteDoc(doc(db, COLLECTIONS.NINJAS, id));
+                         statusElement.textContent = `✅ ANBU '${id}' excluído com sucesso!`;
+                         statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                         
+                         selectedExecutors = selectedExecutors.filter(execId => execId !== id);
+                         window.updateExecutorTags();
+                         window.updateExecutorSelect(); 
+                         
+                         window.logAction('DELETE_GUARDIAN', { guardianId: id });
+                         
+                     } catch (e) {
+                         console.error("Erro ao excluir ANBU:", e);
+                         statusElement.textContent = `❌ Erro ao excluir ANBU: ${e.message}`;
+                         statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                     }
+                     setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                 }
+            });
+        }
+        
+        window.editNinja = function(id) { 
+            if (!isMasterAdminMode) {
+                 window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Admin Master para editar ANBUs.', 'info');
+                 return;
+            }
+            const ninja = ninjasData[id];
+            if (!ninja) return;
+            const currentStatus = ninja.isActive;
+
+            window.openCustomModal(
+                'Alternar Status do ANBU', 
+                null, 
+                'ninjaEdit', 
+                { id: ninja.id, isActive: currentStatus }
+            ).then(async (confirmed) => {
+                 if (confirmed) {
+                     const statusElement = document.getElementById('status');
+                     statusElement.classList.remove('hidden');
+                     statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                     statusElement.textContent = `Alternando status de '${id}'...`;
+                     
+                     try {
+                         const ninjaRef = doc(db, COLLECTIONS.NINJAS, id);
+                         const newStatus = !currentStatus;
+                         
+                         await updateDoc(ninjaRef, { isActive: newStatus });
+                         
+                         statusElement.textContent = `✅ Status de '${id}' alterado para ${newStatus ? 'ATIVO' : 'INATIVO'} com sucesso!`;
+                         statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                         
+                         window.logAction('EDIT_GUARDIAN_STATUS', { guardianId: id, oldStatus: currentStatus ? 'ATIVO' : 'INATIVO', newStatus: newStatus ? 'ATIVO' : 'INATIVO' });
+                         
+                     } catch (e) {
+                         console.error("Erro ao alterar status:", e);
+                         statusElement.textContent = `❌ Erro ao alterar status: ${e.message}`;
+                         statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                     }
+                     setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                 }
+            });
+        }
+
+        window.addMission = async function() {
+            if (!isWriterMode) {
+                window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para adicionar missões.', 'info');
+                return;
+            }
+
+            const nameInput = document.getElementById('new-mission-name');
+            const rankSelect = document.getElementById('new-mission-rank-select');
+            const name = nameInput.value.trim();
+            const rank = rankSelect.value;
+            const statusElement = document.getElementById('status');
+            
+            statusElement.classList.remove('hidden');
+            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+            statusElement.textContent = `Processando adição de missão...`;
+
+            if (!name) {
+                statusElement.textContent = '❌ O nome da missão não pode ser vazio.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            if (missionsData[name]) {
+                statusElement.textContent = `❌ A missão '${name}' já existe.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            const cleanRank = cleanRankForLookup(rank);
+            const points = RANK_POINTS[cleanRank] || 0;
+            const docId = name;
+
+            try {
+                await setDoc(doc(db, COLLECTIONS.MISSIONS, docId), {
+                    name: name,
+                    baseRank: rank,
+                    points: points,
+                    id: name
+                });
+                
+                nameInput.value = ''; 
+                statusElement.textContent = `✅ Missão '${name}' (${rank}) adicionada com sucesso!`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+
+                window.logAction('ADD_MISSION', { missionName: name, rank: rank, points: points });
+
+            } catch (e) {
+                console.error("Erro ao adicionar missão:", e);
+                statusElement.textContent = `❌ Erro ao adicionar missão: ${e.message}`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+        
+        window.editMission = function(encodedId, encodedName, encodedRank) { 
+            if (!isWriterMode) {
+                window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para editar missões.', 'info');
+                return;
+            }
+            
+            const docId = decodeURIComponent(encodedId);
+            const currentName = decodeURIComponent(encodedName);
+            const currentRank = decodeURIComponent(encodedRank);
+            
+            window.openCustomModal('Editar Missão', 'Altere o nome e o rank da missão abaixo. Confirme para salvar no Firebase.', 'input', { name: currentName, rank: currentRank }).then(async (result) => {
+                 if (result && result !== false) {
+                     const { name: newName, rank: newRank } = result;
+                     const statusElement = document.getElementById('status');
+                     
+                     statusElement.classList.remove('hidden');
+                     statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                     statusElement.textContent = `Atualizando Missão '${currentName}' para '${newName}'...`;
+                     
+                     try {
+                        const cleanRank = cleanRankForLookup(newRank);
+                        const points = RANK_POINTS[cleanRank] || 0;
+                        
+                        window.logAction('EDIT_MISSION', { 
+                            oldName: currentName, 
+                            newName: newName,
+                            oldRank: currentRank,
+                            newRank: newRank,
+                            newPoints: points
+                        });
+
+                        if (newName !== currentName) {
+                            if (missionsData[newName]) {
+                                throw new Error(`Missão '${newName}' já existe.`);
+                            }
+                            await deleteDoc(doc(db, COLLECTIONS.MISSIONS, currentName));
+                            
+                             await setDoc(doc(db, COLLECTIONS.MISSIONS, newName), {
+                                name: newName,
+                                baseRank: newRank,
+                                points: points,
+                                id: newName
+                            });
+                        } else {
+                             await updateDoc(doc(db, COLLECTIONS.MISSIONS, currentName), {
+                                baseRank: newRank,
+                                points: points
+                            });
+                        }
+
+                        statusElement.textContent = `✅ Missão '${newName}' atualizada com sucesso! Recalculando Ranks...`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                        
+                        await window.recalculateAllRanks(true); 
+                        
+                        statusElement.textContent = `✅ Missão '${newName}' atualizada e Ranks recalculados com sucesso!`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                        
+                     } catch (e) {
+                         console.error("Erro ao editar Missão:", e);
+                         statusElement.textContent = `❌ Erro ao editar Missão: ${e.message}`;
+                         statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                     }
+                      setTimeout(() => statusElement.classList.add('hidden'), 7000);
+                     
+                 }
+            });
+        }
+        
+        window.deleteMission = function(id) { 
+            if (!isWriterMode) {
+                 window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para excluir missões.', 'info');
+                 return;
+            }
+            const decodedId = decodeURIComponent(id);
+            window.openCustomModal('Confirmação de Exclusão', `Tem certeza que deseja excluir a Missão '${decodedId}'? (Ação permanente).`, 'confirm', async (confirmed) => {
+                 if (confirmed) {
+                     const statusElement = document.getElementById('status');
+                     statusElement.classList.remove('hidden');
+                     statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                     statusElement.textContent = `Excluindo Missão '${decodedId}'...`;
+                     
+                     try {
+                        await deleteDoc(doc(db, COLLECTIONS.MISSIONS, decodedId));
+                        statusElement.textContent = `✅ Missão '${decodedId}' excluída com sucesso! Recalculando Ranks...`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                        
+                        window.logAction('DELETE_MISSION', { missionName: decodedId });
+                        await window.recalculateAllRanks(true); 
+                         
+                        statusElement.textContent = `✅ Missão '${decodedId}' excluída e Ranks recalculados com sucesso!`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                        
+                     } catch (e) {
+                         console.error("Erro ao excluir Missão:", e);
+                         statusElement.textContent = `❌ Erro ao excluir Missão: ${e.message}`;
+                         statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                     }
+                     setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                 }
+            });
+        }
+        
+        window.addExecutor = function() {
+            const select = document.getElementById('new-executor-id-select');
+            if (!select || !select.value) return;
+
+            const ninjaId = select.value;
+            if (!selectedExecutors.includes(ninjaId)) {
+                selectedExecutors.push(ninjaId);
+                select.value = ''; 
+                window.updateExecutorTags();
+                window.updateExecutorSelect(); 
+                window.updateDescriptionPreview(); 
+            }
+        }
+        
+        window.removeExecutor = function(ninjaId) {
+            selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+
+        window.updateExecutorTags = function() { 
+            const container = document.getElementById('executors-tag-container');
+            if (!container) return;
+            
+            let contentHTML = '';
+
+            if (selectedExecutors.length === 0) {
+                contentHTML = '<span id="no-executor-message" class="text-gray-400 text-sm italic">Nenhum ANBU selecionado.</span>';
+            } else {
+                selectedExecutors.forEach(id => {
+                    contentHTML += `
+                        <span class="executor-tag" id="executor-tag-${id}">
+                            ${id}
+                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </span>
+                        </span>
+                    `;
+                });
+            }
+            container.innerHTML = contentHTML;
+            window.updateDescriptionPreview();
+        }
+        
+        window.copyReportId = function() { 
+             const reportIdElement = document.getElementById('report-id-display');
+             if (reportIdElement) {
+                const textToCopy = reportIdElement.value;
+                const tempInput = document.createElement('textarea');
+                tempInput.value = textToCopy;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                    console.log('ID do Relatório copiado para a área de clipboard: ' + textToCopy);
+                } catch (err) {
+                    console.error('Falha ao copiar:', err);
+                }
+                document.body.removeChild(tempInput);
+            }
+        }
+
+        window.clearAuxiliaryLog = async function() {
+            if (!isMasterAdminMode) {
+                window.openCustomModal('Acesso Negado', 'Você precisa de permissão Master Admin para excluir o Histórico de Auxílio.', 'info');
+                return;
+            }
+
+            const confirmed = await window.openCustomModal(
+                'Confirmação de Exclusão de Histórico', 
+                'Tem certeza que deseja DELETAR TODO o Histórico de Auxílio? Esta ação é IRREVERSÍVEL. Os Ranks de ANBUs NÃO serão resetados.', 
+                'confirm'
+            );
+            
+            if (confirmed) {
+                const statusElement = document.getElementById('status');
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                statusElement.textContent = `Iniciando exclusão do Log de Auxílio...`;
+                
+                try {
+                    const auxCollectionRef = collection(db, COLLECTIONS.AUXILIARY_LOG);
+                    const auxSnapshot = await getDocs(auxCollectionRef); 
+                    
+                    let batch = writeBatch(db);
+                    let auxCount = 0;
+
+                    auxSnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                        auxCount++;
+                    });
+
+                    await batch.commit();
+
+                    statusElement.textContent = `✅ Sucesso! ${auxCount} registros de auxílio excluídos.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    
+                    window.logAction('CLEAR_AUXILIARY_LOG', { deletedCount: auxCount });
+
+                } catch (e) {
+                    console.error("Erro ao excluir Log de Auxílio:", e);
+                    statusElement.textContent = `❌ Erro ao excluir Log de Auxílio: ${e.message}`;
+                    statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                }
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+
+        window.clearReportsLog = async function() {
+            if (!isMasterAdminMode) {
+                window.openCustomModal('Acesso Negado', 'Você precisa de permissão Master Admin para excluir o Histórico de Registros.', 'info');
+                return;
+            }
+
+            const confirmed = await window.openCustomModal(
+                'Confirmação de Exclusão de Histórico', 
+                'Tem certeza que deseja DELETAR TODO o Histórico de Registros e ZERAR os Ranks? Esta ação é IRREVERSÍVEL.', 
+                'confirm'
+            );
+            
+            if (confirmed) {
+                const statusElement = document.getElementById('status');
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                statusElement.textContent = `Iniciando exclusão do Log e resetando pontos...`;
+                
+                try {
+                    const reportsCollectionRef = collection(db, COLLECTIONS.REPORTS);
+                    const ninjaCollectionRef = collection(db, COLLECTIONS.NINJAS);
+                    const auxCollectionRef = collection(db, COLLECTIONS.AUXILIARY_LOG);
+                    
+                    const reportsSnapshot = await getDocs(reportsCollectionRef); 
+                    const auxSnapshot = await getDocs(auxCollectionRef);
+                    const ninjaSnapshot = await getDocs(ninjaCollectionRef);
+                    
+                    let batch = writeBatch(db);
+                    let reportCount = 0;
+
+                    reportsSnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                        reportCount++;
+                    });
+                    
+                    ninjaSnapshot.forEach((doc) => {
+                        batch.update(doc.ref, { rankPoints: 0, missionsCompleted: 0 });
+                    });
+                    
+                    auxSnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+
+                    await batch.commit();
+
+                    statusElement.textContent = `✅ Sucesso! ${reportCount} registros excluídos e Ranks de ANBUs/Auxílio resetados.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    
+                    window.logAction('CLEAR_REPORTS_LOG_AND_RESET_RANKS', { deletedReportCount: reportCount });
+                    
+                } catch (e) {
+                    console.error("Erro ao excluir Log:", e);
+                    statusElement.textContent = `❌ Erro ao excluir Log: ${e.message}`;
+                    statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                }
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.recalculateAllRanks = async function(calledInternally = false) {
+            if (!isWriterMode) { 
+                 if (!calledInternally) window.openCustomModal('Acesso Negado', 'Você precisa de permissão de Escritor ou Admin para recalcular os Ranks.', 'info');
+                 return;
+            }
+
+            if (!calledInternally) {
+                const confirmed = await window.openCustomModal(
+                    'Confirmação de Recálculo Total', 
+                    'Tem certeza que deseja RECALCULAR todos os Ranks? Isso irá recontar os pontos com base no histórico atual.', 
+                    'confirm'
+                );
+                
+                if (!confirmed) return;
+            }
+
+            const statusElement = document.getElementById('status');
+            if (!calledInternally) { 
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                statusElement.textContent = `Iniciando Recálculo Global de Ranks... (Fase 1/3: Resetando Totais)`;
+            }
+            
+            try {
+                const getRankIndex = (rankClean) => {
+                     return RANK_ORDER.findIndex(prefix => rankClean.startsWith(prefix));
+                };
+                
+                const tempNinjas = {}; 
+                const tempAux = {};
+                
+                Object.values(ninjasData).forEach(ninja => {
+                    tempNinjas[ninja.id] = { ...ninja, rankPoints: 0, missionsCompleted: 0 };
+                });
+                
+                Object.values(auxiliaryData).forEach(aux => {
+                    tempAux[aux.id] = { ...aux, rankPoints: 0 };
+                });
+
+                let resetBatch = writeBatch(db);
+                Object.values(ninjasData).forEach(ninja => {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, ninja.id);
+                    resetBatch.update(ninjaRef, { rankPoints: 0, missionsCompleted: 0 });
+                });
+                Object.values(auxiliaryData).forEach(aux => {
+                    const auxRef = doc(db, COLLECTIONS.AUXILIARY_LOG, aux.id);
+                    resetBatch.update(auxRef, { rankPoints: 0 }); 
+                });
+                await resetBatch.commit();
+
+
+                if (!calledInternally) statusElement.textContent = `Fase 2/3: Recalculando pontos de ${reportsData.length} registros...`;
+                
+                let applyBatch = writeBatch(db);
+                
+                reportsData.forEach((report) => {
+                    let currentReportPoints = 0;
+                    let missionCount = 0;
+                    let highestRank = '';
+                    
+                    // PRESERVAR PONTOS DE BTs (Que não usam a aba gerenciamento de missões)
+                    if (report.serviceNames && report.serviceNames.includes('Caça (BT)')) {
+                        currentReportPoints = report.totalPointsRaw || 0;
+                        missionCount = 1;
+                        highestRank = 'BT';
+                    } else if (report.serviceNames) {
+                        // Lógica antiga mantida para retrocompatibilidade
+                        report.serviceNames.forEach(missionName => {
+                            const mission = missionsData[missionName];
+                            if (mission) {
+                                currentReportPoints += mission.points;
+                                missionCount++;
+                                
+                                const currentRankClean = cleanRankForLookup(mission.baseRank);
+                                const highestRankClean = cleanRankForLookup(highestRank);
+                                const currentIndex = getRankIndex(currentRankClean);
+                                const highestIndex = getRankIndex(highestRankClean);
+                                
+                                if (highestIndex === -1 || currentIndex < highestIndex) {
+                                    highestRank = mission.baseRank;
+                                }
+                            }
+                        });
+                    }
+
+                    const reportRef = doc(db, COLLECTIONS.REPORTS, report.reportId);
+                    applyBatch.update(reportRef, {
+                        totalPointsRaw: currentReportPoints,
+                        finalReportRank: highestRank || 'N/A'
+                    });
+
+                    if (report.executorIds && currentReportPoints > 0) {
+                        report.executorIds.forEach(executorId => {
+                             if (!tempNinjas[executorId]) {
+                                 tempNinjas[executorId] = { id: executorId, isActive: true, rankPoints: 0, missionsCompleted: 0 };
+                             }
+                             tempNinjas[executorId].rankPoints += currentReportPoints;
+                             tempNinjas[executorId].missionsCompleted += missionCount;
+                        });
+                    }
+
+                    if (report.supportIds && currentReportPoints > 0) {
+                         report.supportIds.forEach(supportId => {
+                              if (report.executorIds && report.executorIds.includes(supportId)) return;
+                              
+                              if (!tempAux[supportId]) {
+                                   tempAux[supportId] = { id: supportId, rankPoints: 0, lastParticipation: report.timestamp };
+                              }
+                              tempAux[supportId].rankPoints += currentReportPoints;
+                              if (report.timestamp > (tempAux[supportId].lastParticipation || '')) {
+                                   tempAux[supportId].lastParticipation = report.timestamp;
+                              }
+                         });
+                    }
+                }); 
+                
+                if (!calledInternally) statusElement.textContent = `Fase 3/3: Aplicando novos Ranks...`;
+                
+                Object.values(tempNinjas).forEach(ninja => {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, ninja.id);
+                    applyBatch.update(ninjaRef, { 
+                        rankPoints: ninja.rankPoints, 
+                        missionsCompleted: ninja.missionsCompleted
+                    });
+                });
+
+                Object.values(tempAux).forEach(aux => {
+                    const auxRef = doc(db, COLLECTIONS.AUXILIARY_LOG, aux.id);
+                    applyBatch.set(auxRef, { 
+                        id: aux.id,
+                        rankPoints: aux.rankPoints,
+                        lastParticipation: aux.lastParticipation
+                    }, { merge: true });
+                });
+
+                await applyBatch.commit();
+                
+                if (!calledInternally) {
+                    statusElement.textContent = `✅ Sucesso! Recálculo concluído. ${reportsData.length} registros processados.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    
+                    window.logAction('RECALCULATE_RANKS_GLOBAL', { reportCount: reportsData.length });
+                    setTimeout(() => statusElement.classList.add('hidden'), 7000);
+                }
+                
+            } catch (e) {
+                console.error("Erro no Recálculo Global:", e);
+                statusElement.textContent = `❌ Erro no Recálculo: ${e.message}. Tente novamente.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+
+        window.renderScoreboard = function() {
+            const scoreboardBody = document.getElementById('ninjas-scoreboard');
+            if (!scoreboardBody) return; 
+            
+            const guardians = Object.values(ninjasData).filter(n => n.isActive); 
+            guardians.sort((a, b) => b.rankPoints - a.rankPoints);
+            
+            scoreboardBody.innerHTML = '';
+
+            guardians.forEach((ninja, index) => {
+                const rankIcon = getRankIcon(index + 1);
+                scoreboardBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-red-300">${ninja.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-green-400">${Math.round(ninja.rankPoints)} Pts</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${ninja.missionsCompleted || 0}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        window.renderAuxiliaryData = function() {
+            const auxiliaryLogBody = document.getElementById('auxiliary-log');
+            if (!auxiliaryLogBody) return;
+            
+            const sortedAuxiliaries = Object.values(auxiliaryData).sort((a, b) => b.rankPoints - a.rankPoints);
+            
+            auxiliaryLogBody.innerHTML = '';
+            
+            sortedAuxiliaries.forEach(data => {
+                const lastParticipation = data.lastParticipation ? new Date(data.lastParticipation).toLocaleDateString('pt-BR') : 'N/A';
+                
+                auxiliaryLogBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-orange-300">${data.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-400">${lastParticipation}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-semibold text-green-400">${Math.round(data.rankPoints || 0)} Pts</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderReportsLog = function() {
+            window.renderReportsLogFiltered(null, 'reports-log');
+        }
+
+        window.renderNinjasTable = function() {
+            const ninjasBody = document.getElementById('ninjas-cadastro');
+            if (!ninjasBody) return; 
+            
+            const showActionColumn = isMasterAdminMode;
+
+            const actionHeader = ninjasBody.closest('table').querySelector('th.admin-only');
+            if (actionHeader) {
+                if (showActionColumn) actionHeader.classList.remove('hidden');
+                else actionHeader.classList.add('hidden');
+            }
+
+            const sortedNinjas = Object.values(ninjasData).sort((a, b) => a.id.localeCompare(b.id));
+            
+            ninjasBody.innerHTML = '';
+
+            sortedNinjas.forEach(data => {
+                
+                const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
+                const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                
+                const actionCell = showActionColumn ? `
+                    <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn mr-2">Editar Status</button>
+                        <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-red-700 transition duration-150">Excluir</button>
+                    </td>
+                ` : '';
+
+                ninjasBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-white">${data.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm ${statusClass}">${statusText}</td>
+                        ${actionCell}
+                    </tr>
+                `;
+            });
+            
+            if (document.getElementById('add-ninja-form')) {
+                if (isMasterAdminMode) {
+                    document.getElementById('add-ninja-form').classList.remove('hidden');
+                } else {
+                    document.getElementById('add-ninja-form').classList.add('hidden');
+                }
+            }
+        }
+        
+        window.renderMissionsDatabase = function() {
+            const missionsBody = document.getElementById('missions-database');
+            if (!missionsBody) return; 
+            
+            missionsBody.innerHTML = '';
+            
+            const showActionColumn = isWriterMode; 
+            const sortedMissions = Object.values(missionsData).sort((a, b) => a.name.localeCompare(b.name));
+
+            const actionHeader = missionsBody.closest('table').querySelector('th.writer-only');
+            if (actionHeader) {
+                if (showActionColumn) actionHeader.classList.remove('hidden');
+                else actionHeader.classList.add('hidden');
+            }
+            
+            if (document.getElementById('add-mission-form')) {
+                if (isWriterMode) {
+                    document.getElementById('add-mission-form').classList.remove('hidden');
+                } else {
+                    document.getElementById('add-mission-form').classList.add('hidden');
+                }
+            }
+
+            sortedMissions.forEach(data => {
+                const encodedId = encodeURIComponent(data.id);
+                const encodedName = encodeURIComponent(data.name);
+                const encodedRank = encodeURIComponent(data.baseRank);
+                
+                const actionCell = showActionColumn ? `
+                    <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium flex gap-2">
+                        <button onclick="window.editMission('${encodedId}', '${encodedName}', '${encodedRank}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn">Editar</button>
+                        <button onclick="window.deleteMission('${encodedId}')" class="text-red-500 hover:text-red-700 transition duration-150 remove-btn">Excluir</button>
+                    </td>
+                ` : '';
+
+                missionsBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-white">${data.name}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-yellow-400 font-semibold">${data.baseRank.replace('-Rank', '')}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-green-400">${data.points}</td>
+                        ${actionCell}
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log') {
+            
+            const reportsLog = document.getElementById(targetId);
+            const guardianSummaryDiv = document.getElementById('guardian-summary');
+
+            if (!reportsLog) return;
+            
+            reportsLog.innerHTML = '';
+            let filteredReports = reportsData;
+
+            if (filterId) {
+                filteredReports = reportsData.filter(report => {
+                    const isExecutor = Array.isArray(report.executorIds) && report.executorIds.includes(filterId);
+                    const isAuxiliary = Array.isArray(report.supportIds) && report.supportIds.includes(filterId);
+                    return isExecutor || isAuxiliary;
+                });
+            }
+            
+            if (filterId && guardianSummaryDiv) {
+                const ninjaData = ninjasData[filterId];
+                const auxData = auxiliaryData[filterId];
+                const isGuardian = !!ninjaData;
+                
+                let points = 0;
+                let missions = 0;
+                let type = 'ID Inativo';
+
+                if (isGuardian) {
+                    points = Math.round(ninjaData.rankPoints);
+                    missions = ninjaData.missionsCompleted;
+                    type = ninjaData.isActive ? 'ANBU Ativo' : 'ANBU Inativo';
+                } else if (auxData) {
+                    points = Math.round(auxData.rankPoints);
+                    missions = reportsData.filter(r => r.supportIds && r.supportIds.includes(filterId)).length;
+                    type = 'Auxiliar';
+                }
+
+                guardianSummaryDiv.innerHTML = `
+                    <p class="text-xl font-bold text-yellow-400">${filterId.toUpperCase()}</p>
+                    <p class="text-sm text-gray-300">${type}</p>
+                    <p class="text-lg text-green-400">Total de Pontos: ${points} Pts</p>
+                    <p class="text-gray-300">Total de BTs/Relatórios Envolvidos: ${missions}</p>
+                `;
+                guardianSummaryDiv.classList.remove('hidden');
+            } else if (guardianSummaryDiv) {
+                guardianSummaryDiv.classList.add('hidden');
+            }
+
+
+            const sortedReports = filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if (sortedReports.length === 0) {
+                 reportsLog.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU/Auxiliar "${filterId}"` : ''}.</td></tr>`;
+                 return;
+            }
+
+            sortedReports.forEach(data => {
+                const rankClass = data.finalReportRank ? getRankColor(data.finalReportRank) : 'text-gray-400';
+                
+                const formattedDate = new Date(data.timestamp).toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                
+                const servicesList = data.serviceNames ? data.serviceNames.map(name => 
+                    `<span class="text-xs text-gray-400 block">${name}</span>`
+                ).join('') : '<span class="text-xs text-gray-400 block">BT/Caça</span>';
+                
+                const executorsText = Array.isArray(data.executorIds) ? data.executorIds.join(', ') : data.executorId;
+                const finalRankDisplay = data.finalReportRank ? `(Rank ${data.finalReportRank.replace('-Rank', '')})` : '(BT)';
+                
+                let role = '';
+                if (filterId) {
+                    const isExecutor = Array.isArray(data.executorIds) && data.executorIds.includes(filterId);
+                    const isAuxiliary = Array.isArray(data.supportIds) && data.supportIds.includes(filterId);
+                    if (isExecutor && isAuxiliary) role = 'ANBU Executor & Auxílio';
+                    else if (isExecutor) role = 'ANBU Executor';
+                    else if (isAuxiliary) role = 'Auxílio';
+                }
+                
+                const targetBody = document.getElementById(targetId);
+
+                // Reconstrução da descrição (se for formato novo de BT)
+                let finalDesc = data.description || '';
+                if (data.serviceNames && data.serviceNames.includes('Caça (BT)')) {
+                    finalDesc = `Bounty Base: ${data.btBase || data.totalPointsRaw}. ` + 
+                                (data.isSpecial ? '[Alvo Especial x3]. ' : '') + 
+                                (data.isTrashTalk ? '[Trash Talk +20].' : '');
+                }
+
+                if (targetId === 'filtered-reports-log') {
+                     targetBody.innerHTML += `
+                         <tr class="hover:bg-gray-700/50">
+                             <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-1/12">${data.reportId}</td>
+                             <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
+                                 ${servicesList}
+                                 <span class="text-sm ${rankClass} font-bold mt-1 block">${finalRankDisplay}</span>
+                             </td>
+                             <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
+                                 <span class="font-bold text-yellow-300">${role}</span>
+                             </td>
+                             <td class="px-4 py-2 whitespace-normal text-sm text-green-400 w-2/12">${data.totalPointsRaw} Pts</td>
+                             <td class="px-4 py-2 whitespace-normal text-sm italic text-gray-400 w-4/12">${finalDesc}</td>
+                             <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12">
+                                 <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
+                             </td>
+                         </tr>
+                     `;
+                } else {
+                    const clientsDisplay = data.clients && data.clients.length > 0 ? data.clients.join(', ') : 'N/A';
+                    targetBody.innerHTML += `
+                        <tr class="hover:bg-gray-700/50">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-1/12">${data.reportId}</td>
+                            <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
+                                ${servicesList}
+                                <span class="text-sm ${rankClass} font-bold mt-1 block">${finalRankDisplay}</span>
+                            </td>
+                            <td class="px-4 py-2 whitespace-normal text-sm text-white w-2/12">
+                                <span class="font-bold text-red-300">${executorsText}</span><br>
+                                ${data.supportIds && data.supportIds.length > 0 ? `<span class="text-xs text-gray-400">Auxílio: ${data.supportIds.join(', ')}</span>` : '<span class="text-xs text-gray-500">Sem auxílio</span>'}
+                            </td>
+                            <td class="px-4 py-2 whitespace-normal text-sm text-gray-300 w-2/12">${clientsDisplay}</td>
+                            <td class="px-4 py-2 whitespace-normal text-sm italic text-gray-400 w-3/12">${finalDesc}</td>
+                            <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12">
+                                <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+
+        // ====================================================================
+        // TEMPLATES HTML
+        // ====================================================================
+        window.renderNinjaPanel = function() {
+            const allIdsMap = {};
+            
+            Object.values(ninjasData).forEach(n => {
+                allIdsMap[n.id] = { id: n.id, type: n.isActive ? 'ANBU Ativo' : 'ANBU Inativo' };
+            });
+
+            Object.values(auxiliaryData).forEach(a => {
+                if (!allIdsMap[a.id]) {
+                    allIdsMap[a.id] = { id: a.id, type: 'Auxiliar' };
+                }
+            });
+
+            const allIdsSorted = Object.values(allIdsMap).sort((a, b) => a.id.localeCompare(b.id));
+
+            const ninjaOptions = allIdsSorted.map(n => 
+                `<option value="${n.id}" class="${n.type.includes('Inativo') ? 'text-red-400' : ''}">
+                    ${n.id} (${n.type})
+                </option>`
+            ).join('');
+            
+            return `
+                <section class="space-y-6 pt-4">
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        Painel ANBU - Histórico Completo
+                    </h2>
+                    <p class="text-center text-gray-400">Selecione qualquer ID de ANBU (Executor ou Auxiliar) para ver seu histórico de registros.</p>
+
+                    <div class="max-w-md mx-auto space-y-2">
+                        <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
+                        <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500 text-white shadow-inner">
+                            <option value="">-- Ver Todos os Registros --</option>
+                            ${ninjaOptions}
+                        </select>
+                    </div>
+
+                    <div id="guardian-summary" class="max-w-md mx-auto p-4 bg-gray-700 rounded-lg shadow-inner text-center hidden">
+                        </div>
+
+                    <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <h3 class="text-xl font-medium text-gray-300 mb-4">Registros Envolvidos:</h3>
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Serviços/Rank</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Função</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Total Pts</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Descrição</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        // ====================================================================
+        // FUNÇÕES DE PERSISTÊNCIA E INICIALIZAÇÃO (FIREBASE)
+        // ====================================================================
+
+        async function initializeFirebase() {
+            try {
+                if (!firebaseConfig || !firebaseConfig.projectId) {
+                    throw new Error("Configuração do Firebase inválida ou faltando.");
+                }
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                const anonUser = await signInAnonymously(auth);
+                userId = anonUser.user.uid;
+                currentAccessId = 'ANONYMOUS'; 
+                
+                document.getElementById('auth-info').textContent = `Usuário ID (Anon): ${userId} | App ID (DB Contexto): ${appId}`;
+                setupFirestoreListeners(); 
+                window.renderPage(currentPage);
+                window.generateReportId(); 
+
+            } catch (error) {
+                console.error("Erro na inicialização do Firebase:", error);
+                const statusElement = document.getElementById('status');
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.textContent = `❌ Erro ao conectar: ${error.message}. Verifique sua chave de API e regras de segurança.`;
+            }
+        }
+        
+        function setupFirestoreListeners() {
+            if (!db) return;
+
+            onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snapshot) => {
+                accessKeysData = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    accessKeysData[doc.id] = data; 
+                });
+                if (currentPage === 'admin_panel' || currentPage === 'report_form') {
+                    window.renderPage(currentPage); 
+                }
+            }, (error) => { 
+                console.warn("@firebase/firestore: Permissão negada para ACCESS_KEYS:", error.message);
+            });
+
+            onSnapshot(collection(db, COLLECTIONS.MISSIONS), (snapshot) => {
+                missionsData = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    missionsData[data.name] = data; 
+                });
+                if (Object.keys(missionsData).length === 0) {
+                     seedInitialData(db);
+                }
+                window.updateMissionSelects && window.updateMissionSelects(false); 
+                window.renderMissionsDatabase && window.renderMissionsDatabase();
+                
+            }, (error) => {
+                console.warn("@firebase/firestore: Permissão negada para MISSIONS:", error.message);
+            });
+
+            onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
+                ninjasData = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    ninjasData[data.id] = data;
+                });
+                window.updateExecutorSelect && window.updateExecutorSelect();
+                
+                if (['scoreboard', 'ninja_panel'].includes(currentPage)) {
+                    window.renderPage(currentPage);
+                } else if (currentPage === 'admin_panel') {
+                     window.renderNinjasTable && window.renderNinjasTable();
+                }
+            }, (error) => {
+                console.warn("@firebase/firestore: Permissão negada para NINJAS:", error.message);
+            });
+            
+            onSnapshot(collection(db, COLLECTIONS.AUXILIARY_LOG), (snapshot) => {
+                auxiliaryData = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    auxiliaryData[doc.id] = data;
+                });
+                if (['auxiliary_log', 'ninja_panel'].includes(currentPage)) {
+                    window.renderAuxiliaryData && window.renderAuxiliaryData(); 
+                }
+            }, (error) => {
+                console.warn("@firebase/firestore: Permissão negada para AUXILIARY_LOG:", error.message);
+            });
+
+            onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
+                reportsData = [];
+                snapshot.forEach(doc => reportsData.push(doc.data()));
+                if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+            }, (error) => {
+                console.warn("@firebase/firestore: Permissão negada para REPORTS:", error.message);
+            });
+        }
+        
+        async function seedInitialData(db) {
+            const newMissionsList = [
+                { name: "Caça (BT)", rank: "BT" }
+            ];
+
+            const batch = writeBatch(db);
+            let ninjasAdded = 0;
+
+            for (const mission of newMissionsList) {
+                const docId = mission.name;
+                const missionRef = doc(db, COLLECTIONS.MISSIONS, docId);
+                const cleanRank = cleanRankForLookup(mission.rank);
+                const points = RANK_POINTS[cleanRank] || 0; 
+                batch.set(missionRef, {
+                    name: mission.name,
+                    baseRank: mission.rank,
+                    points: points,
+                    id: mission.name
+                });
+            }
+
+            const exampleNinjas = ['dellzito', 'alnvctr'];
+            for (const id of exampleNinjas) {
+                const normalizedId = normalizeId(id); 
+                const ninjaRef = doc(db, COLLECTIONS.NINJAS, normalizedId);
+                const ninjaSnap = await getDoc(ninjaRef);
+                if (!ninjaSnap.exists()) {
+                    batch.set(ninjaRef, { id: normalizedId, isActive: true, rankPoints: 0, missionsCompleted: 0 });
+                    ninjasAdded++;
+                }
+            }
+            
+            const masterKeyRef = doc(db, COLLECTIONS.ACCESS_KEYS, 'MASTER_ADMIN');
+            batch.set(masterKeyRef, {
+                id: 'MASTER_ADMIN',
+                key: 'MASTER_KEY_001', 
+                level: 'master_admin'
+            }, { merge: true });
+
+            const writerKeyRef = doc(db, COLLECTIONS.ACCESS_KEYS, 'ANBU_Exemplo');
+            batch.set(writerKeyRef, {
+                id: 'ANBU_1',
+                key: 'report_123', 
+                level: 'report_writer'
+            }, { merge: true });
+
+            if (newMissionsList.length > 0 || ninjasAdded > 0) {
+                try {
+                    await batch.commit();
+                } catch (e) {
+                     console.error("Erro ao fazer seed inicial no Firestore:", e);
+                }
+            }
+        }
+        
+        // ====================================================================
+        // FUNÇÕES DE CONTROLE DE ACESSO
+        // ====================================================================
+
+        window.toggleWriterUI = function(isAuthorized) {
+            isWriterMode = isAuthorized;
+            const writerElements = document.querySelectorAll('.writer-only');
+            
+            writerElements.forEach(el => {
+                if (isAuthorized) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+            window.renderPage(currentPage);
+        }
+
+        window.toggleMasterAdminUI = function(isAuthorized) {
+            isMasterAdminMode = isAuthorized;
+            const adminElements = document.querySelectorAll('.admin-only');
+            
+            adminElements.forEach(el => {
+                if (isAuthorized) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+            window.renderPage(currentPage);
+        }
+        
+        window.checkAccessKey = async function() {
+            const idInput = document.getElementById('access-id-input');
+            const keyInput = document.getElementById('access-key-input');
+            const statusElement = document.getElementById('status');
+            
+            if (!idInput || !keyInput) return;
+
+            const id = idInput.value.trim();
+            const key = keyInput.value.trim();
+            
+            if (!id || !key) {
+                statusElement.textContent = '❌ Preencha o ID e a Senha.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+            
+            const accessData = accessKeysData[id];
+
+            if (accessData && accessData.key === key) {
+                
+                currentAccessId = id; 
+                
+                if (accessData.level === 'master_admin') {
+                    window.toggleMasterAdminUI(true);
+                    window.toggleWriterUI(true);
+                    statusElement.textContent = `✅ Acesso MASTER LIBERADO. ID: ${id}. Funcionalidades de edição habilitadas.`;
+                } else if (accessData.level === 'report_writer') {
+                    window.toggleWriterUI(true);
+                    window.toggleMasterAdminUI(false);
+                    statusElement.textContent = `✅ Acesso ANBU LIBERADO. ID: ${id}. Criação de relatórios habilitada.`;
+                } else {
+                    statusElement.textContent = '❌ ID/Senha válidos, mas Nível de Acesso não reconhecido.';
+                    statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                    setTimeout(() => statusElement.classList.add('hidden'), 7000);
+                    return;
+                }
+                
+                keyInput.value = ''; 
+                idInput.value = '';
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                
+                window.renderPage(currentPage);
+                
+            } else {
+                currentAccessId = 'ANONYMOUS'; 
+                window.toggleWriterUI(false);
+                window.toggleMasterAdminUI(false);
+                statusElement.textContent = '❌ Autorização Negada. ID ou Senha Incorreta.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+        
+        // ====================================================================
+        // FUNÇÕES DE ROTEAMENTO E TEMPLATES
+        // ====================================================================
+
+        window.renderPage = function(pageName) {
+            currentPage = pageName;
+            const contentDiv = document.getElementById('content');
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.getElementById(`nav-${pageName}`);
+            if (activeLink) activeLink.classList.add('active');
+
+            contentDiv.innerHTML = '';
+
+            switch (pageName) {
+                case 'home':
+                    contentDiv.innerHTML = window.renderHome();
+                    break;
+                case 'scoreboard':
+                    contentDiv.innerHTML = window.renderRank();
+                    window.renderScoreboard();
+                    break;
+                case 'reports_log':
+                    contentDiv.innerHTML = window.renderRelatorios();
+                    window.renderReportsLog();
+                    break;
+                case 'auxiliary_log':
+                    contentDiv.innerHTML = window.renderAuxilio();
+                    window.renderAuxiliaryData(); 
+                    break;
+                case 'ninja_panel':
+                    contentDiv.innerHTML = window.renderNinjaPanel(); 
+                    window.renderReportsLogFiltered(); 
+                    break;
+                case 'report_form':
+                    contentDiv.innerHTML = window.renderCriarRelatorio();
+                    if (!isWriterMode) {
+                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Você precisa de autorização (Login na aba Autorização) para registrar BTs.</p>';
+                        break;
+                    }
+                    window.updateExecutorSelect();
+                    window.updateExecutorTags(); 
+                    window.generateReportId(); 
+                    const addExecutorBtn = document.getElementById('add-executor-btn');
+                    if (addExecutorBtn) {
+                        addExecutorBtn.onclick = window.addExecutor;
+                    }
+                    window.updateDescriptionPreview(); 
+                    break;
+                case 'admin_panel':
+                    contentDiv.innerHTML = window.renderAutorizacao();
+                    window.renderNinjasTable();
+                    window.renderMissionsDatabase();
+                    break;
+                default:
+                    contentDiv.innerHTML = window.renderHome();
+            }
+        }
+
+        // --- TEMPLATES ---
+        window.renderHome = function() { return `
+                <section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-8">
+                    <h2 class="text-3xl font-bold text-red-400">Bem-vindo(a), ANBU.</h2>
+                    
+                    <div class="max-w-3xl mx-auto space-y-4 text-center p-4">
+                        <p class="text-lg text-gray-300">
+                            Você acaba de acessar o Painel Central do Esquadrão ANBU, o núcleo onde todas as caçadas (BTs) são documentadas, avaliadas e sincronizadas entre os membros.
+                        </p>
+                        
+                        <p class="text-xl text-yellow-400 font-medium pt-4">
+                            Aqui, cada registro conta. Cada alvo eliminado fortalece nossa vila.
+                        </p>
+
+                        <h3 class="text-lg font-bold text-red-400 pt-6">Use o menu acima para:</h3>
+                        <ul class="text-lg text-gray-200 space-y-2 list-none p-0 max-w-sm mx-auto">
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-red-500">⚔️</span> Registrar novos BTs</li>
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-yellow-500">🏆</span> Ver o rank da ANBU</li>
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-blue-500">📚</span> Acompanhar o histórico completo</li>
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-orange-500">🤝</span> Conferir registros de auxílio</li>
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-green-500">🛡️</span> Gerenciar os membros do esquadrão</li>
+                            <li class="flex justify-center items-center gap-2"><span class="text-xl text-purple-500">🔐</span> Acessar comandos autorizados</li>
+                        </ul>
+                    </div>
+                </section>
+            `; }
+
+        window.renderCriarRelatorio = function() { return `
+            <section id="report-form-section" class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+                <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de BTs - ANBU</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    <div class="space-y-2 lg:col-span-3">
+                        <label class="block text-sm font-medium text-gray-300">Selecionar o ANBU (Quem finalizou)</label>
+                        <div class="flex gap-2">
+                            <select id="new-executor-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500 text-white shadow-inner">
+                                <option value="" disabled selected>Selecione um ANBU Ativo</option>
+                            </select>
+                            <button type="button" id="add-executor-btn" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">
+                                Adicionar ANBU
+                            </button>
+                        </div>
+                        <div id="executors-tag-container" class="executor-list-container">
+                            <span id="no-executor-message" class="text-gray-400 text-sm italic">Nenhum ANBU selecionado.</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 lg:col-span-3">
+                        <label for="support-ids" class="block text-sm font-medium text-gray-300">ANBU que auxiliou (IDs, separados por vírgula, opcional)</label>
+                        <input id="support-ids" type="text" placeholder="Ex: lukfault" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500 text-white shadow-inner" oninput="window.updateDescriptionPreview()">
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-1">
+                        <label for="bt-points" class="block text-sm font-medium text-gray-300">Pontuação do BT</label>
+                        <input id="bt-points" type="number" min="0" placeholder="Ex: 103" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500 text-white shadow-inner font-bold text-lg" oninput="window.updateDescriptionPreview()">
+                    </div>
+
+                    <div class="space-y-4 lg:col-span-2 flex flex-col justify-center mt-6">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="chk-special" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 font-medium">Pontuação especial: Dakotinha ou guinho? (Multiplica o BT por 3)</span>
+                        </label>
+                        
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="chk-trashtalk" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 font-medium">Deu trash talk? (+20 Pontos)</span>
+                        </label>
+                    </div>
+                    
+                    <div class="space-y-2 lg:col-span-3">
+                        <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
+                        <div class="flex gap-2">
+                            <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed" value="Gerado Automaticamente">
+                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID para o Discord">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700/50">
+                    <div class="space-y-2 lg:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300">Total Calculado</label>
+                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="0">
+                    </div>
+                </div>
+
+                <div class="pt-4 space-y-2 border-t border-gray-700/50">
+                    <h3 class="text-xl font-medium text-gray-300">Preview do Registro:</h3>
+                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]">
+                        Preencha os dados acima para gerar o preview.
+                    </div>
+                </div>
+
+                <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
+                    Registrar BT e Atualizar Rank
+                </button>
+            </section>
+        `; }
+        
+        window.renderRank = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 8a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zM5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                        Rank da ANBU (Membros Cadastrados)
+                    </h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total de Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Caçadas Concluídas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-scoreboard" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderRelatorios = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Registro Completo de Caçadas (BTs)</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Serviços/Rank</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Executor/Auxílio</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvos (Retroativo)</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderAuxilio = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-orange-400 text-center flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.5-9.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM9 9c0-.83-.67-1.5-1.5-1.5S6 8.17 6 9s.67 1.5 1.5 1.5S9 9.83 9 9zm3 2.5c-2.33 0-4.38 1.15-5.69 2.84.03-.02.06-.04.09-.07C6.67 13.92 9.07 15 12 15s5.33-1.08 7.6-2.73c.03.03.06.05.09.07-1.31-1.69-3.36-2.84-5.69-2.84z"/></svg>
+                        Log de Auxílio (Potenciais Membros)
+                    </h2>
+                    <p class="text-center text-gray-400">Pessoas que participaram como auxílio nas caçadas e acumulam pontos separadamente.</p>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID Auxiliar</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Última Participação</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Pontos Acumulados</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auxiliary-log" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderAutorizacao = function() {
+             const accessStatus = isMasterAdminMode ? 
+                `<div class="text-center text-green-400 font-bold text-lg p-2">✅ MASTER ADMIN ATIVO</div>` : 
+                (isWriterMode ? `<div class="text-yellow-400 font-bold text-lg p-2">✅ ANBU ESCRITOR ATIVO</div>` :
+                `<div class="text-center text-red-400 font-bold text-lg p-2">❌ ACESSO INATIVO</div>`);
+
+            return `
+                <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
+                     <h2 class="text-2xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm2 5v2h-4V7a3 3 0 016 0z"/></svg>
+                         Autorização de Escrita (ID & Senha Única)
+                     </h2>
+                     <p class="text-center text-gray-400">Insira seu ID e Senha fornecidos para liberar as funções de escrita e edição.</p>
+                     
+                     <div id="admin-status-display">${accessStatus}</div>
+
+                     <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
+                         <input id="access-id-input" type="text" placeholder="Seu ID de ANBU/Admin" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-key-input" type="password" placeholder="Sua Senha Única" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">
+                             Verificar Acesso
+                         </button>
+                     </div>
+                </section>
+                
+                <section class="space-y-4 pt-8 pb-16">
+                    <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
+                    <p class="text-center text-gray-400">Pessoas que pontuam no Rank oficial do Esquadrão.</p>
+
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only ${isMasterAdminMode ? '' : 'hidden'}">
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU (Ex: Dellzito)" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Adicionar ANBU</button>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider admin-only ${isMasterAdminMode ? '' : 'hidden'}">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div id="writer-tools" class="pt-8 space-y-4 writer-only ${isWriterMode ? '' : 'hidden'}">
+                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Recálculo (Escritor/Admin Master)</h3>
+                    <p class="text-gray-400">Garante que as pontuações antigas fiquem sincronizadas com o banco de dados principal. Pontos de BT antigos serão preservados.</p>
+                    <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
+                        🔄 Recalcular Todos os Ranks Agora
+                    </button>
+                </div>
+
+                <div id="admin-tools" class="pt-4 space-y-4 admin-only ${isMasterAdminMode ? '' : 'hidden'}">
+                    <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Ferramentas de Exclusão (Admin Master)</h3>
+                    <p class="text-gray-400">Use com extrema cautela. A exclusão de logs é IRREVERSÍVEL. A exclusão de relatórios ZERA os Ranks.</p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="window.clearAuxiliaryLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
+                            🛡️ Excluir Histórico de Auxílio
+                        </button>
+                        <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
+                            ⚔️ Excluir Histórico de Registros (ZERA Ranks)
+                        </button>
+                    </div>
+                </div>
+
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-green-400 text-center">Gerenciamento de Quests Auxiliares</h2>
+                    <p class="text-center text-gray-400">Mantenha ou adicione quests extras (não-BT) se a ANBU precisar. <span class="${isWriterMode ? 'text-green-400' : 'text-red-400'}"></span></p>
+                    
+                    <div id="add-mission-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 writer-only ${isWriterMode ? '' : 'hidden'}">
+                        <input id="new-mission-name" type="text" placeholder="Novo Nome da Missão" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                        <select id="new-mission-rank-select" class="w-full sm:w-32 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="S-Rank">S-Rank (5 Pts)</option>
+                             <option value="A-Rank">A-Rank (4 Pts)</option>
+                             <option value="B-Rank" selected>B-Rank (3 Pts)</option>
+                             <option value="C-Rank">C-Rank (2 Pts)</option>
+                             <option value="D-Rank">D-Rank (1 Pt)</option>
+                             <option value="Defesa/Raid">Defesa/Raid (10 Pts)</option>
+                             <option value="NPC Quest">NPC Quest (0 Pts)</option>
+                             <option value="Storyline">Storyline (0 Pts)</option>
+                        </select>
+                        <button id="add-mission" class="w-full sm:w-auto py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addMission()">Adicionar Missão</button>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Nome da Missão</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank Base</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider writer-only ${isWriterMode ? '' : 'hidden'}">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="missions-database" class="bg-gray-800 divide-y divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+        
+        // Start application on load
+        window.onload = function() {
+            initializeFirebase();
+        }
+    </script>
+</body>
+</html>

@@ -186,10 +186,913 @@
 
             let totalPointsRaw = btBase;
             
-            // Lógica de multiplicadores e bônus
-            if (isSpecial) totalPointsRaw *= 3;
-            if (isOrg) totalPointsRaw += 100;
-            if (isTrashTalk) totalPointsRaw += 20;
+            // Lógica de Modificadores (Multiplicador primeiro, depois bônus fixos)
+            if (isSpecial) totalPointsRaw *= 3; // Kage x3
+            if (isOrg) totalPointsRaw += 100;   // ORG Especial +100
+            if (isTrashTalk) totalPointsRaw += 20; // Trash Talk +20
 
+            // MATEMÁTICA DA DIVISÃO
             const attackersCount = selectedExecutors.length;
-            const pointsPerAttacker = attackersCount > 0 ? Math.round(totalPointsRaw / attackers
+            const pointsPerAttacker = attackersCount > 0 ? Math.round(totalPointsRaw / attackersCount) : 0;
+            const pointsPerHealer = totalPointsRaw; 
+
+            return {
+                reportId: currentReportId,
+                btBase: btBase,
+                isSpecial: isSpecial,
+                isOrg: isOrg,
+                isTrashTalk: isTrashTalk,
+                executorIds: selectedExecutors,
+                healerIds: selectedHealers, 
+                targetName: targetInput ? targetInput.value.trim() : '', 
+                totalPointsRaw: totalPointsRaw,
+                pointsPerAttacker: pointsPerAttacker,
+                pointsPerHealer: pointsPerHealer,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        window.generateReportId = function() {
+            const reportIdElement = document.getElementById('report-id-display');
+            if (!reportIdElement) return;
+            const datePart = new Date().toISOString().slice(0,10).replace(/-/g,'');
+            const uuidPart = crypto.randomUUID().substring(0, 8);
+            currentReportId = `BT-${datePart}-${uuidPart}`;
+            reportIdElement.value = currentReportId;
+        }
+
+        window.calculateTotalPoints = function() {
+            const data = _gatherReportData();
+            const totalPointsInput = document.getElementById('total-points');
+            const submitBtn = document.getElementById('submit-report');
+
+            if (!data || !totalPointsInput || !submitBtn) return;
+            
+            totalPointsInput.value = `BT Total: ${data.totalPointsRaw} (PT ganha ${data.pointsPerAttacker} pts cada | Healers ganham ${data.pointsPerHealer} pts)`;
+
+            const hasPartyMembers = (data.executorIds.length + data.healerIds.length) > 0;
+            const isReady = isWriterMode && hasPartyMembers && data.totalPointsRaw > 0; 
+            submitBtn.disabled = !isReady;
+            
+            if (isReady) {
+                 submitBtn.classList.remove('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            } else {
+                 submitBtn.classList.add('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            }
+        }
+        
+        window.updateDescriptionPreview = function() {
+            const previewDiv = document.getElementById('description-preview');
+            if (!previewDiv) return;
+
+            const data = _gatherReportData();
+            let previewText = `Bounty Base: ${data.btBase} pts. `;
+
+            if (data.targetName) previewText += `[Alvo Morto: ${data.targetName}]. `;
+            if (data.isSpecial) previewText += `[Kage x3]. `;
+            if (data.isOrg) previewText += `[ORG Especial +100]. `;
+            if (data.isTrashTalk) previewText += `[Trash Talk +20]. `;
+
+            if (data.executorIds.length > 0) previewText += `PT Ataque: ${data.executorIds.join(', ')} (${data.pointsPerAttacker} pts cada). `;
+            if (data.healerIds.length > 0) previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts cada). `;
+            if (data.executorIds.length === 0 && data.healerIds.length === 0) previewText += `[Nenhum ANBU selecionado]. `;
+
+            previewText += `=> TOTAL BT DA CAÇADA: ${data.totalPointsRaw} Pts.`;
+            previewDiv.textContent = previewText.trim();
+            window.calculateTotalPoints();
+        }
+
+        window.submitReport = async function() {
+            if (!isWriterMode) return;
+
+            const data = _gatherReportData();
+            const statusElement = document.getElementById('status');
+
+            if (!data || (data.executorIds.length === 0 && data.healerIds.length === 0) || data.totalPointsRaw === 0) {
+                 window.openCustomModal('Erro', 'Preencha o valor do BT e adicione pelo menos um ANBU na PT.', 'info');
+                 return;
+            }
+
+            statusElement.classList.remove('hidden');
+            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+            statusElement.textContent = `Registrando BT e atualizando Rank...`;
+
+            const batch = writeBatch(db);
+
+            try {
+                const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
+                batch.set(reportRef, data);
+
+                for (const participantId of data.executorIds) {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
+                    batch.set(ninjaRef, { 
+                        rankPoints: (ninjasData[participantId]?.rankPoints || 0) + data.pointsPerAttacker,
+                        missionsCompleted: (ninjasData[participantId]?.missionsCompleted || 0) + 1,
+                    }, { merge: true });
+                }
+
+                for (const healerId of data.healerIds) {
+                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, healerId);
+                    batch.set(ninjaRef, { 
+                        rankPoints: (ninjasData[healerId]?.rankPoints || 0) + data.pointsPerHealer,
+                        missionsCompleted: (ninjasData[healerId]?.missionsCompleted || 0) + 1,
+                    }, { merge: true });
+                }
+                
+                await batch.commit();
+
+                statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                
+                selectedExecutors = [];
+                selectedHealers = [];
+                window.updateExecutorTags();
+                window.generateReportId();
+                if(document.getElementById('bt-points')) document.getElementById('bt-points').value = '';
+                if(document.getElementById('chk-special')) document.getElementById('chk-special').checked = false;
+                if(document.getElementById('chk-org')) document.getElementById('chk-org').checked = false;
+                if(document.getElementById('chk-trashtalk')) document.getElementById('chk-trashtalk').checked = false;
+                if(document.getElementById('target-name')) document.getElementById('target-name').value = '';
+                window.updateDescriptionPreview(); 
+
+            } catch (e) {
+                statusElement.textContent = `❌ Erro no Registro: ${e.message}.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+            }
+            setTimeout(() => statusElement.classList.add('hidden'), 7000);
+        }
+
+        window.updateExecutorSelect = function() {
+            const selectAtk = document.getElementById('new-executor-id-select');
+            const selectHeal = document.getElementById('new-healer-id-select');
+            if (!selectAtk || !selectHeal) return;
+            
+            const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
+            activeNinjas.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+            let optionsAtk = '<option value="" disabled selected>Selecione um Atacante</option>';
+            let optionsHeal = '<option value="" disabled selected>Selecione um Healer</option>';
+
+            activeNinjas.forEach(ninja => {
+                if (!ninja.id) return; 
+                
+                const elementLabel = ninja.element ? ` (${ninja.element})` : '';
+                
+                if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
+                    // Todos podem ser atacantes
+                    optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    
+                    // Apenas quem tem a palavra 'Médico' no elemento pode ser selecionado como Healer
+                    if (ninja.element && ninja.element.includes('Médico')) {
+                        optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    }
+                }
+            });
+
+            selectAtk.innerHTML = optionsAtk;
+            selectHeal.innerHTML = optionsHeal;
+        }
+
+        window.addExecutor = function(isHealer = false) {
+            const selectId = isHealer ? 'new-healer-id-select' : 'new-executor-id-select';
+            const select = document.getElementById(selectId);
+            if (!select || !select.value) return;
+
+            const ninjaId = select.value;
+            if (isHealer) selectedHealers.push(ninjaId);
+            else selectedExecutors.push(ninjaId);
+            
+            select.value = ''; 
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+        
+        window.removeExecutor = function(ninjaId, isHealer) {
+            if (isHealer) selectedHealers = selectedHealers.filter(id => id !== ninjaId);
+            else selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+
+        window.updateExecutorTags = function() { 
+            const containerAtk = document.getElementById('executors-tag-container');
+            const containerHeal = document.getElementById('healers-tag-container');
+            if (!containerAtk || !containerHeal) return;
+            
+            let htmlAtk = selectedExecutors.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>' : '';
+            selectedExecutors.forEach(id => {
+                htmlAtk += `<span class="executor-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', false)">✖</span></span>`;
+            });
+            containerAtk.innerHTML = htmlAtk;
+
+            let htmlHeal = selectedHealers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>' : '';
+            selectedHealers.forEach(id => {
+                htmlHeal += `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', true)">✖</span></span>`;
+            });
+            containerHeal.innerHTML = htmlHeal;
+        }
+
+        window.addNinja = async function() {
+            if (!isMasterAdminMode) return;
+
+            const newNinjaIdInput = document.getElementById('new-ninja-id');
+            const m1Select = document.getElementById('new-ninja-mastery-1');
+            const m2Select = document.getElementById('new-ninja-mastery-2');
+            
+            const ninjaId = newNinjaIdInput.value.trim();
+            const m1 = m1Select.value;
+            const m2 = m2Select.value;
+            
+            const normalizedId = normalizeId(ninjaId);
+            const statusElement = document.getElementById('status');
+
+            if (!ninjaId) {
+                statusElement.textContent = '❌ O ID do ANBU não pode ser vazio.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            if (ninjasData[normalizedId]) {
+                statusElement.textContent = `❌ O ANBU '${normalizedId}' já está cadastrado.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            let finalElement = m1;
+            if (m2 && m2 !== m1) {
+                finalElement += ` / ${m2}`;
+            }
+
+            try {
+                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
+                    id: normalizedId, 
+                    element: finalElement, 
+                    isActive: true, 
+                    rankPoints: 0, 
+                    missionsCompleted: 0
+                });
+                
+                newNinjaIdInput.value = ''; 
+                m2Select.value = ''; 
+                
+                statusElement.textContent = `✅ ANBU '${normalizedId}' (${finalElement}) cadastrado com sucesso!`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+
+                window.updateExecutorSelect();
+                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId, element: finalElement });
+
+            } catch (e) { console.error(e); }
+        }
+        
+        window.deleteNinja = function(id) { 
+            if (!isMasterAdminMode) return;
+            window.openCustomModal('Confirmação de Exclusão', `Excluir permanentemente o ANBU '${id}'?`, 'confirm').then(async (confirmed) => {
+                 if (confirmed) {
+                     try {
+                         await deleteDoc(doc(db, COLLECTIONS.NINJAS, id));
+                         selectedExecutors = selectedExecutors.filter(execId => execId !== id);
+                         selectedHealers = selectedHealers.filter(execId => execId !== id);
+                         window.updateExecutorTags();
+                         window.updateExecutorSelect(); 
+                         window.logAction('DELETE_GUARDIAN', { guardianId: id });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
+        
+        window.editNinja = function(id) { 
+            if (!isMasterAdminMode) return;
+            const ninja = ninjasData[id];
+            if (!ninja) return;
+
+            window.openCustomModal('Alternar Status do ANBU', null, 'ninjaEdit', { id: ninja.id, isActive: ninja.isActive }).then(async (confirmed) => {
+                 if (confirmed) {
+                     try {
+                         await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { isActive: !ninja.isActive });
+                         window.logAction('EDIT_GUARDIAN_STATUS', { guardianId: id });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
+        
+        window.copyReportId = function() { 
+             const reportIdElement = document.getElementById('report-id-display');
+             if (reportIdElement) {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = reportIdElement.value;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try { document.execCommand('copy'); } catch (err) {}
+                document.body.removeChild(tempInput);
+            }
+        }
+
+        window.clearReportsLog = async function() {
+            if (!isMasterAdminMode) return;
+            const confirmed = await window.openCustomModal(
+                'Confirmação de Exclusão', 'DELETAR TODO o Histórico de Registros e ZERAR os Ranks? Ação IRREVERSÍVEL.', 'confirm'
+            );
+            
+            if (confirmed) {
+                const statusElement = document.getElementById('status');
+                statusElement.classList.remove('hidden');
+                try {
+                    const reportsSnapshot = await getDocs(collection(db, COLLECTIONS.REPORTS)); 
+                    const ninjaSnapshot = await getDocs(collection(db, COLLECTIONS.NINJAS));
+                    
+                    let batch = writeBatch(db);
+                    reportsSnapshot.forEach((doc) => batch.delete(doc.ref));
+                    ninjaSnapshot.forEach((doc) => batch.update(doc.ref, { rankPoints: 0, missionsCompleted: 0 }));
+                    
+                    await batch.commit();
+
+                    statusElement.textContent = `✅ Sucesso! Registros excluídos e Ranks resetados.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    window.logAction('CLEAR_REPORTS_LOG_AND_RESET_RANKS', { });
+                    
+                } catch (e) {
+                    statusElement.textContent = `❌ Erro: ${e.message}`;
+                    statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                }
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.recalculateAllRanks = async function(calledInternally = false) {
+            if (!isWriterMode) return;
+            if (!calledInternally) {
+                const confirmed = await window.openCustomModal(
+                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks com base no histórico de BTs?', 'confirm'
+                );
+                if (!confirmed) return;
+            }
+
+            const statusElement = document.getElementById('status');
+            if (!calledInternally) { 
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                statusElement.textContent = `Recalculando Ranks...`;
+            }
+            
+            try {
+                const tempNinjas = {}; 
+                Object.values(ninjasData).forEach(ninja => {
+                    tempNinjas[ninja.id] = { ...ninja, rankPoints: 0, missionsCompleted: 0 };
+                });
+
+                let resetBatch = writeBatch(db);
+                Object.values(ninjasData).forEach(ninja => {
+                    if (ninja.id) resetBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { rankPoints: 0, missionsCompleted: 0 });
+                });
+                await resetBatch.commit();
+                
+                let applyBatch = writeBatch(db);
+                reportsData.forEach((report) => {
+                    if (report.executorIds && report.executorIds.length > 0 && report.pointsPerAttacker > 0) {
+                        report.executorIds.forEach(id => {
+                             if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
+                             tempNinjas[id].rankPoints += report.pointsPerAttacker;
+                             tempNinjas[id].missionsCompleted += 1;
+                        });
+                    }
+                    if (report.healerIds && report.healerIds.length > 0 && report.pointsPerHealer > 0) {
+                        report.healerIds.forEach(id => {
+                             if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
+                             tempNinjas[id].rankPoints += report.pointsPerHealer;
+                             tempNinjas[id].missionsCompleted += 1;
+                        });
+                    }
+                }); 
+                
+                Object.values(tempNinjas).forEach(ninja => {
+                    if(ninja.id) { 
+                        applyBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { 
+                            rankPoints: ninja.rankPoints, missionsCompleted: ninja.missionsCompleted
+                        });
+                    }
+                });
+
+                await applyBatch.commit();
+                
+                if (!calledInternally) {
+                    statusElement.textContent = `✅ Sucesso! Recálculo concluído.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                }
+            } catch (e) {
+                statusElement.textContent = `❌ Erro no Recálculo: ${e.message}`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+
+        window.renderScoreboard = function() {
+            const scoreboardBody = document.getElementById('ninjas-scoreboard');
+            if (!scoreboardBody) return; 
+            
+            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id); 
+            guardians.sort((a, b) => b.rankPoints - a.rankPoints);
+            
+            scoreboardBody.innerHTML = '';
+
+            guardians.forEach((ninja, index) => {
+                const rankIcon = getRankIcon(index + 1);
+                const elementIcon = ninja.element ? ` <span class="text-xs text-gray-500">(${ninja.element})</span>` : '';
+                scoreboardBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-red-300">${ninja.id}${elementIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-green-400">${Math.round(ninja.rankPoints)} Pts</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${ninja.missionsCompleted || 0}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderReportsLog = function() {
+            window.renderReportsLogFiltered(null, 'reports-log');
+        }
+
+        window.renderNinjasTable = function() {
+            const ninjasBody = document.getElementById('ninjas-cadastro');
+            if (!ninjasBody) return; 
+            
+            const showActionColumn = isMasterAdminMode;
+            const actionHeader = ninjasBody.closest('table').querySelector('th.admin-only');
+            if (actionHeader) {
+                if (showActionColumn) actionHeader.classList.remove('hidden');
+                else actionHeader.classList.add('hidden');
+            }
+
+            const sortedNinjas = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+            ninjasBody.innerHTML = '';
+
+            sortedNinjas.forEach(data => {
+                if (!data.id) return; 
+                
+                const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
+                const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                const elementText = data.element ? data.element : 'Não definido';
+                
+                const actionCell = showActionColumn ? `
+                    <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn mr-2">Status</button>
+                        <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-red-700 transition duration-150">Excluir</button>
+                    </td>
+                ` : '';
+
+                ninjasBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-white">${data.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${elementText}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm ${statusClass}">${statusText}</td>
+                        ${actionCell}
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log') {
+            const reportsLog = document.getElementById(targetId);
+            const guardianSummaryDiv = document.getElementById('guardian-summary');
+            if (!reportsLog) return;
+            
+            reportsLog.innerHTML = '';
+            let filteredReports = reportsData;
+
+            if (filterId) {
+                filteredReports = reportsData.filter(report => {
+                    const isExecutor = Array.isArray(report.executorIds) && report.executorIds.includes(filterId);
+                    const isHealer = Array.isArray(report.healerIds) && report.healerIds.includes(filterId);
+                    return isExecutor || isHealer;
+                });
+            }
+            
+            if (filterId && guardianSummaryDiv) {
+                const ninjaData = ninjasData[filterId];
+                if (ninjaData) {
+                    guardianSummaryDiv.innerHTML = `
+                        <p class="text-xl font-bold text-yellow-400">${filterId.toUpperCase()}</p>
+                        <p class="text-sm text-gray-300">${ninjaData.isActive ? 'ANBU Ativo' : 'ANBU Inativo'} ${ninjaData.element ? `(${ninjaData.element})` : ''}</p>
+                        <p class="text-lg text-green-400">Total de Pontos: ${Math.round(ninjaData.rankPoints)} Pts</p>
+                        <p class="text-gray-300">Total de BTs Participados: ${ninjaData.missionsCompleted}</p>
+                    `;
+                    guardianSummaryDiv.classList.remove('hidden');
+                }
+            } else if (guardianSummaryDiv) {
+                guardianSummaryDiv.classList.add('hidden');
+            }
+
+            const sortedReports = filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if (sortedReports.length === 0) {
+                 reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
+                 return;
+            }
+
+            sortedReports.forEach(data => {
+                const formattedDate = new Date(data.timestamp).toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                
+                const atkText = data.executorIds && data.executorIds.length > 0 ? data.executorIds.join(', ') : '';
+                const healText = data.healerIds && data.healerIds.length > 0 ? `<span class="text-green-400 text-xs">Healers: ${data.healerIds.join(', ')}</span>` : '';
+                const targetText = data.targetName ? data.targetName : 'N/A';
+                
+                let finalDesc = `BT: ${data.totalPointsRaw}. ` + 
+                                (data.isSpecial ? '[Kage x3]. ' : '') + 
+                                (data.isOrg ? '[ORG +100]. ' : '') + 
+                                (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
+                                `<br><span class="text-xs text-gray-500">PT: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
+
+                reportsLog.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12">
+                            <span class="font-bold text-red-300">${atkText}</span><br>
+                            ${healText}
+                        </td>
+                        <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold">${targetText}</td>
+                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-5/12">${finalDesc}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm w-2/12">
+                            <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderNinjaPanel = function() {
+            const allIdsSorted = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+            const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
+            
+            return `
+                <section class="space-y-6 pt-4">
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                        Perfil do ANBU e Histórico
+                    </h2>
+                    <div class="max-w-md mx-auto space-y-2">
+                        <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
+                        <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
+                            <option value="">-- Ver Todos os Registros --</option>
+                            ${ninjaOptions}
+                        </select>
+                    </div>
+                    <div id="guardian-summary" class="max-w-md mx-auto p-4 bg-gray-700 rounded-lg shadow-inner text-center hidden"></div>
+                    <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto mt-4">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-5/12">Divisão / Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                await signInAnonymously(auth);
+                
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
+                setupFirestoreListeners(); 
+                window.renderPage(currentPage);
+                window.generateReportId(); 
+            } catch (error) {
+                document.getElementById('status').textContent = `❌ Erro ao conectar: ${error.message}`;
+            }
+        }
+        
+        function setupFirestoreListeners() {
+            if (!db) return;
+
+            onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snapshot) => {
+                accessKeysData = {};
+                snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
+                if (currentPage === 'admin_panel') window.renderPage(currentPage); 
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
+                ninjasData = {};
+                snapshot.forEach(doc => ninjasData[doc.id] = doc.data());
+                window.updateExecutorSelect && window.updateExecutorSelect();
+                if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
+                reportsData = [];
+                snapshot.forEach(doc => reportsData.push(doc.data()));
+                if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+            }, (error) => {});
+        }
+        
+        window.toggleWriterUI = function(isAuthorized) {
+            isWriterMode = isAuthorized;
+            const writerElements = document.querySelectorAll('.writer-only');
+            writerElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+
+        window.toggleMasterAdminUI = function(isAuthorized) {
+            isMasterAdminMode = isAuthorized;
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+        
+        window.checkAccessKey = async function() {
+            const idInput = document.getElementById('access-id-input');
+            const keyInput = document.getElementById('access-key-input');
+            const statusElement = document.getElementById('status');
+            if (!idInput || !keyInput) return;
+
+            const id = idInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!id || !key) return;
+            
+            const accessData = accessKeysData[id];
+
+            if (accessData && accessData.key === key) {
+                currentAccessId = id; 
+                if (accessData.level === 'master_admin') {
+                    window.toggleMasterAdminUI(true);
+                    window.toggleWriterUI(true);
+                } else if (accessData.level === 'report_writer') {
+                    window.toggleWriterUI(true);
+                    window.toggleMasterAdminUI(false);
+                }
+                keyInput.value = ''; idInput.value = '';
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = `✅ Acesso LIBERADO. ID: ${id}.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 3000);
+                window.renderPage(currentPage);
+            } else {
+                currentAccessId = 'ANONYMOUS'; 
+                window.toggleWriterUI(false);
+                window.toggleMasterAdminUI(false);
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = '❌ ID ou Senha Incorreta.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.renderPage = function(pageName) {
+            currentPage = pageName;
+            const contentDiv = document.getElementById('content');
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            const activeLink = document.getElementById(`nav-${pageName}`);
+            if (activeLink) activeLink.classList.add('active');
+
+            contentDiv.innerHTML = '';
+
+            switch (pageName) {
+                case 'home': contentDiv.innerHTML = window.renderHome(); break;
+                case 'scoreboard': contentDiv.innerHTML = window.renderRank(); window.renderScoreboard(); break;
+                case 'reports_log': contentDiv.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
+                case 'ninja_panel': contentDiv.innerHTML = window.renderNinjaPanel(); window.renderReportsLogFiltered(); break;
+                case 'report_form':
+                    contentDiv.innerHTML = window.renderCriarRelatorio();
+                    if (!isWriterMode) {
+                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Faça Login na aba Autorização para registrar BTs.</p>';
+                        break;
+                    }
+                    window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); window.updateDescriptionPreview(); 
+                    break;
+                case 'admin_panel':
+                    contentDiv.innerHTML = window.renderAutorizacao();
+                    window.renderNinjasTable();
+                    break;
+                default: contentDiv.innerHTML = window.renderHome();
+            }
+            
+            window.toggleMasterAdminUI(isMasterAdminMode);
+            window.toggleWriterUI(isWriterMode);
+        }
+
+        window.renderHome = function() { return `
+                <section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-8">
+                    <h2 class="text-3xl font-bold text-red-400">Bem-vindo(a), ANBU.</h2>
+                    <div class="max-w-3xl mx-auto space-y-4 text-center p-4">
+                        <p class="text-lg text-gray-300">Painel Central do Esquadrão ANBU para registro de BTs e divisão de pontuação.</p>
+                        <h3 class="text-lg font-bold text-red-400 pt-6">Use o menu acima para navegar.</h3>
+                    </div>
+                </section>
+        `; }
+
+        window.renderCriarRelatorio = function() { return `
+            <section class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+                <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de BTs - ANBU</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="space-y-2 lg:col-span-3">
+                        <label class="block text-sm font-medium text-gray-300">ANBUs na PT de Ataque (Dividem os Pontos)</label>
+                        <div class="flex gap-2">
+                            <select id="new-executor-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner"></select>
+                            <button type="button" onclick="window.addExecutor(false)" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
+                        </div>
+                        <div id="executors-tag-container" class="executor-list-container"></div>
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-3">
+                        <label class="block text-sm font-medium text-gray-300">Healers na PT (Recebem BT Integral)</label>
+                        <div class="flex gap-2">
+                            <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner"></select>
+                            <button type="button" onclick="window.addExecutor(true)" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar Healer</button>
+                        </div>
+                        <div id="healers-tag-container" class="executor-list-container"></div>
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-3">
+                        <label for="target-name" class="block text-sm font-medium text-gray-300">Alvo Morto (Nick do alvo no jogo)</label>
+                        <input id="target-name" type="text" placeholder="Ex: inimigo_xyz" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner" oninput="window.updateDescriptionPreview()">
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-1">
+                        <label for="bt-points" class="block text-sm font-medium text-gray-300">Pontuação Base do BT</label>
+                        <input id="bt-points" type="number" min="0" placeholder="Ex: 103" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner font-bold text-lg" oninput="window.updateDescriptionPreview()">
+                    </div>
+
+                    <div class="space-y-4 lg:col-span-2 flex flex-col justify-center mt-6">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="chk-special" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 font-medium">É Kage? (Multiplica o BT por 3)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="chk-org" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 font-medium">ORG especial? (+100 Pontos)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="chk-trashtalk" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 font-medium">Deu trash talk? (+20 Pontos)</span>
+                        </label>
+                    </div>
+                    
+                    <div class="space-y-2 lg:col-span-3">
+                        <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
+                        <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t border-gray-700/50">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300">Distribuição Matemática</label>
+                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="Preencha o BT acima">
+                    </div>
+                </div>
+
+                <div class="pt-4 space-y-2 border-t border-gray-700/50">
+                    <h3 class="text-xl font-medium text-gray-300">Resumo do Registro:</h3>
+                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]"></div>
+                </div>
+
+                <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
+                    Salvar Caçada e Atualizar Rank
+                </button>
+            </section>
+        `; }
+        
+        window.renderRank = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Rank da ANBU</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Rank</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Caçadas Concluídas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderRelatorios = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Registro Completo de Caçadas (BTs)</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvo Morto</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-5/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderAutorizacao = function() {
+             const accessStatus = isMasterAdminMode ? 
+                `<div class="text-center text-green-400 font-bold text-lg p-2">✅ MASTER ADMIN ATIVO</div>` : 
+                (isWriterMode ? `<div class="text-yellow-400 font-bold text-lg p-2">✅ ANBU ESCRITOR ATIVO</div>` :
+                `<div class="text-center text-red-400 font-bold text-lg p-2">❌ ACESSO INATIVO</div>`);
+
+            return `
+                <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
+                     <h2 class="text-2xl font-bold text-red-400 text-center">Autorização de Escrita (Login)</h2>
+                     <div id="admin-status-display">${accessStatus}</div>
+                     <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
+                         <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">Logar</button>
+                     </div>
+                </section>
+                
+                <section class="space-y-4 pt-8 pb-16">
+                    <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
+                    
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden flex-wrap">
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white min-w-[200px]">
+                        
+                        <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="Fogo" selected>Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Médico">Médico</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+                        
+                        <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="" selected>2ª (Opcional)</option>
+                             <option value="Fogo">Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Médico">Médico</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+
+                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Cadastrar ANBU</button>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Maestrias</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase admin-only hidden">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div id="writer-tools" class="pt-8 space-y-4 writer-only hidden">
+                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Manutenção</h3>
+                    <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
+                        🔄 Recalcular Todos os Ranks
+                    </button>
+                </div>
+
+                <div id="admin-tools" class="pt-4 space-y-4 admin-only hidden">
+                    <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Ferramentas de Exclusão (Admin Master)</h3>
+                    <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
+                        ⚔️ Excluir Histórico de Registros (ZERA Ranks)
+                    </button>
+                </div>
+            `;
+        }
+        
+        window.onload = function() { initializeFirebase(); }
+    </script>
+</body>
+</html>

@@ -49,6 +49,8 @@
 
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
         <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
+        
+        <datalist id="known-targets"></datalist>
     </div>
 
     <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
@@ -223,8 +225,35 @@
         }
         
         // ====================================================================
-        // SISTEMA DE MÚLTIPLOS ALVOS
+        // SISTEMA DE MÚLTIPLOS ALVOS & AUTOCOMPLETAR
         // ====================================================================
+        
+        // NOVIDADE: Atualiza o Datalist com os nomes dos alvos já eliminados
+        window.updateTargetSuggestions = function() {
+            const dataList = document.getElementById('known-targets');
+            if (!dataList) return;
+
+            const targetsMap = {};
+            reportsData.forEach(report => {
+                if (report.targets && report.targets.length > 0) {
+                    report.targets.forEach(t => {
+                        if (t.name) {
+                            const lower = t.name.trim().toLowerCase();
+                            // Guarda a versão com a formatação original que foi digitada pela 1ª vez
+                            if (!targetsMap[lower]) targetsMap[lower] = t.name.trim();
+                        }
+                    });
+                } else if (report.targetName) {
+                    const lower = report.targetName.trim().toLowerCase();
+                    if (!targetsMap[lower]) targetsMap[lower] = report.targetName.trim();
+                }
+            });
+
+            // Ordem alfabética nas sugestões
+            const sortedTargets = Object.values(targetsMap).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+            dataList.innerHTML = sortedTargets.map(t => `<option value="${t}">`).join('');
+        }
+
         window.addTargetEntry = function() {
             const container = document.getElementById('targets-container');
             if (!container) return;
@@ -232,6 +261,7 @@
             targetEntryCount++;
             const targetId = `target-${targetEntryCount}`;
             
+            // Adicionado o atributo list="known-targets" no input
             const html = `
                 <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
                     <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 hover:text-red-500 font-bold" title="Remover Alvo">✖</button>
@@ -239,7 +269,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-300">Alvo Morto (Nick)</label>
-                            <input type="text" placeholder="Ex: inimigo_xyz" class="target-name w-full p-2.5 rounded-lg bg-gray-800 border border-gray-600 focus:ring-red-500 text-white shadow-inner" oninput="window.updateDescriptionPreview()">
+                            <input type="text" list="known-targets" placeholder="Ex: inimigo_xyz" class="target-name w-full p-2.5 rounded-lg bg-gray-800 border border-gray-600 focus:ring-red-500 text-white shadow-inner" oninput="window.updateDescriptionPreview()">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-300">BT Base</label>
@@ -384,7 +414,7 @@
             const statusElement = document.getElementById('status');
 
             if (!data || (data.executorIds.length === 0 && data.healerIds.length === 0) || data.totalPointsRaw === 0) {
-                 window.openCustomModal('Erro', 'Preencha os valores do BT e adicione pelo menos um ANBU na PT.', 'info');
+                 window.openCustomModal('Erro', 'Preencha o valor do BT e adicione pelo menos um ANBU na PT.', 'info');
                  return;
             }
 
@@ -419,6 +449,7 @@
                 statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 
+                // RESET DO FORMULÁRIO COMPLETO E REINSERÇÃO DAS LISTAS
                 selectedExecutors = [];
                 selectedHealers = [];
                 window.updateExecutorTags();
@@ -438,9 +469,6 @@
             setTimeout(() => statusElement.classList.add('hidden'), 7000);
         }
 
-        // ====================================================================
-        // FUNÇÃO DE DELETAR RELATÓRIO (NOVIDADE)
-        // ====================================================================
         window.deleteReport = function(reportId) {
             if (!isWriterMode && !isMasterAdminMode) return;
             
@@ -452,11 +480,8 @@
                     statusElement.textContent = `Excluindo registro ${reportId}...`;
                     
                     try {
-                        // 1. Deleta do Banco de Dados
                         await deleteDoc(doc(db, COLLECTIONS.REPORTS, reportId));
                         window.logAction('DELETE_REPORT', { reportId: reportId });
-                        
-                        // 2. Refaz a matemática de todo mundo pra consertar os Ranks sem esse relatorio
                         await window.recalculateAllRanks(true); 
                         
                         statusElement.textContent = `✅ Registro excluído e ranks atualizados com sucesso!`;
@@ -489,7 +514,6 @@
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
                     optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     
-                    // Somente Med (Chakra) aparece no select de Healer
                     if (ninja.element && ninja.element.includes('Med (Chakra)')) {
                         optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     }
@@ -949,7 +973,6 @@
                                     `<br><span class="text-xs text-gray-500">PT: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
                 }
 
-                // Botão de Excluir se estiver logado
                 const deleteBtn = isWriterMode || isMasterAdminMode ? `<button onclick="window.deleteReport('${data.reportId}')" class="text-red-500 hover:text-red-700 font-bold mt-2 bg-gray-900 py-1 px-2 rounded" title="Excluir Registro permanentemente">🗑️ Excluir</button>` : '';
 
                 reportsLog.innerHTML += `
@@ -1065,6 +1088,7 @@
             onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
                 reportsData = [];
                 snapshot.forEach(doc => reportsData.push(doc.data()));
+                window.updateTargetSuggestions(); // Atualiza a lista de autocompletar
                 if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
             }, (error) => {});
@@ -1142,7 +1166,7 @@
                         break;
                     }
                     window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); 
-                    window.addTargetEntry(); // Adiciona o primeiro alvo automaticamente
+                    window.addTargetEntry(); 
                     window.updateDescriptionPreview(); 
                     break;
                 case 'admin_panel':

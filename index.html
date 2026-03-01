@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Registro - Esquadrão ANBU (ONLINE - FIREBASE)</title>
+    <title>Sistema de Registro - Esquadrão ANBU</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -13,52 +13,25 @@
         ::-webkit-scrollbar-track { background: #1e293b; }
         .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
         .executor-list-container {
-            min-height: 50px;
-            padding: 8px;
-            border: 1px solid #4b5563; 
-            border-radius: 8px;
-            background-color: #374151; 
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            min-height: 50px; padding: 8px; border: 1px solid #4b5563; 
+            border-radius: 8px; background-color: #374151; 
+            display: flex; flex-wrap: wrap; gap: 6px;
         }
         .executor-tag {
-            display: flex;
-            align-items: center;
-            padding: 4px 8px;
-            border-radius: 9999px; 
-            font-size: 0.875rem; 
-            font-weight: 600;
-            background-color: #ef4444; 
-            color: #fff;
+            display: flex; align-items: center; padding: 4px 8px;
+            border-radius: 9999px; font-size: 0.875rem; font-weight: 600;
+            background-color: #ef4444; color: #fff;
         }
-        .healer-tag {
-            background-color: #10b981; /* green-500 para diferenciar healers */
-        }
-        .executor-remove-btn {
-            margin-left: 6px;
-            cursor: pointer;
-            color: #fecaca; 
-        }
-        .nav-link {
-            cursor: pointer;
-            padding: 10px 15px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-        .nav-link:hover:not(.active) {
-            background-color: #1e293b; 
-        }
-        .nav-link.active {
-            color: #f87171; 
-            border-bottom: 2px solid #f87171;
-        }
+        .healer-tag { background-color: #10b981; }
+        .executor-remove-btn { margin-left: 6px; cursor: pointer; color: #fecaca; }
+        .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; }
+        .nav-link:hover:not(.active) { background-color: #1e293b; }
+        .nav-link.active { color: #f87171; border-bottom: 2px solid #f87171; }
     </style>
 </head>
 <body class="p-4 sm:p-8 text-gray-100">
 
     <div id="app" class="max-w-6xl mx-auto space-y-8">
-        
         <header class="pb-4 border-b border-red-700/50">
             <h1 id="main-title" class="text-4xl font-bold text-red-500 text-center mb-4">📜 Sistema de Registro — Esquadrão ANBU</h1>
             <nav class="flex flex-wrap justify-center bg-gray-900 rounded-xl shadow-lg p-1 gap-2">
@@ -71,8 +44,7 @@
             </nav>
         </header>
         
-        <div id="content" class="min-h-[60vh]">
-            </div>
+        <div id="content" class="min-h-[60vh]"></div>
 
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
         <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
@@ -94,9 +66,10 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, getDoc, deleteDoc, getDocs, setLogLevel, addDoc 
+            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // SUAS CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -106,8 +79,8 @@
             appId: "1:292095146978:web:836d833230907d081017bb"
         };
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : CUSTOM_FIREBASE_CONFIG.projectId || 'g-2cb53';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : CUSTOM_FIREBASE_CONFIG;
+        const appId = CUSTOM_FIREBASE_CONFIG.projectId;
+        const firebaseConfig = CUSTOM_FIREBASE_CONFIG;
         
         let isMasterAdminMode = false; 
         let isWriterMode = false; 
@@ -115,10 +88,9 @@
         let currentAccessId = 'ANONYMOUS'; 
         
         let app, db, auth;
-        let userId = null;
         let currentReportId = ''; 
         let selectedExecutors = []; 
-        let selectedHealers = []; // Nova lista para os healers selecionados
+        let selectedHealers = []; 
         
         let ninjasData = {}; 
         let reportsData = []; 
@@ -134,18 +106,21 @@
         window.logAction = async function(action, details) {
             if (!db) return;
             try {
-                const logData = {
+                await addDoc(collection(db, COLLECTIONS.AUDIT_LOG), {
                     timestamp: new Date().toISOString(),
                     actorAccessId: currentAccessId,
-                    actorUserId: auth?.currentUser?.uid || 'anon',
                     action: action,
                     details: details,
                     level: isMasterAdminMode ? 'MASTER_ADMIN' : (isWriterMode ? 'WRITER' : 'ANON')
-                };
-                await addDoc(collection(db, COLLECTIONS.AUDIT_LOG), logData);
-            } catch (e) {
-                console.error("Falha ao registrar log:", e);
-            }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function getRankIcon(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return `#${rank}`;
         }
         
         function normalizeId(id) {
@@ -166,25 +141,23 @@
                 modalMessage.textContent = message;
                 confirmBtn.onclick = null;
                 cancelBtn.onclick = null;
-                confirmBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'bg-orange-600', 'hover:bg-orange-700');
-                confirmBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                confirmBtn.classList.remove('bg-red-600', 'bg-orange-600');
+                confirmBtn.classList.add('bg-blue-600');
 
                 if (type === 'confirm') {
                     confirmBtn.textContent = 'Confirmar';
                     confirmBtn.classList.remove('bg-blue-600');
-                    confirmBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                    confirmBtn.classList.add('bg-red-600');
                 } else if (type === 'ninjaEdit') {
                     const statusText = data.isActive ? 'Ativo' : 'Inativo';
                     const newStatusText = data.isActive ? 'INATIVO' : 'ATIVO';
                     modalMessage.innerHTML = `O ANBU **${data.id}** está atualmente <span class="font-bold ${data.isActive ? 'text-green-400' : 'text-red-400'}">${statusText}</span>. Deseja alternar o status para **${newStatusText}**?`;
-                    confirmBtn.textContent = `Alternar para ${newStatusText}`;
-                    confirmBtn.classList.add('bg-orange-600', 'hover:bg-orange-700'); 
+                    confirmBtn.textContent = `Alternar`;
+                    confirmBtn.classList.add('bg-orange-600'); 
                 }
 
                 cancelBtn.onclick = () => closeCustomModal(false);
-                if (type === 'confirm' || type === 'ninjaEdit') {
-                     confirmBtn.onclick = confirmBtn.onclick || (() => closeCustomModal(true));
-                }
+                confirmBtn.onclick = () => closeCustomModal(true);
 
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
@@ -214,10 +187,9 @@
             if (isSpecial) totalPointsRaw *= 3;
             if (isTrashTalk) totalPointsRaw += 20;
 
-            // MATEMÁTICA DA DIVISÃO
             const attackersCount = selectedExecutors.length;
             const pointsPerAttacker = attackersCount > 0 ? Math.round(totalPointsRaw / attackersCount) : 0;
-            const pointsPerHealer = totalPointsRaw; // Healer sempre recebe integral
+            const pointsPerHealer = totalPointsRaw; 
 
             return {
                 reportId: currentReportId,
@@ -237,8 +209,7 @@
         window.generateReportId = function() {
             const reportIdElement = document.getElementById('report-id-display');
             if (!reportIdElement) return;
-            const now = new Date();
-            const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            const datePart = new Date().toISOString().slice(0,10).replace(/-/g,'');
             const uuidPart = crypto.randomUUID().substring(0, 8);
             currentReportId = `BT-${datePart}-${uuidPart}`;
             reportIdElement.value = currentReportId;
@@ -277,15 +248,9 @@
             if (data.isSpecial) previewText += `[Alvo Especial x3]. `;
             if (data.isTrashTalk) previewText += `[Trash Talk +20]. `;
 
-            if (data.executorIds.length > 0) {
-                previewText += `PT Ataque: ${data.executorIds.join(', ')} (${data.pointsPerAttacker} pts cada). `;
-            }
-            if (data.healerIds.length > 0) {
-                previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts cada). `;
-            }
-            if (data.executorIds.length === 0 && data.healerIds.length === 0) {
-                previewText += `[Nenhum ANBU selecionado]. `;
-            }
+            if (data.executorIds.length > 0) previewText += `PT Ataque: ${data.executorIds.join(', ')} (${data.pointsPerAttacker} pts cada). `;
+            if (data.healerIds.length > 0) previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts cada). `;
+            if (data.executorIds.length === 0 && data.healerIds.length === 0) previewText += `[Nenhum ANBU selecionado]. `;
 
             previewText += `=> TOTAL BT DA CAÇADA: ${data.totalPointsRaw} Pts.`;
             previewDiv.textContent = previewText.trim();
@@ -310,11 +275,9 @@
             const batch = writeBatch(db);
 
             try {
-                // Salva o relatório
                 const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
                 batch.set(reportRef, data);
 
-                // Atualiza pontos dos Atacantes (PT dividida)
                 for (const participantId of data.executorIds) {
                     const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
                     batch.set(ninjaRef, { 
@@ -323,7 +286,6 @@
                     }, { merge: true });
                 }
 
-                // Atualiza pontos dos Healers (Integral)
                 for (const healerId of data.healerIds) {
                     const ninjaRef = doc(db, COLLECTIONS.NINJAS, healerId);
                     batch.set(ninjaRef, { 
@@ -337,7 +299,6 @@
                 statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 
-                // Reseta tudo
                 selectedExecutors = [];
                 selectedHealers = [];
                 window.updateExecutorTags();
@@ -368,7 +329,6 @@
 
             activeNinjas.forEach(ninja => {
                 const elementLabel = ninja.element ? ` (${ninja.element})` : '';
-                // Não deixa selecionar se já estiver em alguma das listas
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
                     optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
@@ -385,11 +345,8 @@
             if (!select || !select.value) return;
 
             const ninjaId = select.value;
-            if (isHealer) {
-                selectedHealers.push(ninjaId);
-            } else {
-                selectedExecutors.push(ninjaId);
-            }
+            if (isHealer) selectedHealers.push(ninjaId);
+            else selectedExecutors.push(ninjaId);
             
             select.value = ''; 
             window.updateExecutorTags();
@@ -398,11 +355,8 @@
         }
         
         window.removeExecutor = function(ninjaId, isHealer) {
-            if (isHealer) {
-                selectedHealers = selectedHealers.filter(id => id !== ninjaId);
-            } else {
-                selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
-            }
+            if (isHealer) selectedHealers = selectedHealers.filter(id => id !== ninjaId);
+            else selectedExecutors = selectedExecutors.filter(id => id !== ninjaId);
             window.updateExecutorTags();
             window.updateExecutorSelect(); 
             window.updateDescriptionPreview(); 
@@ -413,39 +367,22 @@
             const containerHeal = document.getElementById('healers-tag-container');
             if (!containerAtk || !containerHeal) return;
             
-            // Renderiza Atacantes
-            let htmlAtk = '';
-            if (selectedExecutors.length === 0) {
-                htmlAtk = '<span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>';
-            } else {
-                selectedExecutors.forEach(id => {
-                    htmlAtk += `
-                        <span class="executor-tag">
-                            ${id}
-                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}', false)">✖</span>
-                        </span>
-                    `;
-                });
-            }
+            let htmlAtk = selectedExecutors.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>' : '';
+            selectedExecutors.forEach(id => {
+                htmlAtk += `<span class="executor-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', false)">✖</span></span>`;
+            });
             containerAtk.innerHTML = htmlAtk;
 
-            // Renderiza Healers
-            let htmlHeal = '';
-            if (selectedHealers.length === 0) {
-                htmlHeal = '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>';
-            } else {
-                selectedHealers.forEach(id => {
-                    htmlHeal += `
-                        <span class="executor-tag healer-tag">
-                            ${id}
-                            <span class="executor-remove-btn" onclick="window.removeExecutor('${id}', true)">✖</span>
-                        </span>
-                    `;
-                });
-            }
+            let htmlHeal = selectedHealers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>' : '';
+            selectedHealers.forEach(id => {
+                htmlHeal += `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', true)">✖</span></span>`;
+            });
             containerHeal.innerHTML = htmlHeal;
         }
 
+        // ====================================================================
+        // FUNÇÃO DE CADASTRAR ANBU CORRIGIDA AQUI
+        // ====================================================================
         window.addNinja = async function() {
             if (!isMasterAdminMode) return;
 
@@ -498,7 +435,7 @@
         
         window.deleteNinja = function(id) { 
             if (!isMasterAdminMode) return;
-            window.openCustomModal('Confirmação de Exclusão', `Excluir permanentemente o ANBU '${id}'?`, 'confirm', async (confirmed) => {
+            window.openCustomModal('Confirmação de Exclusão', `Excluir permanentemente o ANBU '${id}'?`, 'confirm').then(async (confirmed) => {
                  if (confirmed) {
                      try {
                          await deleteDoc(doc(db, COLLECTIONS.NINJAS, id));
@@ -507,9 +444,7 @@
                          window.updateExecutorTags();
                          window.updateExecutorSelect(); 
                          window.logAction('DELETE_GUARDIAN', { guardianId: id });
-                     } catch (e) {
-                         console.error(e);
-                     }
+                     } catch (e) { console.error(e); }
                  }
             });
         }
@@ -524,9 +459,7 @@
                      try {
                          await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { isActive: !ninja.isActive });
                          window.logAction('EDIT_GUARDIAN_STATUS', { guardianId: id });
-                     } catch (e) {
-                         console.error(e);
-                     }
+                     } catch (e) { console.error(e); }
                  }
             });
         }
@@ -553,11 +486,8 @@
                 const statusElement = document.getElementById('status');
                 statusElement.classList.remove('hidden');
                 try {
-                    const reportsCollectionRef = collection(db, COLLECTIONS.REPORTS);
-                    const ninjaCollectionRef = collection(db, COLLECTIONS.NINJAS);
-                    
-                    const reportsSnapshot = await getDocs(reportsCollectionRef); 
-                    const ninjaSnapshot = await getDocs(ninjaCollectionRef);
+                    const reportsSnapshot = await getDocs(collection(db, COLLECTIONS.REPORTS)); 
+                    const ninjaSnapshot = await getDocs(collection(db, COLLECTIONS.NINJAS));
                     
                     let batch = writeBatch(db);
                     reportsSnapshot.forEach((doc) => batch.delete(doc.ref));
@@ -581,7 +511,7 @@
             if (!isWriterMode) return;
             if (!calledInternally) {
                 const confirmed = await window.openCustomModal(
-                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks? Isso irá recontar os pontos com base no histórico de BTs.', 'confirm'
+                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks com base no histórico de BTs?', 'confirm'
                 );
                 if (!confirmed) return;
             }
@@ -601,14 +531,12 @@
 
                 let resetBatch = writeBatch(db);
                 Object.values(ninjasData).forEach(ninja => {
-                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, ninja.id);
-                    resetBatch.update(ninjaRef, { rankPoints: 0, missionsCompleted: 0 });
+                    resetBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { rankPoints: 0, missionsCompleted: 0 });
                 });
                 await resetBatch.commit();
                 
                 let applyBatch = writeBatch(db);
                 reportsData.forEach((report) => {
-                    // Soma pros atacantes
                     if (report.executorIds && report.executorIds.length > 0 && report.pointsPerAttacker > 0) {
                         report.executorIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -616,7 +544,6 @@
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    // Soma pros healers
                     if (report.healerIds && report.healerIds.length > 0 && report.pointsPerHealer > 0) {
                         report.healerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -627,10 +554,8 @@
                 }); 
                 
                 Object.values(tempNinjas).forEach(ninja => {
-                    const ninjaRef = doc(db, COLLECTIONS.NINJAS, ninja.id);
-                    applyBatch.update(ninjaRef, { 
-                        rankPoints: ninja.rankPoints, 
-                        missionsCompleted: ninja.missionsCompleted
+                    applyBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { 
+                        rankPoints: ninja.rankPoints, missionsCompleted: ninja.missionsCompleted
                     });
                 });
 
@@ -746,7 +671,7 @@
             const sortedReports = filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             if (sortedReports.length === 0) {
-                 reportsLog.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
+                 reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
                  return;
             }
 
@@ -766,13 +691,12 @@
 
                 reportsLog.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
-                        <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-1/12">${data.reportId}</td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12">
                             <span class="font-bold text-red-300">${atkText}</span><br>
                             ${healText}
                         </td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold">${targetText}</td>
-                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-4/12">${finalDesc}</td>
+                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-5/12">${finalDesc}</td>
                         <td class="px-4 py-2 whitespace-nowrap text-sm w-2/12">
                             <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
                         </td>
@@ -783,39 +707,26 @@
 
         window.renderNinjaPanel = function() {
             const allIdsSorted = Object.values(ninjasData).sort((a, b) => a.id.localeCompare(b.id));
-
-            const ninjaOptions = allIdsSorted.map(n => 
-                `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">
-                    ${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})
-                </option>`
-            ).join('');
+            const ninjaOptions = allIdsSorted.map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
             
             return `
                 <section class="space-y-6 pt-4">
-                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        Perfil do ANBU e Histórico
-                    </h2>
-                    <p class="text-center text-gray-400">Selecione qualquer ID de ANBU para ver seu histórico detalhado.</p>
-
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Perfil do ANBU e Histórico</h2>
                     <div class="max-w-md mx-auto space-y-2">
                         <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
-                        <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500 text-white shadow-inner">
+                        <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
                             <option value="">-- Ver Todos os Registros --</option>
                             ${ninjaOptions}
                         </select>
                     </div>
-
                     <div id="guardian-summary" class="max-w-md mx-auto p-4 bg-gray-700 rounded-lg shadow-inner text-center hidden"></div>
-
                     <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto mt-4">
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Divisão / Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-5/12">Divisão / Pontos</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
                                 </tr>
                             </thead>
@@ -828,22 +739,17 @@
 
         async function initializeFirebase() {
             try {
-                if (!firebaseConfig || !firebaseConfig.projectId) throw new Error("Configuração do Firebase inválida.");
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                const anonUser = await signInAnonymously(auth);
-                userId = anonUser.user.uid;
-                currentAccessId = 'ANONYMOUS'; 
+                await signInAnonymously(auth);
                 
                 document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
                 setupFirestoreListeners(); 
                 window.renderPage(currentPage);
                 window.generateReportId(); 
             } catch (error) {
-                const statusElement = document.getElementById('status');
-                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
-                statusElement.textContent = `❌ Erro ao conectar: ${error.message}`;
+                document.getElementById('status').textContent = `❌ Erro ao conectar: ${error.message}`;
             }
         }
         
@@ -875,14 +781,12 @@
             isWriterMode = isAuthorized;
             const writerElements = document.querySelectorAll('.writer-only');
             writerElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
-            window.renderPage(currentPage);
         }
 
         window.toggleMasterAdminUI = function(isAuthorized) {
             isMasterAdminMode = isAuthorized;
             const adminElements = document.querySelectorAll('.admin-only');
             adminElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
-            window.renderPage(currentPage);
         }
         
         window.checkAccessKey = async function() {
@@ -902,33 +806,30 @@
                 if (accessData.level === 'master_admin') {
                     window.toggleMasterAdminUI(true);
                     window.toggleWriterUI(true);
-                    statusElement.textContent = `✅ Acesso MASTER LIBERADO. ID: ${id}.`;
                 } else if (accessData.level === 'report_writer') {
                     window.toggleWriterUI(true);
                     window.toggleMasterAdminUI(false);
-                    statusElement.textContent = `✅ Acesso ANBU LIBERADO. ID: ${id}.`;
                 }
-                keyInput.value = ''; 
-                idInput.value = '';
+                keyInput.value = ''; idInput.value = '';
                 statusElement.classList.remove('hidden');
+                statusElement.textContent = `✅ Acesso LIBERADO. ID: ${id}.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
-                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                setTimeout(() => statusElement.classList.add('hidden'), 3000);
                 window.renderPage(currentPage);
             } else {
                 currentAccessId = 'ANONYMOUS'; 
                 window.toggleWriterUI(false);
                 window.toggleMasterAdminUI(false);
                 statusElement.classList.remove('hidden');
-                statusElement.textContent = '❌ Autorização Negada. ID ou Senha Incorreta.';
+                statusElement.textContent = '❌ ID ou Senha Incorreta.';
                 statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
-                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
             }
         }
         
         window.renderPage = function(pageName) {
             currentPage = pageName;
             const contentDiv = document.getElementById('content');
-            
             document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
             const activeLink = document.getElementById(`nav-${pageName}`);
             if (activeLink) activeLink.classList.add('active');
@@ -936,39 +837,28 @@
             contentDiv.innerHTML = '';
 
             switch (pageName) {
-                case 'home':
-                    contentDiv.innerHTML = window.renderHome();
-                    break;
-                case 'scoreboard':
-                    contentDiv.innerHTML = window.renderRank();
-                    window.renderScoreboard();
-                    break;
-                case 'reports_log':
-                    contentDiv.innerHTML = window.renderRelatorios();
-                    window.renderReportsLog();
-                    break;
-                case 'ninja_panel':
-                    contentDiv.innerHTML = window.renderNinjaPanel(); 
-                    window.renderReportsLogFiltered(); 
-                    break;
+                case 'home': contentDiv.innerHTML = window.renderHome(); break;
+                case 'scoreboard': contentDiv.innerHTML = window.renderRank(); window.renderScoreboard(); break;
+                case 'reports_log': contentDiv.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
+                case 'ninja_panel': contentDiv.innerHTML = window.renderNinjaPanel(); window.renderReportsLogFiltered(); break;
                 case 'report_form':
                     contentDiv.innerHTML = window.renderCriarRelatorio();
                     if (!isWriterMode) {
-                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Você precisa de autorização (Login na aba Autorização) para registrar BTs.</p>';
+                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Faça Login na aba Autorização para registrar BTs.</p>';
                         break;
                     }
-                    window.updateExecutorSelect();
-                    window.updateExecutorTags(); 
-                    window.generateReportId(); 
-                    window.updateDescriptionPreview(); 
+                    window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); window.updateDescriptionPreview(); 
                     break;
                 case 'admin_panel':
                     contentDiv.innerHTML = window.renderAutorizacao();
                     window.renderNinjasTable();
                     break;
-                default:
-                    contentDiv.innerHTML = window.renderHome();
+                default: contentDiv.innerHTML = window.renderHome();
             }
+            
+            // Re-aplica visibilidade baseada no login atual após renderizar
+            window.toggleMasterAdminUI(isMasterAdminMode);
+            window.toggleWriterUI(isWriterMode);
         }
 
         window.renderHome = function() { return `
@@ -982,39 +872,26 @@
         `; }
 
         window.renderCriarRelatorio = function() { return `
-            <section id="report-form-section" class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+            <section class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
                 <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de BTs - ANBU</h2>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    
                     <div class="space-y-2 lg:col-span-3">
                         <label class="block text-sm font-medium text-gray-300">ANBUs na PT de Ataque (Dividem os Pontos)</label>
                         <div class="flex gap-2">
-                            <select id="new-executor-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
-                                <option value="" disabled selected>Selecione um Atacante</option>
-                            </select>
-                            <button type="button" onclick="window.addExecutor(false)" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">
-                                Adicionar
-                            </button>
+                            <select id="new-executor-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner"></select>
+                            <button type="button" onclick="window.addExecutor(false)" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
                         </div>
-                        <div id="executors-tag-container" class="executor-list-container">
-                            <span class="text-gray-400 text-sm italic">Nenhum Atacante selecionado.</span>
-                        </div>
+                        <div id="executors-tag-container" class="executor-list-container"></div>
                     </div>
 
                     <div class="space-y-2 lg:col-span-3">
                         <label class="block text-sm font-medium text-gray-300">Healers na PT (Recebem BT Integral)</label>
                         <div class="flex gap-2">
-                            <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner">
-                                <option value="" disabled selected>Selecione um Healer</option>
-                            </select>
-                            <button type="button" onclick="window.addExecutor(true)" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">
-                                Adicionar Healer
-                            </button>
+                            <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner"></select>
+                            <button type="button" onclick="window.addExecutor(true)" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar Healer</button>
                         </div>
-                        <div id="healers-tag-container" class="executor-list-container">
-                            <span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>
-                        </div>
+                        <div id="healers-tag-container" class="executor-list-container"></div>
                     </div>
 
                     <div class="space-y-2 lg:col-span-3">
@@ -1032,7 +909,6 @@
                             <input type="checkbox" id="chk-special" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
                             <span class="text-gray-200 font-medium">Alvo especial: Dakotinha ou guinho? (Multiplica o BT por 3)</span>
                         </label>
-                        
                         <label class="flex items-center space-x-3 cursor-pointer">
                             <input type="checkbox" id="chk-trashtalk" class="form-checkbox h-5 w-5 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
                             <span class="text-gray-200 font-medium">Deu trash talk? (+20 Pontos)</span>
@@ -1041,12 +917,7 @@
                     
                     <div class="space-y-2 lg:col-span-3">
                         <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
-                        <div class="flex gap-2">
-                            <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed" value="Gerado Automaticamente">
-                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
-                            </button>
-                        </div>
+                        <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
                     </div>
                 </div>
 
@@ -1059,9 +930,7 @@
 
                 <div class="pt-4 space-y-2 border-t border-gray-700/50">
                     <h3 class="text-xl font-medium text-gray-300">Resumo do Registro:</h3>
-                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]">
-                        O resumo aparecerá aqui.
-                    </div>
+                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]"></div>
                 </div>
 
                 <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
@@ -1073,18 +942,15 @@
         window.renderRank = function() {
             return `
                 <section class="space-y-4 pt-8">
-                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 8a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zM5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
-                        Rank da ANBU (Membros Cadastrados)
-                    </h2>
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Rank da ANBU</h2>
                     <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID ANBU</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total de Pontos</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Caçadas Concluídas</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Rank</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Caçadas Concluídas</th>
                                 </tr>
                             </thead>
                             <tbody id="ninjas-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -1102,11 +968,10 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">ID Registro</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Divisão / Pontos</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvo Morto</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-5/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Data</th>
                                 </tr>
                             </thead>
                             <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -1124,24 +989,19 @@
 
             return `
                 <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
-                     <h2 class="text-2xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm2 5v2h-4V7a3 3 0 016 0z"/></svg>
-                         Autorização de Escrita (Login)
-                     </h2>
+                     <h2 class="text-2xl font-bold text-red-400 text-center">Autorização de Escrita (Login)</h2>
                      <div id="admin-status-display">${accessStatus}</div>
                      <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
                          <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
                          <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
-                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">
-                             Logar
-                         </button>
+                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">Logar</button>
                      </div>
                 </section>
                 
                 <section class="space-y-4 pt-8 pb-16">
                     <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
                     
-                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only ${isMasterAdminMode ? '' : 'hidden'}">
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden">
                         <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
                         <select id="new-ninja-element" class="w-full sm:w-48 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
                              <option value="Fogo">Fogo</option>
@@ -1158,10 +1018,10 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID ANBU</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Elemento</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider admin-only ${isMasterAdminMode ? '' : 'hidden'}">Ações</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Elemento</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase admin-only hidden">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -1169,14 +1029,14 @@
                     </div>
                 </section>
 
-                <div id="writer-tools" class="pt-8 space-y-4 writer-only ${isWriterMode ? '' : 'hidden'}">
+                <div id="writer-tools" class="pt-8 space-y-4 writer-only hidden">
                     <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Manutenção</h3>
                     <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
                         🔄 Recalcular Todos os Ranks
                     </button>
                 </div>
 
-                <div id="admin-tools" class="pt-4 space-y-4 admin-only ${isMasterAdminMode ? '' : 'hidden'}">
+                <div id="admin-tools" class="pt-4 space-y-4 admin-only hidden">
                     <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Ferramentas de Exclusão (Admin Master)</h3>
                     <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
                         ⚔️ Excluir Histórico de Registros (ZERA Ranks)

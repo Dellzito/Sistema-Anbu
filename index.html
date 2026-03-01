@@ -54,6 +54,16 @@
         <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
             <h3 id="modal-title" class="text-xl font-bold text-red-400">Título</h3>
             <p id="modal-message" class="text-gray-300">Mensagem</p>
+            <div id="modal-input-container" class="space-y-3 hidden">
+                <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden">Input 1</label>
+                <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
+                <select id="modal-select-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
+
+                <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden">Input 2</label>
+                <select id="modal-select-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
+                
+                <span id="modal-error" class="text-red-400 text-sm hidden"></span>
+            </div>
             <div id="modal-actions" class="flex justify-end gap-3 pt-2">
                 <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
                 <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
@@ -69,7 +79,7 @@
             updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // SUAS CONFIGURAÇÕES DO FIREBASE
+        // CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -102,6 +112,8 @@
             ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`, 
             AUDIT_LOG: `artifacts/${appId}/users/audit_user_log/audit_events` 
         };
+
+        const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
 
         window.logAction = async function(action, details) {
             if (!db) return;
@@ -137,8 +149,24 @@
                 const confirmBtn = document.getElementById('modal-confirm-btn');
                 const cancelBtn = document.getElementById('modal-cancel-btn');
                 
+                const inputContainer = document.getElementById('modal-input-container');
+                const input1 = document.getElementById('modal-input-1');
+                const select1 = document.getElementById('modal-select-1');
+                const select2 = document.getElementById('modal-select-2');
+                const label1 = document.getElementById('input-label-1');
+                const label2 = document.getElementById('input-label-2');
+
                 modalTitle.textContent = title;
                 modalMessage.textContent = message;
+                
+                // Reseta inputs do modal
+                inputContainer.classList.add('hidden');
+                input1.classList.add('hidden');
+                select1.classList.add('hidden');
+                select2.classList.add('hidden');
+                label1.classList.add('hidden');
+                label2.classList.add('hidden');
+                
                 confirmBtn.onclick = null;
                 cancelBtn.onclick = null;
                 confirmBtn.classList.remove('bg-red-600', 'bg-orange-600');
@@ -152,12 +180,31 @@
                     const statusText = data.isActive ? 'Ativo' : 'Inativo';
                     const newStatusText = data.isActive ? 'INATIVO' : 'ATIVO';
                     modalMessage.innerHTML = `O ANBU **${data.id}** está atualmente <span class="font-bold ${data.isActive ? 'text-green-400' : 'text-red-400'}">${statusText}</span>. Deseja alternar o status para **${newStatusText}**?`;
-                    confirmBtn.textContent = `Alternar`;
+                    confirmBtn.textContent = `Alternar Status`;
                     confirmBtn.classList.add('bg-orange-600'); 
+                } else if (type === 'masteryEdit') {
+                    inputContainer.classList.remove('hidden');
+                    
+                    label1.textContent = '1ª Maestria:';
+                    label1.classList.remove('hidden');
+                    select1.classList.remove('hidden');
+                    select1.innerHTML = MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
+                    if (data.m1) select1.value = data.m1;
+
+                    label2.textContent = '2ª Maestria (Opcional):';
+                    label2.classList.remove('hidden');
+                    select2.classList.remove('hidden');
+                    select2.innerHTML = '<option value="">-- Nenhuma --</option>' + MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
+                    if (data.m2) select2.value = data.m2;
+
+                    confirmBtn.textContent = `Salvar Maestrias`;
+                    confirmBtn.onclick = () => closeCustomModal({ m1: select1.value, m2: select2.value });
                 }
 
                 cancelBtn.onclick = () => closeCustomModal(false);
-                confirmBtn.onclick = () => closeCustomModal(true);
+                if (type !== 'masteryEdit') {
+                    confirmBtn.onclick = () => closeCustomModal(true);
+                }
 
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
@@ -185,13 +232,10 @@
             if (isNaN(btBase)) btBase = 0;
 
             let totalPointsRaw = btBase;
-            
-            // Lógica de Modificadores (Multiplicador primeiro, depois bônus fixos)
-            if (isSpecial) totalPointsRaw *= 3; // Kage x3
-            if (isOrg) totalPointsRaw += 100;   // ORG Especial +100
-            if (isTrashTalk) totalPointsRaw += 20; // Trash Talk +20
+            if (isSpecial) totalPointsRaw *= 3;
+            if (isOrg) totalPointsRaw += 100;
+            if (isTrashTalk) totalPointsRaw += 20;
 
-            // MATEMÁTICA DA DIVISÃO
             const attackersCount = selectedExecutors.length;
             const pointsPerAttacker = attackersCount > 0 ? Math.round(totalPointsRaw / attackersCount) : 0;
             const pointsPerHealer = totalPointsRaw; 
@@ -250,9 +294,9 @@
             const data = _gatherReportData();
             let previewText = `Bounty Base: ${data.btBase} pts. `;
 
-            if (data.targetName) previewText += `[Alvo Morto: ${data.targetName}]. `;
+            if (data.targetName) previewText += `[Alvo: ${data.targetName}]. `;
             if (data.isSpecial) previewText += `[Kage x3]. `;
-            if (data.isOrg) previewText += `[ORG Especial +100]. `;
+            if (data.isOrg) previewText += `[ORG +100]. `;
             if (data.isTrashTalk) previewText += `[Trash Talk +20]. `;
 
             if (data.executorIds.length > 0) previewText += `PT Ataque: ${data.executorIds.join(', ')} (${data.pointsPerAttacker} pts cada). `;
@@ -341,11 +385,10 @@
                 const elementLabel = ninja.element ? ` (${ninja.element})` : '';
                 
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
-                    // Todos podem ser atacantes
                     optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     
-                    // Apenas quem tem a palavra 'Médico' no elemento pode ser selecionado como Healer
-                    if (ninja.element && ninja.element.includes('Médico')) {
+                    // Lógica para liberar Healer apenas se tiver a maestria "Med (Chakra)"
+                    if (ninja.element && ninja.element.includes('Med (Chakra)')) {
                         optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     }
                 }
@@ -484,6 +527,33 @@
                  }
             });
         }
+
+        window.editNinjaMastery = function(id) {
+            if (!isMasterAdminMode) return;
+            const ninja = ninjasData[id];
+            if (!ninja) return;
+
+            let currentM1 = "Fogo";
+            let currentM2 = "";
+            if (ninja.element) {
+                const parts = ninja.element.split(' / ');
+                currentM1 = parts[0];
+                if (parts.length > 1) currentM2 = parts[1];
+            }
+
+            window.openCustomModal('Editar Maestrias', `Alterar as maestrias do ANBU ${id}:`, 'masteryEdit', { m1: currentM1, m2: currentM2 }).then(async (result) => {
+                 if (result) {
+                     try {
+                         let finalElement = result.m1;
+                         if (result.m2 && result.m2 !== result.m1) {
+                             finalElement += ` / ${result.m2}`;
+                         }
+                         await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { element: finalElement });
+                         window.logAction('EDIT_GUARDIAN_MASTERY', { guardianId: id, newElement: finalElement });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
         
         window.copyReportId = function() { 
              const reportIdElement = document.getElementById('report-id-display');
@@ -512,7 +582,9 @@
                     
                     let batch = writeBatch(db);
                     reportsSnapshot.forEach((doc) => batch.delete(doc.ref));
-                    ninjaSnapshot.forEach((doc) => batch.update(doc.ref, { rankPoints: 0, missionsCompleted: 0 }));
+                    ninjaSnapshot.forEach((doc) => {
+                        if(doc.id) batch.update(doc.ref, { rankPoints: 0, missionsCompleted: 0 });
+                    });
                     
                     await batch.commit();
 
@@ -547,7 +619,7 @@
             try {
                 const tempNinjas = {}; 
                 Object.values(ninjasData).forEach(ninja => {
-                    tempNinjas[ninja.id] = { ...ninja, rankPoints: 0, missionsCompleted: 0 };
+                    if(ninja.id) tempNinjas[ninja.id] = { ...ninja, rankPoints: 0, missionsCompleted: 0 };
                 });
 
                 let resetBatch = writeBatch(db);
@@ -647,6 +719,7 @@
                 const actionCell = showActionColumn ? `
                     <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                         <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn mr-2">Status</button>
+                        <button onclick="window.editNinjaMastery('${data.id}')" class="text-yellow-500 hover:text-yellow-700 transition duration-150 edit-btn mr-2">Maestria</button>
                         <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-red-700 transition duration-150">Excluir</button>
                     </td>
                 ` : '';
@@ -717,12 +790,13 @@
 
                 reportsLog.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
+                        <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-2/12">${data.reportId}</td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12">
                             <span class="font-bold text-red-300">${atkText}</span><br>
                             ${healText}
                         </td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold">${targetText}</td>
-                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-5/12">${finalDesc}</td>
+                        <td class="px-4 py-2 whitespace-normal text-sm text-gray-400 w-3/12">${finalDesc}</td>
                         <td class="px-4 py-2 whitespace-nowrap text-sm w-2/12">
                             <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
                         </td>
@@ -752,10 +826,11 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-5/12">Divisão / Pontos</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Data</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">ID Registro</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvo Morto</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Data</th>
                                 </tr>
                             </thead>
                             <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
@@ -948,7 +1023,12 @@
                     
                     <div class="space-y-2 lg:col-span-3">
                         <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
-                        <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
+                        <div class="flex gap-2">
+                            <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
+                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -999,9 +1079,10 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">ID Registro</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvo Morto</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-5/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Descrição/Pontos</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Data</th>
                                 </tr>
                             </thead>
@@ -1041,7 +1122,8 @@
                              <option value="Vento">Vento</option>
                              <option value="Terra">Terra</option>
                              <option value="Raio">Raio</option>
-                             <option value="Médico">Médico</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
                              <option value="WM">WM</option>
                              <option value="TAI">TAI</option>
                         </select>
@@ -1053,7 +1135,8 @@
                              <option value="Vento">Vento</option>
                              <option value="Terra">Terra</option>
                              <option value="Raio">Raio</option>
-                             <option value="Médico">Médico</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
                              <option value="WM">WM</option>
                              <option value="TAI">TAI</option>
                         </select>

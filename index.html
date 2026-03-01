@@ -107,13 +107,12 @@
         let app, db, auth;
         let currentReportId = ''; 
         
-        // Novas listas de organização da PT
         let selectedKillers = []; 
         let selectedAssists = []; 
         let selectedHealers = []; 
         
         let targetEntryCount = 0; 
-        window.isEditingMode = false; // Controle de edição de registro
+        window.isEditingMode = false; 
         
         let ninjasData = {}; 
         let reportsData = []; 
@@ -337,7 +336,6 @@
                 });
             });
 
-            // NOVA MATEMÁTICA: Finalizador (Integral), Healer (Integral), Assists (Dividem)
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
@@ -347,9 +345,9 @@
             return {
                 reportId: currentReportId,
                 targets: targetsData, 
-                killerIds: selectedKillers,    // Ganha 100%
-                assistIds: selectedAssists,    // Divide o total
-                healerIds: selectedHealers,    // Ganha 100%
+                killerIds: selectedKillers,
+                assistIds: selectedAssists,
+                healerIds: selectedHealers,
                 totalPointsRaw: totalPointsRaw,
                 pointsPerKiller: pointsPerKiller,
                 pointsPerAssist: pointsPerAssist,
@@ -374,7 +372,7 @@
 
             if (!data || !totalPointsInput || !submitBtn) return;
             
-            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Finalizador: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
+            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
 
             const hasPartyMembers = (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0;
             const hasTargets = data.targets.length > 0;
@@ -403,7 +401,7 @@
                 previewText += `[Nenhum alvo adicionado]. `;
             }
 
-            if (data.killerIds.length > 0) previewText += `Finalizador: ${data.killerIds.join(', ')} (${data.pointsPerKiller} pts). `;
+            if (data.killerIds.length > 0) previewText += `Killer: ${data.killerIds.join(', ')} (${data.pointsPerKiller} pts). `;
             if (data.assistIds.length > 0) previewText += `Assistência: ${data.assistIds.join(', ')} (${data.pointsPerAssist} pts/cada). `;
             if (data.healerIds.length > 0) previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts). `;
             
@@ -435,9 +433,8 @@
 
             try {
                 const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
-                batch.set(reportRef, data); // set sobrescreve o antigo se for edição
+                batch.set(reportRef, data); 
 
-                // Se NÃO for edição, adiciona os pontos diretos agora para ser mais rápido
                 if (!window.isEditingMode) {
                     for (const participantId of data.killerIds) {
                         const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
@@ -462,7 +459,6 @@
                     }
                     await batch.commit();
                 } else {
-                    // Se FOR edição, salva apenas o relatório e manda o sistema recalcular tudo do zero
                     await batch.commit();
                     await window.recalculateAllRanks(true);
                     window.isEditingMode = false;
@@ -471,7 +467,6 @@
                 statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 
-                // RESET
                 selectedKillers = [];
                 selectedAssists = [];
                 selectedHealers = [];
@@ -493,9 +488,6 @@
             setTimeout(() => statusElement.classList.add('hidden'), 7000);
         }
 
-        // ====================================================================
-        // FUNÇÕES DE EXCLUIR E EDITAR RELATÓRIO
-        // ====================================================================
         window.deleteReport = function(reportId) {
             if (!isWriterMode && !isMasterAdminMode) return;
             
@@ -532,12 +524,10 @@
             currentReportId = report.reportId;
             window.isEditingMode = true;
 
-            // Carrega os arrays com base na nova ou antiga estrutura
             selectedKillers = report.killerIds || [];
-            selectedAssists = report.assistIds || report.executorIds || []; // Suporte para relatórios antigos
+            selectedAssists = report.assistIds || report.executorIds || []; 
             selectedHealers = report.healerIds || [];
 
-            // Limpa e recria os alvos
             const targetsContainer = document.getElementById('targets-container');
             targetsContainer.innerHTML = '';
             targetEntryCount = 0;
@@ -553,7 +543,6 @@
                     entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk;
                 });
             } else if (report.targetName) {
-                // Caso seja um relatório muito antigo com apenas 1 alvo
                 window.addTargetEntry();
                 const entry = document.getElementById(`target-${targetEntryCount}`);
                 entry.querySelector('.target-name').value = report.targetName;
@@ -562,7 +551,7 @@
                 entry.querySelector('.target-chk-org').checked = report.isOrg;
                 entry.querySelector('.target-chk-trashtalk').checked = report.isTrashTalk;
             } else {
-                window.addTargetEntry(); // Coloca um em branco se por acaso não tiver nada
+                window.addTargetEntry(); 
             }
 
             window.updateExecutorTags();
@@ -572,7 +561,6 @@
             document.getElementById('submit-report').innerHTML = '💾 Salvar Alterações da Caçada (Recalculará Ranks)';
             document.getElementById('report-id-display').value = currentReportId;
             
-            // Rola pro topo suavemente
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -586,7 +574,7 @@
             const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
             activeNinjas.sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
 
-            let optionsKiller = '<option value="" disabled selected>Selecionar Finalizador</option>';
+            let optionsKiller = '<option value="" disabled selected>Selecionar Killer</option>';
             let optionsAssist = '<option value="" disabled selected>Selecionar Assistência</option>';
             let optionsHeal = '<option value="" disabled selected>Selecionar Healer</option>';
 
@@ -595,7 +583,6 @@
                 
                 const elementLabel = ninja.element ? ` (${ninja.element})` : '';
                 
-                // Só mostra nos selects quem AINDA NÃO foi selecionado em lugar nenhum
                 if (!selectedKillers.includes(ninja.id) && !selectedAssists.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
                     optionsKiller += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     optionsAssist += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
@@ -646,21 +633,18 @@
             const containerHeal = document.getElementById('healers-tag-container');
             if (!containerKiller || !containerAssist || !containerHeal) return;
             
-            // Renderiza Finalizadores
-            let htmlKiller = selectedKillers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Finalizador selecionado.</span>' : '';
+            let htmlKiller = selectedKillers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Killer selecionado.</span>' : '';
             selectedKillers.forEach(id => {
                 htmlKiller += `<span class="executor-tag killer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'killer')">✖</span></span>`;
             });
             containerKiller.innerHTML = htmlKiller;
 
-            // Renderiza Assists
             let htmlAssist = selectedAssists.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhuma Assistência selecionada.</span>' : '';
             selectedAssists.forEach(id => {
                 htmlAssist += `<span class="executor-tag assist-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'assist')">✖</span></span>`;
             });
             containerAssist.innerHTML = htmlAssist;
 
-            // Renderiza Healers
             let htmlHeal = selectedHealers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>' : '';
             selectedHealers.forEach(id => {
                 htmlHeal += `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'healer')">✖</span></span>`;
@@ -860,7 +844,6 @@
                 
                 let applyBatch = writeBatch(db);
                 reportsData.forEach((report) => {
-                    // KILLERS (Novo)
                     if (report.killerIds && report.killerIds.length > 0) {
                         report.killerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -868,7 +851,6 @@
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    // ASSISTS (Novo/Velho)
                     if (report.assistIds && report.assistIds.length > 0) {
                         report.assistIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -876,7 +858,6 @@
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    // LEGACY SUPPORT (Se o relatório foi criado antes da att de finalizador/assists)
                     if (report.executorIds && report.executorIds.length > 0 && (!report.killerIds && !report.assistIds)) {
                         report.executorIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -884,7 +865,6 @@
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    // HEALERS
                     if (report.healerIds && report.healerIds.length > 0) {
                         report.healerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
@@ -1047,11 +1027,65 @@
             if (filterId && guardianSummaryDiv) {
                 const ninjaData = ninjasData[filterId];
                 if (ninjaData) {
+                    
+                    let killCount = 0, killPoints = 0;
+                    let assistCount = 0, assistPoints = 0;
+                    let healCount = 0, healPoints = 0;
+
+                    filteredReports.forEach(r => {
+                        let targetsInReport = (r.targets && r.targets.length > 0) ? r.targets.length : 1;
+                        
+                        if (r.killerIds && r.killerIds.includes(filterId)) {
+                            killCount += targetsInReport;
+                            killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
+                        }
+                        if (r.assistIds && r.assistIds.includes(filterId)) {
+                            assistCount += targetsInReport;
+                            assistPoints += (r.pointsPerAssist || 0);
+                        }
+                        if (r.executorIds && r.executorIds.includes(filterId) && (!r.killerIds && !r.assistIds)) {
+                            killCount += targetsInReport; 
+                            killPoints += (r.pointsPerAttacker || 0);
+                        }
+                        if (r.healerIds && r.healerIds.includes(filterId)) {
+                            healCount += targetsInReport;
+                            healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
+                        }
+                    });
+
                     guardianSummaryDiv.innerHTML = `
-                        <p class="text-xl font-bold text-yellow-400">${filterId.toUpperCase()}</p>
-                        <p class="text-sm text-gray-300">${ninjaData.isActive ? 'ANBU Ativo' : 'ANBU Inativo'} ${ninjaData.element ? `(${ninjaData.element})` : ''}</p>
-                        <p class="text-lg text-green-400">Total de Pontos: ${Math.round(ninjaData.rankPoints)} Pts</p>
-                        <p class="text-gray-300">Total de Caçadas (BTs) Participadas: ${ninjaData.missionsCompleted}</p>
+                        <div class="flex flex-col md:flex-row justify-between items-center border-b border-gray-600 pb-4 mb-4">
+                            <div class="text-center md:text-left">
+                                <h3 class="text-2xl font-bold text-red-400 uppercase tracking-wider">${filterId}</h3>
+                                <p class="text-sm text-gray-300 mt-1">${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'} | Maestria: <span class="text-white font-medium">${ninjaData.element || 'Não definida'}</span></p>
+                            </div>
+                            <div class="text-center md:text-right mt-4 md:mt-0">
+                                <p class="text-xs text-gray-400 uppercase">Rank Points Totais</p>
+                                <p class="text-3xl font-bold text-green-400">${Math.round(ninjaData.rankPoints)} <span class="text-sm text-gray-500">Pts</span></p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                <p class="text-xs text-gray-400 uppercase">Caçadas Feitas</p>
+                                <p class="text-xl font-bold text-white mt-1">${ninjaData.missionsCompleted}</p>
+                            </div>
+                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                <p class="text-xs text-gray-400 uppercase">Como Killer</p>
+                                <p class="text-xl font-bold text-red-400 mt-1">${killCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                <p class="text-xs text-gray-400 mt-1">Gerou: ${killPoints} pts</p>
+                            </div>
+                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                <p class="text-xs text-gray-400 uppercase">Assistências</p>
+                                <p class="text-xl font-bold text-orange-400 mt-1">${assistCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                <p class="text-xs text-gray-400 mt-1">Gerou: ${assistPoints} pts</p>
+                            </div>
+                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                <p class="text-xs text-gray-400 uppercase">Como Healer</p>
+                                <p class="text-xl font-bold text-green-400 mt-1">${healCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                <p class="text-xs text-gray-400 mt-1">Gerou: ${healPoints} pts</p>
+                            </div>
+                        </div>
                     `;
                     guardianSummaryDiv.classList.remove('hidden');
                 }
@@ -1071,11 +1105,10 @@
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 });
                 
-                // Formatação dos membros da PT
                 let membersText = '';
-                if (data.killerIds && data.killerIds.length > 0) membersText += `<span class="text-red-400 text-xs font-bold block">Finalizador: ${data.killerIds.join(', ')}</span>`;
+                if (data.killerIds && data.killerIds.length > 0) membersText += `<span class="text-red-400 text-xs font-bold block">Killer: ${data.killerIds.join(', ')}</span>`;
                 if (data.assistIds && data.assistIds.length > 0) membersText += `<span class="text-orange-400 text-xs font-bold block">Assistência: ${data.assistIds.join(', ')}</span>`;
-                if (data.executorIds && data.executorIds.length > 0 && (!data.killerIds && !data.assistIds)) membersText += `<span class="text-orange-400 text-xs font-bold block">PT (Legado): ${data.executorIds.join(', ')}</span>`;
+                if (data.executorIds && data.executorIds.length > 0 && (!data.killerIds && !data.assistIds)) membersText += `<span class="text-orange-400 text-xs font-bold block">Killer/PT (Antigo): ${data.executorIds.join(', ')}</span>`;
                 if (data.healerIds && data.healerIds.length > 0) membersText += `<span class="text-green-400 text-xs font-bold block">Healers: ${data.healerIds.join(', ')}</span>`;
                 
                 let targetText = '';
@@ -1093,7 +1126,7 @@
                     });
                     
                     let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (`;
-                    if (data.pointsPerKiller > 0) divisaoText += `Finalizador: ${data.pointsPerKiller}/cada | `;
+                    if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
                     if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
                     if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
                     divisaoText += `)</span>`;
@@ -1105,10 +1138,9 @@
                                     (data.isSpecial ? '[Kage x3]. ' : '') + 
                                     (data.isOrg ? '[ORG +100]. ' : '') + 
                                     (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
-                                    `<br><span class="text-xs text-gray-500">Divisão: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
+                                    `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
                 }
 
-                // Botões de Ação
                 let actionBtns = '';
                 if (isWriterMode || isMasterAdminMode) {
                     actionBtns = `
@@ -1176,7 +1208,7 @@
                             ${ninjaOptions}
                         </select>
                     </div>
-                    <div id="guardian-summary" class="max-w-md mx-auto p-4 bg-gray-700 rounded-lg shadow-inner text-center hidden"></div>
+                    <div id="guardian-summary" class="w-full max-w-4xl mx-auto p-4 bg-gray-700 rounded-lg shadow-inner hidden"></div>
                     <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto mt-4">
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
@@ -1346,7 +1378,7 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-300">Finalizador (Recebe 100% dos Pontos)</label>
+                            <label class="block text-sm font-medium text-gray-300">Killer (Recebe 100% dos Pontos)</label>
                             <div class="flex gap-2">
                                 <select id="new-killer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner"></select>
                                 <button type="button" onclick="window.addExecutor('killer')" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
@@ -1355,7 +1387,7 @@
                         </div>
 
                         <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-300">Assistência (Dividem os Pontos Restantes)</label>
+                            <label class="block text-sm font-medium text-gray-300">Assistência (Dividem os Pontos)</label>
                             <div class="flex gap-2">
                                 <select id="new-assist-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-orange-500 text-white shadow-inner"></select>
                                 <button type="button" onclick="window.addExecutor('assist')" class="py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
@@ -1542,4 +1574,3 @@
     </script>
 </body>
 </html>
-

@@ -24,7 +24,7 @@
         }
         .healer-tag { background-color: #10b981; }
         .executor-remove-btn { margin-left: 6px; cursor: pointer; color: #fecaca; }
-        .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; }
+        .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; text-align: center; }
         .nav-link:hover:not(.active) { background-color: #1e293b; }
         .nav-link.active { color: #f87171; border-bottom: 2px solid #f87171; }
     </style>
@@ -38,9 +38,10 @@
                 <a class="nav-link" onclick="window.renderPage('home')" id="nav-home">Home</a>
                 <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Ver Rank</a>
                 <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico de BTs</a>
+                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos Eliminados</a>
                 <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do ANBU</a>
                 <a class="nav-link" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar BT</a>
-                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização / Gerenciamento</a>
+                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização</a>
             </nav>
         </header>
         
@@ -79,6 +80,7 @@
             updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -100,7 +102,7 @@
         let currentReportId = ''; 
         let selectedExecutors = []; 
         let selectedHealers = []; 
-        let targetEntryCount = 0; // Contador de alvos dinâmicos
+        let targetEntryCount = 0; 
         
         let ninjasData = {}; 
         let reportsData = []; 
@@ -382,7 +384,7 @@
             const statusElement = document.getElementById('status');
 
             if (!data || (data.executorIds.length === 0 && data.healerIds.length === 0) || data.totalPointsRaw === 0) {
-                 window.openCustomModal('Erro', 'Preencha o valor do BT e adicione pelo menos um ANBU na PT.', 'info');
+                 window.openCustomModal('Erro', 'Preencha os valores do BT e adicione pelo menos um ANBU na PT.', 'info');
                  return;
             }
 
@@ -417,16 +419,15 @@
                 statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 
-                // RESET DO FORMULÁRIO COMPLETO E REINSERÇÃO DAS LISTAS
                 selectedExecutors = [];
                 selectedHealers = [];
                 window.updateExecutorTags();
-                window.updateExecutorSelect(); // ATUALIZA A LISTA DOS SELECTS APÓS O ENVIO
+                window.updateExecutorSelect(); 
                 window.generateReportId();
                 
                 const targetsContainer = document.getElementById('targets-container');
                 if (targetsContainer) targetsContainer.innerHTML = '';
-                window.addTargetEntry(); // Adiciona 1 alvo em branco novamente
+                window.addTargetEntry(); 
 
                 window.updateDescriptionPreview(); 
 
@@ -437,13 +438,44 @@
             setTimeout(() => statusElement.classList.add('hidden'), 7000);
         }
 
+        // ====================================================================
+        // FUNÇÃO DE DELETAR RELATÓRIO (NOVIDADE)
+        // ====================================================================
+        window.deleteReport = function(reportId) {
+            if (!isWriterMode && !isMasterAdminMode) return;
+            
+            window.openCustomModal('Excluir Registro', `Tem certeza que deseja excluir o registro ${reportId}? Isso não pode ser desfeito e os pontos serão recalculados automaticamente.`, 'confirm').then(async (confirmed) => {
+                if (confirmed) {
+                    const statusElement = document.getElementById('status');
+                    statusElement.classList.remove('hidden');
+                    statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                    statusElement.textContent = `Excluindo registro ${reportId}...`;
+                    
+                    try {
+                        // 1. Deleta do Banco de Dados
+                        await deleteDoc(doc(db, COLLECTIONS.REPORTS, reportId));
+                        window.logAction('DELETE_REPORT', { reportId: reportId });
+                        
+                        // 2. Refaz a matemática de todo mundo pra consertar os Ranks sem esse relatorio
+                        await window.recalculateAllRanks(true); 
+                        
+                        statusElement.textContent = `✅ Registro excluído e ranks atualizados com sucesso!`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    } catch (e) {
+                        statusElement.textContent = `❌ Erro: ${e.message}`;
+                        statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                    }
+                    setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                }
+            });
+        }
+
         window.updateExecutorSelect = function() {
             const selectAtk = document.getElementById('new-executor-id-select');
             const selectHeal = document.getElementById('new-healer-id-select');
             if (!selectAtk || !selectHeal) return;
             
             const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
-            // PROTEÇÃO + ORDEM ALFABÉTICA CORRIGIDA (ToLowerCase ignora maiusculas e minusculas)
             activeNinjas.sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
 
             let optionsAtk = '<option value="" disabled selected>Selecione um Atacante</option>';
@@ -457,7 +489,7 @@
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
                     optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     
-                    // Lógica para liberar Healer apenas se tiver a maestria "Med (Chakra)"
+                    // Somente Med (Chakra) aparece no select de Healer
                     if (ninja.element && ninja.element.includes('Med (Chakra)')) {
                         optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
                     }
@@ -671,7 +703,7 @@
         }
         
         window.recalculateAllRanks = async function(calledInternally = false) {
-            if (!isWriterMode) return;
+            if (!isWriterMode && !isMasterAdminMode) return;
             if (!calledInternally) {
                 const confirmed = await window.openCustomModal(
                     'Confirmação de Recálculo', 'RECALCULAR todos os Ranks com base no histórico de BTs?', 'confirm'
@@ -805,6 +837,49 @@
             });
         }
 
+        window.renderTargetsTable = function() {
+            const tbody = document.getElementById('targets-scoreboard');
+            if (!tbody) return;
+
+            const targetsMap = {};
+
+            reportsData.forEach(report => {
+                if (report.targets && report.targets.length > 0) {
+                    report.targets.forEach(t => {
+                        const name = t.name ? t.name.trim().toLowerCase() : 'desconhecido';
+                        if (!targetsMap[name]) targetsMap[name] = { name: t.name || 'Desconhecido', count: 0, totalBT: 0 };
+                        targetsMap[name].count += 1;
+                        targetsMap[name].totalBT += (t.btBase || 0);
+                    });
+                } else if (report.targetName) {
+                    const name = report.targetName.trim().toLowerCase();
+                    if (!targetsMap[name]) targetsMap[name] = { name: report.targetName, count: 0, totalBT: 0 };
+                    targetsMap[name].count += 1;
+                    targetsMap[name].totalBT += (report.btBase || report.totalPointsRaw || 0);
+                }
+            });
+
+            const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
+
+            tbody.innerHTML = '';
+            if (sortedTargets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">Nenhum alvo registrado ainda.</td></tr>`;
+                return;
+            }
+
+            sortedTargets.forEach((target, index) => {
+                const rankIcon = getRankIcon(index + 1);
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-orange-300 capitalize">${target.name}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-red-400">${target.count}x</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${target.totalBT} BT Base</td>
+                    </tr>
+                `;
+            });
+        }
+
         window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log') {
             const reportsLog = document.getElementById(targetId);
             const guardianSummaryDiv = document.getElementById('guardian-summary');
@@ -851,7 +926,6 @@
                 const atkText = data.executorIds && data.executorIds.length > 0 ? data.executorIds.join(', ') : '';
                 const healText = data.healerIds && data.healerIds.length > 0 ? `<span class="text-green-400 text-xs">Healers: ${data.healerIds.join(', ')}</span>` : '';
                 
-                // Múltiplos Alvos
                 let targetText = '';
                 let finalDesc = '';
 
@@ -867,7 +941,6 @@
                     });
                     finalDesc = descParts.join('<br>') + `<br><span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (PT: ${data.pointsPerAttacker}/cada | Healer: ${data.pointsPerHealer}/cada)</span>`;
                 } else {
-                    // Fallback visual para registros antigos do banco (antes dos múltiplos alvos)
                     targetText = data.targetName || 'N/A';
                     finalDesc = `BT: ${data.totalPointsRaw}. ` + 
                                     (data.isSpecial ? '[Kage x3]. ' : '') + 
@@ -876,9 +949,15 @@
                                     `<br><span class="text-xs text-gray-500">PT: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
                 }
 
+                // Botão de Excluir se estiver logado
+                const deleteBtn = isWriterMode || isMasterAdminMode ? `<button onclick="window.deleteReport('${data.reportId}')" class="text-red-500 hover:text-red-700 font-bold mt-2 bg-gray-900 py-1 px-2 rounded" title="Excluir Registro permanentemente">🗑️ Excluir</button>` : '';
+
                 reportsLog.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
-                        <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-400 truncate w-2/12" title="${data.reportId}">${data.reportId.substring(0, 15)}...</td>
+                        <td class="px-4 py-2 text-xs text-gray-400 w-2/12 font-mono break-all">
+                            ${data.reportId}
+                            <div class="writer-only ${isWriterMode || isMasterAdminMode ? '' : 'hidden'}">${deleteBtn}</div>
+                        </td>
                         <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12">
                             <span class="font-bold text-red-300">${atkText}</span><br>
                             ${healText}
@@ -893,13 +972,35 @@
             });
         }
 
+        window.renderTargetsLog = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-orange-400 text-center">Ranking de Alvos Eliminados</h2>
+                    <p class="text-center text-gray-400">Estatísticas de quem a ANBU mais finalizou.</p>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Posição</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Nick do Alvo</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Vezes Finalizado</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de BT Base Extraído</th>
+                                </tr>
+                            </thead>
+                            <tbody id="targets-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
         window.renderNinjaPanel = function() {
             const allIdsSorted = Object.values(ninjasData).sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
             const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
             
             return `
                 <section class="space-y-6 pt-4">
-                    <h2 class="text-3xl font-bold text-red-400 text-center">
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
                         Perfil do ANBU e Histórico
                     </h2>
                     <div class="max-w-md mx-auto space-y-2">
@@ -965,6 +1066,7 @@
                 reportsData = [];
                 snapshot.forEach(doc => reportsData.push(doc.data()));
                 if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
             }, (error) => {});
         }
         
@@ -1031,6 +1133,7 @@
                 case 'home': contentDiv.innerHTML = window.renderHome(); break;
                 case 'scoreboard': contentDiv.innerHTML = window.renderRank(); window.renderScoreboard(); break;
                 case 'reports_log': contentDiv.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
+                case 'targets_log': contentDiv.innerHTML = window.renderTargetsLog(); window.renderTargetsTable(); break;
                 case 'ninja_panel': contentDiv.innerHTML = window.renderNinjaPanel(); window.renderReportsLogFiltered(); break;
                 case 'report_form':
                     contentDiv.innerHTML = window.renderCriarRelatorio();

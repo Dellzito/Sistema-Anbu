@@ -374,7 +374,7 @@
 
             if (!data || !totalPointsInput || !submitBtn) return;
             
-            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Finais: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
+            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Finalizador: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
 
             const hasPartyMembers = (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0;
             const hasTargets = data.targets.length > 0;
@@ -1093,7 +1093,7 @@
                     });
                     
                     let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (`;
-                    if (data.pointsPerKiller > 0) divisaoText += `Finais: ${data.pointsPerKiller}/cada | `;
+                    if (data.pointsPerKiller > 0) divisaoText += `Finalizador: ${data.pointsPerKiller}/cada | `;
                     if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
                     if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
                     divisaoText += `)</span>`;
@@ -1542,3 +1542,4 @@
     </script>
 </body>
 </html>
+

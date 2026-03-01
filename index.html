@@ -321,14 +321,13 @@
             if (!selectAtk || !selectHeal) return;
             
             const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
-            // PROTEÇÃO: ignora documentos fantasmas sem ID
             activeNinjas.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
 
             let optionsAtk = '<option value="" disabled selected>Selecione um Atacante</option>';
             let optionsHeal = '<option value="" disabled selected>Selecione um Healer</option>';
 
             activeNinjas.forEach(ninja => {
-                if (!ninja.id) return; // Ignora se estiver corrompido no banco
+                if (!ninja.id) return; 
                 
                 const elementLabel = ninja.element ? ` (${ninja.element})` : '';
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
@@ -382,14 +381,20 @@
             containerHeal.innerHTML = htmlHeal;
         }
 
+        // ====================================================================
+        // FUNÇÃO DE CADASTRAR ANBU COM 2 MAESTRIAS
+        // ====================================================================
         window.addNinja = async function() {
             if (!isMasterAdminMode) return;
 
             const newNinjaIdInput = document.getElementById('new-ninja-id');
-            const elementSelect = document.getElementById('new-ninja-element');
+            const m1Select = document.getElementById('new-ninja-mastery-1');
+            const m2Select = document.getElementById('new-ninja-mastery-2');
             
             const ninjaId = newNinjaIdInput.value.trim();
-            const element = elementSelect.value;
+            const m1 = m1Select.value;
+            const m2 = m2Select.value;
+            
             const normalizedId = normalizeId(ninjaId);
             const statusElement = document.getElementById('status');
 
@@ -409,23 +414,31 @@
                 return;
             }
 
+            // Junta as maestrias em um único texto (Ex: Fogo / Vento)
+            let finalElement = m1;
+            if (m2 && m2 !== m1) {
+                finalElement += ` / ${m2}`;
+            }
+
             try {
                 await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
                     id: normalizedId, 
-                    element: element,
+                    element: finalElement, // Salvamos a junção das duas no campo element
                     isActive: true, 
                     rankPoints: 0, 
                     missionsCompleted: 0
                 });
                 
                 newNinjaIdInput.value = ''; 
-                statusElement.textContent = `✅ ANBU '${normalizedId}' (${element}) adicionado com sucesso!`;
+                m2Select.value = ''; // Reseta a segunda maestria pro padrão (vazio)
+                
+                statusElement.textContent = `✅ ANBU '${normalizedId}' (${finalElement}) cadastrado com sucesso!`;
                 statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
                 statusElement.classList.remove('hidden');
                 setTimeout(() => statusElement.classList.add('hidden'), 5000);
 
                 window.updateExecutorSelect();
-                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId, element: element });
+                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId, element: finalElement });
 
             } catch (e) {
                 console.error(e);
@@ -553,7 +566,7 @@
                 }); 
                 
                 Object.values(tempNinjas).forEach(ninja => {
-                    if(ninja.id) { // Proteção extra aqui também
+                    if(ninja.id) { 
                         applyBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { 
                             rankPoints: ninja.rankPoints, missionsCompleted: ninja.missionsCompleted
                         });
@@ -578,7 +591,7 @@
             const scoreboardBody = document.getElementById('ninjas-scoreboard');
             if (!scoreboardBody) return; 
             
-            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id); // Proteção ID fantasma
+            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id); 
             guardians.sort((a, b) => b.rankPoints - a.rankPoints);
             
             scoreboardBody.innerHTML = '';
@@ -612,12 +625,11 @@
                 else actionHeader.classList.add('hidden');
             }
 
-            // PROTEÇÃO AQUI: Garante que ninjas sem ID salvo (bug do banco antigo) não quebrem o código
             const sortedNinjas = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
             ninjasBody.innerHTML = '';
 
             sortedNinjas.forEach(data => {
-                if (!data.id) return; // Ignora visualmente os que estão corrompidos
+                if (!data.id) return; 
                 
                 const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
                 const statusText = data.isActive ? 'Ativo' : 'Inativo';
@@ -715,9 +727,7 @@
             
             return `
                 <section class="space-y-6 pt-4">
-                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
-                        Perfil do ANBU e Histórico
-                    </h2>
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Perfil do ANBU e Histórico</h2>
                     <div class="max-w-md mx-auto space-y-2">
                         <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
                         <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
@@ -1006,16 +1016,28 @@
                 <section class="space-y-4 pt-8 pb-16">
                     <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
                     
-                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden">
-                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
-                        <select id="new-ninja-element" class="w-full sm:w-48 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden flex-wrap">
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white min-w-[200px]">
+                        
+                        <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="Fogo" selected>Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Médico (Healer)">Médico</option>
+                        </select>
+                        
+                        <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="" selected>2ª (Opcional)</option>
                              <option value="Fogo">Fogo</option>
                              <option value="Água">Água</option>
                              <option value="Vento">Vento</option>
                              <option value="Terra">Terra</option>
                              <option value="Raio">Raio</option>
-                             <option value="Médico (Healer)">Médico (Healer)</option>
+                             <option value="Médico (Healer)">Médico</option>
                         </select>
+
                         <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Cadastrar ANBU</button>
                     </div>
 
@@ -1024,7 +1046,7 @@
                             <thead class="bg-gray-700">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Elemento</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Maestrias</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase admin-only hidden">Ações</th>
                                 </tr>

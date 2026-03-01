@@ -69,7 +69,6 @@
             updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // SUAS CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -322,12 +321,15 @@
             if (!selectAtk || !selectHeal) return;
             
             const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
-            activeNinjas.sort((a, b) => a.id.localeCompare(b.id));
+            // PROTEÇÃO: ignora documentos fantasmas sem ID
+            activeNinjas.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
 
             let optionsAtk = '<option value="" disabled selected>Selecione um Atacante</option>';
             let optionsHeal = '<option value="" disabled selected>Selecione um Healer</option>';
 
             activeNinjas.forEach(ninja => {
+                if (!ninja.id) return; // Ignora se estiver corrompido no banco
+                
                 const elementLabel = ninja.element ? ` (${ninja.element})` : '';
                 if (!selectedExecutors.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
                     optionsAtk += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
@@ -380,9 +382,6 @@
             containerHeal.innerHTML = htmlHeal;
         }
 
-        // ====================================================================
-        // FUNÇÃO DE CADASTRAR ANBU CORRIGIDA AQUI
-        // ====================================================================
         window.addNinja = async function() {
             if (!isMasterAdminMode) return;
 
@@ -554,9 +553,11 @@
                 }); 
                 
                 Object.values(tempNinjas).forEach(ninja => {
-                    applyBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { 
-                        rankPoints: ninja.rankPoints, missionsCompleted: ninja.missionsCompleted
-                    });
+                    if(ninja.id) { // Proteção extra aqui também
+                        applyBatch.update(doc(db, COLLECTIONS.NINJAS, ninja.id), { 
+                            rankPoints: ninja.rankPoints, missionsCompleted: ninja.missionsCompleted
+                        });
+                    }
                 });
 
                 await applyBatch.commit();
@@ -577,7 +578,7 @@
             const scoreboardBody = document.getElementById('ninjas-scoreboard');
             if (!scoreboardBody) return; 
             
-            const guardians = Object.values(ninjasData).filter(n => n.isActive); 
+            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id); // Proteção ID fantasma
             guardians.sort((a, b) => b.rankPoints - a.rankPoints);
             
             scoreboardBody.innerHTML = '';
@@ -611,10 +612,13 @@
                 else actionHeader.classList.add('hidden');
             }
 
-            const sortedNinjas = Object.values(ninjasData).sort((a, b) => a.id.localeCompare(b.id));
+            // PROTEÇÃO AQUI: Garante que ninjas sem ID salvo (bug do banco antigo) não quebrem o código
+            const sortedNinjas = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
             ninjasBody.innerHTML = '';
 
             sortedNinjas.forEach(data => {
+                if (!data.id) return; // Ignora visualmente os que estão corrompidos
+                
                 const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
                 const statusText = data.isActive ? 'Ativo' : 'Inativo';
                 const elementText = data.element ? data.element : 'Não definido';
@@ -706,12 +710,14 @@
         }
 
         window.renderNinjaPanel = function() {
-            const allIdsSorted = Object.values(ninjasData).sort((a, b) => a.id.localeCompare(b.id));
-            const ninjaOptions = allIdsSorted.map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
+            const allIdsSorted = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+            const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
             
             return `
                 <section class="space-y-6 pt-4">
-                    <h2 class="text-3xl font-bold text-red-400 text-center">Perfil do ANBU e Histórico</h2>
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                        Perfil do ANBU e Histórico
+                    </h2>
                     <div class="max-w-md mx-auto space-y-2">
                         <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
                         <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
@@ -856,7 +862,6 @@
                 default: contentDiv.innerHTML = window.renderHome();
             }
             
-            // Re-aplica visibilidade baseada no login atual após renderizar
             window.toggleMasterAdminUI(isMasterAdminMode);
             window.toggleWriterUI(isWriterMode);
         }

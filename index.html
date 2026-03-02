@@ -83,10 +83,10 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, deleteDoc, getDocs, addDoc 
+            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // RESTAURAÇÃO: Variáveis originais do seu projeto para garantir compatibilidade
+        // CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -96,8 +96,8 @@
             appId: "1:292095146978:web:836d833230907d081017bb"
         };
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : CUSTOM_FIREBASE_CONFIG.projectId || 'g-2cb53';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : CUSTOM_FIREBASE_CONFIG;
+        const appId = CUSTOM_FIREBASE_CONFIG.projectId;
+        const firebaseConfig = CUSTOM_FIREBASE_CONFIG;
         
         let isMasterAdminMode = false; 
         let isWriterMode = false; 
@@ -336,11 +336,13 @@
                 });
             });
 
+            // NOVA MATEMÁTICA: Finalizador (Integral), Healer (Integral), Assists (1/3 do total, individualmente)
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
             const assistsCount = selectedAssists.length;
-            const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
+            // Cada assist ganha 1/3 do total (arredondado)
+            const pointsPerAssist = assistsCount > 0 ? Math.round(totalPointsRaw / 3) : 0;
 
             return {
                 reportId: currentReportId,
@@ -563,6 +565,7 @@
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
 
         window.updateExecutorSelect = function() {
             const selectKiller = document.getElementById('new-killer-id-select');
@@ -843,28 +846,28 @@
                 
                 let applyBatch = writeBatch(db);
                 reportsData.forEach((report) => {
-                    if (Array.isArray(report.killerIds) && report.killerIds.length > 0) {
+                    if (report.killerIds && report.killerIds.length > 0) {
                         report.killerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerKiller || report.totalPointsRaw || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (Array.isArray(report.assistIds) && report.assistIds.length > 0) {
+                    if (report.assistIds && report.assistIds.length > 0) {
                         report.assistIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerAssist || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (Array.isArray(report.executorIds) && report.executorIds.length > 0 && (!Array.isArray(report.killerIds) && !Array.isArray(report.assistIds))) {
+                    if (report.executorIds && report.executorIds.length > 0 && (!report.killerIds && !report.assistIds)) {
                         report.executorIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerAttacker || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (Array.isArray(report.healerIds) && report.healerIds.length > 0) {
+                    if (report.healerIds && report.healerIds.length > 0) {
                         report.healerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerHealer || report.totalPointsRaw || 0);
@@ -1034,19 +1037,19 @@
                     filteredReports.forEach(r => {
                         let targetsInReport = (r.targets && r.targets.length > 0) ? r.targets.length : 1;
                         
-                        if (Array.isArray(r.killerIds) && r.killerIds.includes(filterId)) {
+                        if (r.killerIds && r.killerIds.includes(filterId)) {
                             killCount += targetsInReport;
                             killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
                         }
-                        if (Array.isArray(r.assistIds) && r.assistIds.includes(filterId)) {
+                        if (r.assistIds && r.assistIds.includes(filterId)) {
                             assistCount += targetsInReport;
                             assistPoints += (r.pointsPerAssist || 0);
                         }
-                        if (Array.isArray(r.executorIds) && r.executorIds.includes(filterId) && (!Array.isArray(r.killerIds) && !Array.isArray(r.assistIds))) {
+                        if (r.executorIds && r.executorIds.includes(filterId) && (!r.killerIds && !r.assistIds)) {
                             killCount += targetsInReport; 
                             killPoints += (r.pointsPerAttacker || 0);
                         }
-                        if (Array.isArray(r.healerIds) && r.healerIds.includes(filterId)) {
+                        if (r.healerIds && r.healerIds.includes(filterId)) {
                             healCount += targetsInReport;
                             healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
                         }
@@ -1125,7 +1128,7 @@
                     });
                     
                     let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (`;
-                    if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller} | `;
+                    if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
                     if (data.pointsPerAssist > 0) divisaoText += `Assists (1/3): ${data.pointsPerAssist}/cada | `;
                     if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
                     divisaoText += `)</span>`;
@@ -1231,22 +1234,14 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                await signInAnonymously(auth);
                 
-                signInAnonymously(auth).then(() => {
-                    document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
-                }).catch((err) => {
-                    console.warn("Auth ignorado. Trabalhando em modo leitura.", err);
-                    document.getElementById('auth-info').textContent = `Conectado (Leitura)`;
-                });
-                
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
                 setupFirestoreListeners(); 
+                window.renderPage(currentPage);
                 window.generateReportId(); 
             } catch (error) {
-                const st = document.getElementById('status');
-                st.textContent = `❌ Erro ao conectar: ${error.message}`;
-                st.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
-                st.classList.remove('hidden');
-                document.getElementById('auth-info').textContent = `Falha na conexão`;
+                document.getElementById('status').textContent = `❌ Erro ao conectar: ${error.message}`;
             }
         }
         
@@ -1257,7 +1252,7 @@
                 accessKeysData = {};
                 snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
                 if (currentPage === 'admin_panel') window.renderPage(currentPage); 
-            }, (error) => { console.warn(error); });
+            }, (error) => {});
 
             onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
                 ninjasData = {};
@@ -1265,7 +1260,7 @@
                 window.updateExecutorSelect && window.updateExecutorSelect();
                 if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
-            }, (error) => { console.warn(error); });
+            }, (error) => {});
 
             onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
                 reportsData = [];
@@ -1273,7 +1268,7 @@
                 window.updateTargetSuggestions(); 
                 if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
-            }, (error) => { console.warn(error); });
+            }, (error) => {});
         }
         
         window.toggleWriterUI = function(isAuthorized) {
@@ -1576,10 +1571,8 @@
                 </div>
             `;
         }
-
-        window.renderPage('home');
-        initializeFirebase();
-
+        
+        window.onload = function() { initializeFirebase(); }
     </script>
 </body>
 </html>

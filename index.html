@@ -52,7 +52,7 @@
         <div id="content" class="min-h-[60vh]"></div>
 
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
-        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
+        <div id="auth-info" class="text-sm text-center text-yellow-500">Iniciando sistema...</div>
         
         <datalist id="known-targets"></datalist>
     </div>
@@ -83,9 +83,10 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, deleteDoc, getDocs, addDoc 
+            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -339,7 +340,7 @@
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
-            // Assist ganha 1/3 do total (arredondado pra baixo para não gerar decimais chatos)
+            // Assist ganha 1/3 do total (arredondado pra baixo)
             const assistsCount = selectedAssists.length;
             const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
 
@@ -564,6 +565,7 @@
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
 
         window.updateExecutorSelect = function() {
             const selectKiller = document.getElementById('new-killer-id-select');
@@ -1127,7 +1129,7 @@
                     
                     let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (`;
                     if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller} | `;
-                    if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
+                    if (data.pointsPerAssist > 0) divisaoText += `Assists (1/3): ${data.pointsPerAssist}/cada | `;
                     if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
                     divisaoText += `)</span>`;
                     
@@ -1138,7 +1140,7 @@
                                     (data.isSpecial ? '[Kage x3]. ' : '') + 
                                     (data.isOrg ? '[ORG +100]. ' : '') + 
                                     (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
-                                    `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker} pts | Healer: ${data.pointsPerHealer} pts</span>`;
+                                    `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
                 }
 
                 let actionBtns = '';
@@ -1227,23 +1229,27 @@
             `;
         }
 
-        async function initializeFirebase() {
+        // Inicializa a interface IMEDIATAMENTE
+        window.renderPage('home');
+
+        // Depois tenta conectar no Firebase em segundo plano
+        async function startApp() {
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                await signInAnonymously(auth);
                 
-                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
-                setupFirestoreListeners(); 
-                window.renderPage(currentPage);
-                window.generateReportId(); 
+                signInAnonymously(auth).then(() => {
+                    document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
+                    setupFirestoreListeners(); 
+                }).catch((err) => {
+                    console.warn("Aviso Firebase Auth:", err);
+                    document.getElementById('auth-info').textContent = `Conectado (Modo Leitura Restrita)`;
+                    setupFirestoreListeners();
+                });
             } catch (error) {
-                const st = document.getElementById('status');
-                st.textContent = `❌ Erro ao conectar: ${error.message}`;
-                st.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
-                st.classList.remove('hidden');
-                document.getElementById('auth-info').textContent = `Falha na conexão`;
+                console.error(error);
+                document.getElementById('auth-info').textContent = `Erro ao carregar banco: ${error.message}`;
             }
         }
         
@@ -1254,7 +1260,7 @@
                 accessKeysData = {};
                 snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
                 if (currentPage === 'admin_panel') window.renderPage(currentPage); 
-            }, (error) => {});
+            }, (error) => { console.warn("Leitura de chaves bloqueada"); });
 
             onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
                 ninjasData = {};
@@ -1262,7 +1268,7 @@
                 window.updateExecutorSelect && window.updateExecutorSelect();
                 if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
-            }, (error) => {});
+            }, (error) => { console.warn("Leitura de ninjas bloqueada"); });
 
             onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
                 reportsData = [];
@@ -1270,7 +1276,7 @@
                 window.updateTargetSuggestions(); 
                 if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
-            }, (error) => {});
+            }, (error) => { console.warn("Leitura de reports bloqueada"); });
         }
         
         window.toggleWriterUI = function(isAuthorized) {
@@ -1540,4 +1546,43 @@
                              <option value="TAI">TAI</option>
                         </select>
 
-                        <button id="add-ninja" class="w-full
+                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Cadastrar ANBU</button>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Maestrias</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase admin-only hidden">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div id="writer-tools" class="pt-8 space-y-4 writer-only hidden">
+                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Manutenção</h3>
+                    <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
+                        🔄 Recalcular Todos os Ranks
+                    </button>
+                </div>
+
+                <div id="admin-tools" class="pt-4 space-y-4 admin-only hidden">
+                    <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Ferramentas de Exclusão (Admin Master)</h3>
+                    <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
+                        ⚔️ Excluir Histórico de Registros (ZERA Ranks)
+                    </button>
+                </div>
+            `;
+        }
+        
+        // EXECUTA O STARTAPP
+        startApp();
+
+    </script>
+</body>
+</html>

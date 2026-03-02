@@ -83,10 +83,9 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
+            updateDoc, deleteDoc, getDocs, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURAÇÕES DO FIREBASE
         const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -336,11 +335,12 @@
                 });
             });
 
+            // Finalizador ganha integral, Healer ganha integral.
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
+            // Assist ganha 1/3 do total (arredondado pra baixo para não gerar decimais chatos)
             const assistsCount = selectedAssists.length;
-            // MATEMÁTICA CORRIGIDA: Math.floor garante que 500 / 3 = 166 (Arredondamento para baixo)
             const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
 
             return {
@@ -373,7 +373,7 @@
 
             if (!data || !totalPointsInput || !submitBtn) return;
             
-            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
+            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists (1/3): ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
 
             const hasPartyMembers = (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0;
             const hasTargets = data.targets.length > 0;
@@ -564,7 +564,6 @@
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
 
         window.updateExecutorSelect = function() {
             const selectKiller = document.getElementById('new-killer-id-select');
@@ -845,28 +844,28 @@
                 
                 let applyBatch = writeBatch(db);
                 reportsData.forEach((report) => {
-                    if (report.killerIds && report.killerIds.length > 0) {
+                    if (Array.isArray(report.killerIds) && report.killerIds.length > 0) {
                         report.killerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerKiller || report.totalPointsRaw || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (report.assistIds && report.assistIds.length > 0) {
+                    if (Array.isArray(report.assistIds) && report.assistIds.length > 0) {
                         report.assistIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerAssist || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (report.executorIds && report.executorIds.length > 0 && (!report.killerIds && !report.assistIds)) {
+                    if (Array.isArray(report.executorIds) && report.executorIds.length > 0 && (!Array.isArray(report.killerIds) && !Array.isArray(report.assistIds))) {
                         report.executorIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerAttacker || 0);
                              tempNinjas[id].missionsCompleted += 1;
                         });
                     }
-                    if (report.healerIds && report.healerIds.length > 0) {
+                    if (Array.isArray(report.healerIds) && report.healerIds.length > 0) {
                         report.healerIds.forEach(id => {
                              if (!tempNinjas[id]) tempNinjas[id] = { id: id, isActive: true, rankPoints: 0, missionsCompleted: 0 };
                              tempNinjas[id].rankPoints += (report.pointsPerHealer || report.totalPointsRaw || 0);
@@ -1036,19 +1035,19 @@
                     filteredReports.forEach(r => {
                         let targetsInReport = (r.targets && r.targets.length > 0) ? r.targets.length : 1;
                         
-                        if (r.killerIds && r.killerIds.includes(filterId)) {
+                        if (Array.isArray(r.killerIds) && r.killerIds.includes(filterId)) {
                             killCount += targetsInReport;
                             killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
                         }
-                        if (r.assistIds && r.assistIds.includes(filterId)) {
+                        if (Array.isArray(r.assistIds) && r.assistIds.includes(filterId)) {
                             assistCount += targetsInReport;
                             assistPoints += (r.pointsPerAssist || 0);
                         }
-                        if (r.executorIds && r.executorIds.includes(filterId) && (!r.killerIds && !r.assistIds)) {
+                        if (Array.isArray(r.executorIds) && r.executorIds.includes(filterId) && (!Array.isArray(r.killerIds) && !Array.isArray(r.assistIds))) {
                             killCount += targetsInReport; 
                             killPoints += (r.pointsPerAttacker || 0);
                         }
-                        if (r.healerIds && r.healerIds.includes(filterId)) {
+                        if (Array.isArray(r.healerIds) && r.healerIds.includes(filterId)) {
                             healCount += targetsInReport;
                             healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
                         }
@@ -1127,8 +1126,8 @@
                     });
                     
                     let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts (`;
-                    if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
-                    if (data.pointsPerAssist > 0) divisaoText += `Assists (1/3): ${data.pointsPerAssist}/cada | `;
+                    if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller} | `;
+                    if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
                     if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
                     divisaoText += `)</span>`;
                     
@@ -1139,7 +1138,7 @@
                                     (data.isSpecial ? '[Kage x3]. ' : '') + 
                                     (data.isOrg ? '[ORG +100]. ' : '') + 
                                     (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
-                                    `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker} pts/cada | Healer: ${data.pointsPerHealer} pts</span>`;
+                                    `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker} pts | Healer: ${data.pointsPerHealer} pts</span>`;
                 }
 
                 let actionBtns = '';
@@ -1214,4 +1213,331 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">ID Registro</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                await signInAnonymously(auth);
+                
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
+                setupFirestoreListeners(); 
+                window.renderPage(currentPage);
+                window.generateReportId(); 
+            } catch (error) {
+                const st = document.getElementById('status');
+                st.textContent = `❌ Erro ao conectar: ${error.message}`;
+                st.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                st.classList.remove('hidden');
+                document.getElementById('auth-info').textContent = `Falha na conexão`;
+            }
+        }
+        
+        function setupFirestoreListeners() {
+            if (!db) return;
+
+            onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snapshot) => {
+                accessKeysData = {};
+                snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
+                if (currentPage === 'admin_panel') window.renderPage(currentPage); 
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
+                ninjasData = {};
+                snapshot.forEach(doc => ninjasData[doc.id] = doc.data());
+                window.updateExecutorSelect && window.updateExecutorSelect();
+                if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
+                reportsData = [];
+                snapshot.forEach(doc => reportsData.push(doc.data()));
+                window.updateTargetSuggestions(); 
+                if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
+            }, (error) => {});
+        }
+        
+        window.toggleWriterUI = function(isAuthorized) {
+            isWriterMode = isAuthorized;
+            const writerElements = document.querySelectorAll('.writer-only');
+            writerElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+
+        window.toggleMasterAdminUI = function(isAuthorized) {
+            isMasterAdminMode = isAuthorized;
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+        
+        window.checkAccessKey = async function() {
+            const idInput = document.getElementById('access-id-input');
+            const keyInput = document.getElementById('access-key-input');
+            const statusElement = document.getElementById('status');
+            if (!idInput || !keyInput) return;
+
+            const id = idInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!id || !key) return;
+            
+            const accessData = accessKeysData[id];
+
+            if (accessData && accessData.key === key) {
+                currentAccessId = id; 
+                if (accessData.level === 'master_admin') {
+                    window.toggleMasterAdminUI(true);
+                    window.toggleWriterUI(true);
+                } else if (accessData.level === 'report_writer') {
+                    window.toggleWriterUI(true);
+                    window.toggleMasterAdminUI(false);
+                }
+                keyInput.value = ''; idInput.value = '';
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = `✅ Acesso LIBERADO. ID: ${id}.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 3000);
+                window.renderPage(currentPage);
+            } else {
+                currentAccessId = 'ANONYMOUS'; 
+                window.toggleWriterUI(false);
+                window.toggleMasterAdminUI(false);
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = '❌ ID ou Senha Incorreta.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.renderPage = function(pageName) {
+            currentPage = pageName;
+            const contentDiv = document.getElementById('content');
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            const activeLink = document.getElementById(`nav-${pageName}`);
+            if (activeLink) activeLink.classList.add('active');
+
+            contentDiv.innerHTML = '';
+
+            switch (pageName) {
+                case 'home': contentDiv.innerHTML = window.renderHome(); break;
+                case 'scoreboard': contentDiv.innerHTML = window.renderRank(); window.renderScoreboard(); break;
+                case 'reports_log': contentDiv.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
+                case 'targets_log': contentDiv.innerHTML = window.renderTargetsLog(); window.renderTargetsTable(); break;
+                case 'ninja_panel': contentDiv.innerHTML = window.renderNinjaPanel(); window.renderReportsLogFiltered(); break;
+                case 'report_form':
+                    contentDiv.innerHTML = window.renderCriarRelatorio();
+                    if (!isWriterMode) {
+                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Faça Login na aba Autorização para registrar BTs.</p>';
+                        break;
+                    }
+                    
+                    if (!window.isEditingMode) {
+                        window.updateExecutorSelect(); 
+                        window.updateExecutorTags(); 
+                        window.generateReportId(); 
+                        window.addTargetEntry(); 
+                        window.updateDescriptionPreview(); 
+                    }
+                    break;
+                case 'admin_panel':
+                    contentDiv.innerHTML = window.renderAutorizacao();
+                    window.renderNinjasTable();
+                    break;
+                default: contentDiv.innerHTML = window.renderHome();
+            }
+            
+            window.toggleMasterAdminUI(isMasterAdminMode);
+            window.toggleWriterUI(isWriterMode);
+        }
+
+        window.renderHome = function() { return `
+                <section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-8">
+                    <h2 class="text-3xl font-bold text-red-400">Bem-vindo(a), ANBU.</h2>
+                    <div class="max-w-3xl mx-auto space-y-4 text-center p-4">
+                        <p class="text-lg text-gray-300">Painel Central do Esquadrão ANBU para registro de BTs e divisão de pontuação.</p>
+                        <h3 class="text-lg font-bold text-red-400 pt-6">Use o menu acima para navegar.</h3>
+                    </div>
+                </section>
+        `; }
+
+        window.renderCriarRelatorio = function() { return `
+            <section class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+                <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de BTs - ANBU</h2>
+
+                <div class="grid grid-cols-1 gap-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-300">Killer (Recebe 100% dos Pontos)</label>
+                            <div class="flex gap-2">
+                                <select id="new-killer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('killer')" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
+                            </div>
+                            <div id="killers-tag-container" class="executor-list-container"></div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-300">Assistência (Ganham 1/3 do Total)</label>
+                            <div class="flex gap-2">
+                                <select id="new-assist-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-orange-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('assist')" class="py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
+                            </div>
+                            <div id="assists-tag-container" class="executor-list-container"></div>
+                        </div>
+
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-300">Healers na PT (Recebem BT Integral)</label>
+                            <div class="flex gap-2">
+                                <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('healer')" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">Healer</button>
+                            </div>
+                            <div id="healers-tag-container" class="executor-list-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-bold text-red-400">Alvos Mortos</h3>
+                            <button type="button" onclick="window.addTargetEntry()" class="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow transition duration-200">
+                                ➕ Adicionar Outro Alvo
+                            </button>
+                        </div>
+                        
+                        <div id="targets-container" class="space-y-4"></div>
+                    </div>
+                    
+                    <div class="space-y-2 border-t border-gray-700 pt-4">
+                        <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
+                        <div class="flex gap-2">
+                            <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
+                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t border-gray-700/50">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300">Distribuição Matemática da PT</label>
+                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="Preencha os alvos acima">
+                    </div>
+                </div>
+
+                <div class="pt-4 space-y-2 border-t border-gray-700/50">
+                    <h3 class="text-xl font-medium text-gray-300">Resumo do Registro:</h3>
+                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]"></div>
+                </div>
+
+                <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
+                    Salvar Caçada e Atualizar Rank
+                </button>
+            </section>
+        `; }
+        
+        window.renderRank = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Rank da ANBU</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Rank</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Caçadas Concluídas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderRelatorios = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Registro Completo de Caçadas (BTs)</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">ID Registro / Ações</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-4/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderAutorizacao = function() {
+             const accessStatus = isMasterAdminMode ? 
+                `<div class="text-center text-green-400 font-bold text-lg p-2">✅ MASTER ADMIN ATIVO</div>` : 
+                (isWriterMode ? `<div class="text-yellow-400 font-bold text-lg p-2">✅ ANBU ESCRITOR ATIVO</div>` :
+                `<div class="text-center text-red-400 font-bold text-lg p-2">❌ ACESSO INATIVO</div>`);
+
+            return `
+                <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
+                     <h2 class="text-2xl font-bold text-red-400 text-center">Autorização de Escrita (Login)</h2>
+                     <div id="admin-status-display">${accessStatus}</div>
+                     <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
+                         <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">Logar</button>
+                     </div>
+                </section>
+                
+                <section class="space-y-4 pt-8 pb-16">
+                    <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
+                    
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden flex-wrap">
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white min-w-[200px]">
+                        
+                        <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="Fogo" selected>Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+                        
+                        <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="" selected>2ª (Opcional)</option>
+                             <option value="Fogo">Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+
+                        <button id="add-ninja" class="w-full

@@ -52,7 +52,7 @@
         <div id="content" class="min-h-[60vh]"></div>
 
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
-        <div id="auth-info" class="text-sm text-center text-yellow-500">Iniciando sistema...</div>
+        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
         
         <datalist id="known-targets"></datalist>
     </div>
@@ -83,7 +83,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
+            updateDoc, deleteDoc, getDocs, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // CONFIGURAÇÕES DO FIREBASE
@@ -340,7 +340,7 @@
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
-            // Assist ganha 1/3 do total (arredondado pra baixo)
+            // Assist ganha 1/3 do total (arredondado pra baixo para não gerar decimais chatos)
             const assistsCount = selectedAssists.length;
             const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
 
@@ -565,7 +565,6 @@
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
 
         window.updateExecutorSelect = function() {
             const selectKiller = document.getElementById('new-killer-id-select');
@@ -1229,27 +1228,27 @@
             `;
         }
 
-        // Inicializa a interface IMEDIATAMENTE
+        // Primeiro renderiza a tela na hora para não dar tela branca
         window.renderPage('home');
 
-        // Depois tenta conectar no Firebase em segundo plano
-        async function startApp() {
+        // Depois conecta no Firebase
+        async function initializeFirebase() {
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                await signInAnonymously(auth);
                 
-                signInAnonymously(auth).then(() => {
-                    document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
-                    setupFirestoreListeners(); 
-                }).catch((err) => {
-                    console.warn("Aviso Firebase Auth:", err);
-                    document.getElementById('auth-info').textContent = `Conectado (Modo Leitura Restrita)`;
-                    setupFirestoreListeners();
-                });
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
+                setupFirestoreListeners(); 
+                window.renderPage(currentPage);
+                window.generateReportId(); 
             } catch (error) {
-                console.error(error);
-                document.getElementById('auth-info').textContent = `Erro ao carregar banco: ${error.message}`;
+                const st = document.getElementById('status');
+                st.textContent = `❌ Erro ao conectar: ${error.message}`;
+                st.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                st.classList.remove('hidden');
+                document.getElementById('auth-info').textContent = `Falha na conexão`;
             }
         }
         
@@ -1260,7 +1259,7 @@
                 accessKeysData = {};
                 snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
                 if (currentPage === 'admin_panel') window.renderPage(currentPage); 
-            }, (error) => { console.warn("Leitura de chaves bloqueada"); });
+            }, (error) => {});
 
             onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
                 ninjasData = {};
@@ -1268,7 +1267,7 @@
                 window.updateExecutorSelect && window.updateExecutorSelect();
                 if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
-            }, (error) => { console.warn("Leitura de ninjas bloqueada"); });
+            }, (error) => {});
 
             onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
                 reportsData = [];
@@ -1276,7 +1275,7 @@
                 window.updateTargetSuggestions(); 
                 if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
                 else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
-            }, (error) => { console.warn("Leitura de reports bloqueada"); });
+            }, (error) => {});
         }
         
         window.toggleWriterUI = function(isAuthorized) {
@@ -1580,9 +1579,10 @@
             `;
         }
         
-        // EXECUTA O STARTAPP
-        startApp();
-
+        // CHAMA A INICIALIZAÇÃO ASSIM QUE O ARQUIVO É LIDO!
+        window.onload = function() {
+            initializeFirebase(); 
+        }
     </script>
 </body>
 </html>

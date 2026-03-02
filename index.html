@@ -336,13 +336,12 @@
                 });
             });
 
-            // NOVA MATEMÁTICA: Finalizador (Integral), Healer (Integral), Assists (1/3 do total, individualmente)
             const pointsPerKiller = totalPointsRaw;
             const pointsPerHealer = totalPointsRaw; 
             
             const assistsCount = selectedAssists.length;
-            // Cada assist ganha 1/3 do total (arredondado)
-            const pointsPerAssist = assistsCount > 0 ? Math.round(totalPointsRaw / 3) : 0;
+            // MATEMÁTICA CORRIGIDA: Math.floor garante que 500 / 3 = 166 (Arredondamento para baixo)
+            const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
 
             return {
                 reportId: currentReportId,
@@ -374,7 +373,7 @@
 
             if (!data || !totalPointsInput || !submitBtn) return;
             
-            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists (1/3): ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
+            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
 
             const hasPartyMembers = (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0;
             const hasTargets = data.targets.length > 0;

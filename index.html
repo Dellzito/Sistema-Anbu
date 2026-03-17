@@ -1040,6 +1040,11 @@
             } catch (err) { console.error("Erro renderTargetsTable:", err); }
         }
 
+        // AQUIIII! A função que eu engoli sem querer
+        window.renderReportsLog = function() {
+            window.renderReportsLogFiltered(null, 'reports-log');
+        }
+
         window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log', page = 1) {
             try {
                 const reportsLog = document.getElementById(targetId);

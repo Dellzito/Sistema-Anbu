@@ -83,7 +83,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, 
-            updateDoc, deleteDoc, getDocs, setLogLevel, addDoc 
+            updateDoc, deleteDoc, getDocs, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // CONFIGURAÇÕES DO FIREBASE
@@ -233,26 +233,28 @@
         }
         
         window.updateTargetSuggestions = function() {
-            const dataList = document.getElementById('known-targets');
-            if (!dataList) return;
+            try {
+                const dataList = document.getElementById('known-targets');
+                if (!dataList) return;
 
-            const targetsMap = {};
-            reportsData.forEach(report => {
-                if (report.targets && report.targets.length > 0) {
-                    report.targets.forEach(t => {
-                        if (t.name) {
-                            const lower = t.name.trim().toLowerCase();
-                            if (!targetsMap[lower]) targetsMap[lower] = t.name.trim();
-                        }
-                    });
-                } else if (report.targetName) {
-                    const lower = report.targetName.trim().toLowerCase();
-                    if (!targetsMap[lower]) targetsMap[lower] = report.targetName.trim();
-                }
-            });
+                const targetsMap = {};
+                reportsData.forEach(report => {
+                    if (Array.isArray(report.targets) && report.targets.length > 0) {
+                        report.targets.forEach(t => {
+                            if (t && t.name) {
+                                const lower = t.name.trim().toLowerCase();
+                                if (!targetsMap[lower]) targetsMap[lower] = t.name.trim();
+                            }
+                        });
+                    } else if (report.targetName) {
+                        const lower = report.targetName.trim().toLowerCase();
+                        if (!targetsMap[lower]) targetsMap[lower] = report.targetName.trim();
+                    }
+                });
 
-            const sortedTargets = Object.values(targetsMap).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-            dataList.innerHTML = sortedTargets.map(t => `<option value="${t}">`).join('');
+                const sortedTargets = Object.values(targetsMap).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+                dataList.innerHTML = sortedTargets.map(t => `<option value="${t}">`).join('');
+            } catch(e) { console.error("Erro updateTargetSuggestions:", e); }
         }
 
         window.addTargetEntry = function() {
@@ -532,7 +534,7 @@
             targetsContainer.innerHTML = '';
             targetEntryCount = 0;
 
-            if (report.targets && report.targets.length > 0) {
+            if (Array.isArray(report.targets) && report.targets.length > 0) {
                 report.targets.forEach(t => {
                     window.addTargetEntry();
                     const entry = document.getElementById(`target-${targetEntryCount}`);
@@ -813,7 +815,6 @@
             }
         }
         
-        // CORREÇÃO: Função recalculateAllRanks atualizada
         window.recalculateAllRanks = async function(calledInternally = false) {
             if (!isWriterMode && !isMasterAdminMode) return;
             if (!calledInternally) {
@@ -840,7 +841,7 @@
                 let applyBatch = writeBatch(db);
 
                 reportsData.forEach((report) => {
-                    if (report.killerIds && report.killerIds.length > 0) {
+                    if (Array.isArray(report.killerIds) && report.killerIds.length > 0) {
                         report.killerIds.forEach(id => {
                              if (tempNinjas[id]) {
                                  tempNinjas[id].rankPoints += Number(report.pointsPerKiller || report.totalPointsRaw || 0) || 0;
@@ -848,7 +849,7 @@
                              }
                         });
                     }
-                    if (report.assistIds && report.assistIds.length > 0) {
+                    if (Array.isArray(report.assistIds) && report.assistIds.length > 0) {
                         report.assistIds.forEach(id => {
                              if (tempNinjas[id]) {
                                  tempNinjas[id].rankPoints += Number(report.pointsPerAssist || 0) || 0;
@@ -856,7 +857,7 @@
                              }
                         });
                     }
-                    if (report.executorIds && report.executorIds.length > 0 && (!report.killerIds || report.killerIds.length === 0) && (!report.assistIds || report.assistIds.length === 0)) {
+                    if (Array.isArray(report.executorIds) && report.executorIds.length > 0 && (!Array.isArray(report.killerIds) || report.killerIds.length === 0) && (!Array.isArray(report.assistIds) || report.assistIds.length === 0)) {
                         report.executorIds.forEach(id => {
                              if (tempNinjas[id]) {
                                  tempNinjas[id].rankPoints += Number(report.pointsPerAttacker || report.totalPointsRaw || 0) || 0;
@@ -864,7 +865,7 @@
                              }
                         });
                     }
-                    if (report.healerIds && report.healerIds.length > 0) {
+                    if (Array.isArray(report.healerIds) && report.healerIds.length > 0) {
                         report.healerIds.forEach(id => {
                              if (tempNinjas[id]) {
                                  tempNinjas[id].rankPoints += Number(report.pointsPerHealer || report.totalPointsRaw || 0) || 0;
@@ -960,286 +961,295 @@
             });
         }
 
-        // CORREÇÃO: Função renderTargetsTable com paginação
         window.renderTargetsTable = function(page = 1) {
-            const tbody = document.getElementById('targets-scoreboard');
-            if (!tbody) return;
+            try {
+                const tbody = document.getElementById('targets-scoreboard');
+                if (!tbody) return;
 
-            const targetsMap = {};
+                const targetsMap = {};
 
-            reportsData.forEach(report => {
-                if (report.targets && report.targets.length > 0) {
-                    report.targets.forEach(t => {
-                        const name = t.name ? t.name.trim().toLowerCase() : 'desconhecido';
-                        if (!targetsMap[name]) targetsMap[name] = { name: t.name || 'Desconhecido', count: 0, totalBT: 0 };
-                        targetsMap[name].count += 1;
-                        targetsMap[name].totalBT += (t.btBase || 0);
-                    });
-                } else if (report.targetName) {
-                    const name = report.targetName.trim().toLowerCase();
-                    if (!targetsMap[name]) targetsMap[name] = { name: report.targetName, count: 0, totalBT: 0 };
-                    targetsMap[name].count += 1;
-                    targetsMap[name].totalBT += (report.btBase || report.totalPointsRaw || 0);
-                }
-            });
-
-            const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
-
-            const ITEMS_PER_PAGE = 10;
-            const totalPages = Math.ceil(sortedTargets.length / ITEMS_PER_PAGE);
-            if (page < 1) page = 1;
-            if (page > totalPages && totalPages > 0) page = totalPages;
-
-            const startIndex = (page - 1) * ITEMS_PER_PAGE;
-            const paginatedTargets = sortedTargets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-            tbody.innerHTML = '';
-            if (sortedTargets.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">Nenhum alvo registrado ainda.</td></tr>`;
-                return;
-            }
-
-            paginatedTargets.forEach((target, index) => {
-                const realIndex = startIndex + index + 1; 
-                const rankIcon = getRankIcon(realIndex);
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-700/50">
-                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
-                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-orange-300 capitalize">${target.name}</td>
-                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-red-400">${target.count}x</td>
-                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${target.totalBT} BT Base</td>
-                    </tr>
-                `;
-            });
-
-            const tableContainer = tbody.closest('.overflow-x-auto');
-            const oldPagination = tableContainer.parentElement.querySelector('.targets-pagination');
-            if (oldPagination) oldPagination.remove();
-
-            if (totalPages > 1) {
-                const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
-                const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
-
-                const paginationHtml = `
-                    <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full targets-pagination">
-                        <button onclick="window.renderTargetsTable(${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
-                        <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
-                        <button onclick="window.renderTargetsTable(${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
-                    </div>
-                `;
-                const paginationDiv = document.createElement('div');
-                paginationDiv.className = 'targets-pagination';
-                paginationDiv.innerHTML = paginationHtml;
-                tableContainer.parentElement.appendChild(paginationDiv);
-            }
-        }
-
-        // CORREÇÃO: Função renderReportsLogFiltered com paginação
-        window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log', page = 1) {
-            const reportsLog = document.getElementById(targetId);
-            const guardianSummaryDiv = document.getElementById('guardian-summary');
-            if (!reportsLog) return;
-            
-            reportsLog.innerHTML = '';
-            let filteredReports = reportsData;
-
-            if (filterId) {
-                filteredReports = reportsData.filter(report => {
-                    const isKiller = Array.isArray(report.killerIds) && report.killerIds.includes(filterId);
-                    const isAssist = Array.isArray(report.assistIds) && report.assistIds.includes(filterId);
-                    const isLegacyExecutor = Array.isArray(report.executorIds) && report.executorIds.includes(filterId);
-                    const isHealer = Array.isArray(report.healerIds) && report.healerIds.includes(filterId);
-                    return isKiller || isAssist || isLegacyExecutor || isHealer;
-                });
-            }
-            
-            if (filterId && guardianSummaryDiv) {
-                const ninjaData = ninjasData[filterId];
-                if (ninjaData) {
-                    
-                    let killCount = 0, killPoints = 0;
-                    let assistCount = 0, assistPoints = 0;
-                    let healCount = 0, healPoints = 0;
-
-                    filteredReports.forEach(r => {
-                        let targetsInReport = (r.targets && r.targets.length > 0) ? r.targets.length : 1;
-                        
-                        if (r.killerIds && r.killerIds.includes(filterId)) {
-                            killCount += targetsInReport;
-                            killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
-                        }
-                        if (r.assistIds && r.assistIds.includes(filterId)) {
-                            assistCount += targetsInReport;
-                            assistPoints += (r.pointsPerAssist || 0);
-                        }
-                        if (r.executorIds && r.executorIds.includes(filterId) && (!r.killerIds && !r.assistIds)) {
-                            killCount += targetsInReport; 
-                            killPoints += (r.pointsPerAttacker || 0);
-                        }
-                        if (r.healerIds && r.healerIds.includes(filterId)) {
-                            healCount += targetsInReport;
-                            healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
-                        }
-                    });
-
-                    guardianSummaryDiv.innerHTML = `
-                        <div class="flex flex-col md:flex-row justify-between items-center border-b border-gray-600 pb-4 mb-4">
-                            <div class="text-center md:text-left">
-                                <h3 class="text-2xl font-bold text-red-400 uppercase tracking-wider">${filterId}</h3>
-                                <p class="text-sm text-gray-300 mt-1">${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'} | Maestria: <span class="text-white font-medium">${ninjaData.element || 'Não definida'}</span></p>
-                            </div>
-                            <div class="text-center md:text-right mt-4 md:mt-0">
-                                <p class="text-xs text-gray-400 uppercase">Rank Points Totais</p>
-                                <p class="text-3xl font-bold text-green-400">${Math.round(ninjaData.rankPoints)} <span class="text-sm text-gray-500">Pts</span></p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
-                                <p class="text-xs text-gray-400 uppercase">Caçadas Feitas</p>
-                                <p class="text-xl font-bold text-white mt-1">${ninjaData.missionsCompleted}</p>
-                            </div>
-                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
-                                <p class="text-xs text-gray-400 uppercase">Como Killer</p>
-                                <p class="text-xl font-bold text-red-400 mt-1">${killCount} <span class="text-sm text-gray-500">Alvos</span></p>
-                                <p class="text-xs text-gray-400 mt-1">Gerou: ${killPoints} pts</p>
-                            </div>
-                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
-                                <p class="text-xs text-gray-400 uppercase">Assistências</p>
-                                <p class="text-xl font-bold text-orange-400 mt-1">${assistCount} <span class="text-sm text-gray-500">Alvos</span></p>
-                                <p class="text-xs text-gray-400 mt-1">Gerou: ${assistPoints} pts</p>
-                            </div>
-                            <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
-                                <p class="text-xs text-gray-400 uppercase">Como Healer</p>
-                                <p class="text-xl font-bold text-green-400 mt-1">${healCount} <span class="text-sm text-gray-500">Alvos</span></p>
-                                <p class="text-xs text-gray-400 mt-1">Gerou: ${healPoints} pts</p>
-                            </div>
-                        </div>
-                    `;
-                    guardianSummaryDiv.classList.remove('hidden');
-                }
-            } else if (guardianSummaryDiv) {
-                guardianSummaryDiv.classList.add('hidden');
-            }
-
-            // CORREÇÃO: Proteção na hora de ordenar as datas
-            const sortedReports = [...filteredReports].sort((a, b) => {
-                const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
-            });
-
-            const ITEMS_PER_PAGE = 10;
-            const totalPages = Math.ceil(sortedReports.length / ITEMS_PER_PAGE);
-            if (page < 1) page = 1;
-            if (page > totalPages && totalPages > 0) page = totalPages;
-
-            const startIndex = (page - 1) * ITEMS_PER_PAGE;
-            const paginatedReports = sortedReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-            if (sortedReports.length === 0) {
-                 reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
-            } else {
-                paginatedReports.forEach(data => {
-                    
-                    // CORREÇÃO: Proteção na hora de ler a Data para escrever na tabela
-                    let formattedDate = 'Data Desconhecida';
-                    if (data.timestamp) {
-                        try {
-                            formattedDate = new Date(data.timestamp).toLocaleDateString('pt-BR', {
-                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                            });
-                        } catch(e) {}
-                    }
-                    
-                    let membersText = '';
-                    if (data.killerIds && data.killerIds.length > 0) membersText += `<span class="text-red-400 text-xs font-bold block">Killer: ${data.killerIds.join(', ')}</span>`;
-                    if (data.assistIds && data.assistIds.length > 0) membersText += `<span class="text-orange-400 text-xs font-bold block">Assistência: ${data.assistIds.join(', ')}</span>`;
-                    if (data.executorIds && data.executorIds.length > 0 && (!data.killerIds && !data.assistIds)) membersText += `<span class="text-orange-400 text-xs font-bold block">Killer/PT (Antigo): ${data.executorIds.join(', ')}</span>`;
-                    if (data.healerIds && data.healerIds.length > 0) membersText += `<span class="text-green-400 text-xs font-bold block">Healers: ${data.healerIds.join(', ')}</span>`;
-                    
-                    let targetText = '';
-                    let finalDesc = '';
-
-                    if (data.targets && data.targets.length > 0) {
-                        targetText = data.targets.map(t => t.name || 'Desconhecido').join(', ');
-                        const descParts = data.targets.map(t => {
-                            let d = `🎯 <b>${t.name || 'Alvo'}</b>: BT ${t.btBase}`;
-                            if (t.isSpecial) d += ' <span class="text-red-400">[Kage x3]</span>';
-                            if (t.isOrg) d += ' <span class="text-purple-400">[ORG +100]</span>';
-                            if (t.isTrashTalk) d += ' <span class="text-blue-400">[Trash +20]</span>';
-                            d += ` = <b>${t.total} pts</b>`;
-                            return d;
+                reportsData.forEach(report => {
+                    if (Array.isArray(report.targets) && report.targets.length > 0) {
+                        report.targets.forEach(t => {
+                            if (t && t.name) {
+                                const name = t.name.trim().toLowerCase();
+                                if (!targetsMap[name]) targetsMap[name] = { name: t.name || 'Desconhecido', count: 0, totalBT: 0 };
+                                targetsMap[name].count += 1;
+                                targetsMap[name].totalBT += (t.btBase || 0);
+                            }
                         });
-                        
-                        let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw || 0} Pts (`;
-                        if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
-                        if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
-                        if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
-                        divisaoText += `)</span>`;
-                        
-                        finalDesc = descParts.join('<br>') + divisaoText;
-                    } else {
-                        targetText = data.targetName || 'N/A';
-                        finalDesc = `BT: ${data.totalPointsRaw || 0}. ` + 
-                                        (data.isSpecial ? '[Kage x3]. ' : '') + 
-                                        (data.isOrg ? '[ORG +100]. ' : '') + 
-                                        (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
-                                        `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker || 0} pts/cada | Healer: ${data.pointsPerHealer || 0} pts</span>`;
+                    } else if (report.targetName) {
+                        const name = report.targetName.trim().toLowerCase();
+                        if (!targetsMap[name]) targetsMap[name] = { name: report.targetName, count: 0, totalBT: 0 };
+                        targetsMap[name].count += 1;
+                        targetsMap[name].totalBT += (report.btBase || report.totalPointsRaw || 0);
                     }
+                });
 
-                    let actionBtns = '';
-                    if (isWriterMode || isMasterAdminMode) {
-                        actionBtns = `
-                            <div class="mt-2 flex gap-2">
-                                <button onclick="window.editReport('${data.reportId}')" class="text-blue-400 hover:text-blue-500 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Editar Registro">✏️ Editar</button>
-                                <button onclick="window.deleteReport('${data.reportId}')" class="text-red-500 hover:text-red-700 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Excluir Registro permanentemente">🗑️</button>
-                            </div>
-                        `;
-                    }
+                const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
 
-                    reportsLog.innerHTML += `
+                const ITEMS_PER_PAGE = 10;
+                const totalPages = Math.ceil(sortedTargets.length / ITEMS_PER_PAGE);
+                if (page < 1) page = 1;
+                if (page > totalPages && totalPages > 0) page = totalPages;
+
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const paginatedTargets = sortedTargets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                tbody.innerHTML = '';
+                if (sortedTargets.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">Nenhum alvo registrado ainda.</td></tr>`;
+                    return;
+                }
+
+                paginatedTargets.forEach((target, index) => {
+                    const realIndex = startIndex + index + 1; 
+                    const rankIcon = getRankIcon(realIndex);
+                    tbody.innerHTML += `
                         <tr class="hover:bg-gray-700/50">
-                            <td class="px-4 py-2 text-xs text-gray-400 w-2/12 break-all align-top">
-                                <span class="font-mono text-gray-300 block mb-1">${data.reportId}</span>
-                                ${actionBtns}
-                            </td>
-                            <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12 align-top">
-                                ${membersText}
-                            </td>
-                            <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold align-top">${targetText}</td>
-                            <td class="px-4 py-2 whitespace-normal text-sm text-gray-300 w-4/12 align-top">${finalDesc}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12 align-top">
-                                <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
-                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-orange-300 capitalize">${target.name}</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-red-400">${target.count}x</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${target.totalBT} BT Base</td>
                         </tr>
                     `;
                 });
-            }
 
-            const tableContainer = reportsLog.closest('.overflow-x-auto');
-            if (tableContainer && tableContainer.parentElement) {
-                const oldPagination = tableContainer.parentElement.querySelector('.reports-pagination');
-                if (oldPagination) oldPagination.remove(); 
+                const tableContainer = tbody.closest('.overflow-x-auto');
+                if (tableContainer && tableContainer.parentElement) {
+                    const oldPagination = tableContainer.parentElement.querySelector('.targets-pagination');
+                    if (oldPagination) oldPagination.remove();
 
-                if (totalPages > 1) {
-                    const fId = filterId ? `'${filterId}'` : 'null';
-                    const tId = `'${targetId}'`;
-                    const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
-                    const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
+                    if (totalPages > 1) {
+                        const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
+                        const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
 
-                    const paginationHtml = `
-                        <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full reports-pagination">
-                            <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
-                            <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
-                            <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
-                        </div>
-                    `;
-                    const paginationDiv = document.createElement('div');
-                    paginationDiv.className = 'reports-pagination';
-                    paginationDiv.innerHTML = paginationHtml;
-                    tableContainer.parentElement.appendChild(paginationDiv);
+                        const paginationHtml = `
+                            <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full targets-pagination">
+                                <button onclick="window.renderTargetsTable(${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
+                                <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
+                                <button onclick="window.renderTargetsTable(${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
+                            </div>
+                        `;
+                        const paginationDiv = document.createElement('div');
+                        paginationDiv.className = 'targets-pagination';
+                        paginationDiv.innerHTML = paginationHtml;
+                        tableContainer.parentElement.appendChild(paginationDiv);
+                    }
                 }
+            } catch (err) { console.error("Erro renderTargetsTable:", err); }
+        }
+
+        window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log', page = 1) {
+            try {
+                const reportsLog = document.getElementById(targetId);
+                const guardianSummaryDiv = document.getElementById('guardian-summary');
+                if (!reportsLog) return;
+                
+                reportsLog.innerHTML = '';
+                let filteredReports = reportsData;
+
+                if (filterId) {
+                    filteredReports = reportsData.filter(report => {
+                        const isKiller = Array.isArray(report.killerIds) && report.killerIds.includes(filterId);
+                        const isAssist = Array.isArray(report.assistIds) && report.assistIds.includes(filterId);
+                        const isLegacyExecutor = Array.isArray(report.executorIds) && report.executorIds.includes(filterId);
+                        const isHealer = Array.isArray(report.healerIds) && report.healerIds.includes(filterId);
+                        return isKiller || isAssist || isLegacyExecutor || isHealer;
+                    });
+                }
+                
+                if (filterId && guardianSummaryDiv) {
+                    const ninjaData = ninjasData[filterId];
+                    if (ninjaData) {
+                        
+                        let killCount = 0, killPoints = 0;
+                        let assistCount = 0, assistPoints = 0;
+                        let healCount = 0, healPoints = 0;
+
+                        filteredReports.forEach(r => {
+                            let targetsInReport = (Array.isArray(r.targets) && r.targets.length > 0) ? r.targets.length : 1;
+                            
+                            if (Array.isArray(r.killerIds) && r.killerIds.includes(filterId)) {
+                                killCount += targetsInReport;
+                                killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
+                            }
+                            if (Array.isArray(r.assistIds) && r.assistIds.includes(filterId)) {
+                                assistCount += targetsInReport;
+                                assistPoints += (r.pointsPerAssist || 0);
+                            }
+                            if (Array.isArray(r.executorIds) && r.executorIds.includes(filterId) && (!Array.isArray(r.killerIds) || !r.killerIds.includes(filterId)) && (!Array.isArray(r.assistIds) || !r.assistIds.includes(filterId))) {
+                                killCount += targetsInReport; 
+                                killPoints += (r.pointsPerAttacker || 0);
+                            }
+                            if (Array.isArray(r.healerIds) && r.healerIds.includes(filterId)) {
+                                healCount += targetsInReport;
+                                healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
+                            }
+                        });
+
+                        guardianSummaryDiv.innerHTML = `
+                            <div class="flex flex-col md:flex-row justify-between items-center border-b border-gray-600 pb-4 mb-4">
+                                <div class="text-center md:text-left">
+                                    <h3 class="text-2xl font-bold text-red-400 uppercase tracking-wider">${filterId}</h3>
+                                    <p class="text-sm text-gray-300 mt-1">${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'} | Maestria: <span class="text-white font-medium">${ninjaData.element || 'Não definida'}</span></p>
+                                </div>
+                                <div class="text-center md:text-right mt-4 md:mt-0">
+                                    <p class="text-xs text-gray-400 uppercase">Rank Points Totais</p>
+                                    <p class="text-3xl font-bold text-green-400">${Math.round(ninjaData.rankPoints)} <span class="text-sm text-gray-500">Pts</span></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Caçadas Feitas</p>
+                                    <p class="text-xl font-bold text-white mt-1">${ninjaData.missionsCompleted}</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Como Killer</p>
+                                    <p class="text-xl font-bold text-red-400 mt-1">${killCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${killPoints} pts</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Assistências</p>
+                                    <p class="text-xl font-bold text-orange-400 mt-1">${assistCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${assistPoints} pts</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Como Healer</p>
+                                    <p class="text-xl font-bold text-green-400 mt-1">${healCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${healPoints} pts</p>
+                                </div>
+                            </div>
+                        `;
+                        guardianSummaryDiv.classList.remove('hidden');
+                    }
+                } else if (guardianSummaryDiv) {
+                    guardianSummaryDiv.classList.add('hidden');
+                }
+
+                const sortedReports = [...filteredReports].sort((a, b) => {
+                    const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
+                });
+
+                const ITEMS_PER_PAGE = 10;
+                const totalPages = Math.ceil(sortedReports.length / ITEMS_PER_PAGE);
+                if (page < 1) page = 1;
+                if (page > totalPages && totalPages > 0) page = totalPages;
+
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const paginatedReports = sortedReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                if (sortedReports.length === 0) {
+                     reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
+                } else {
+                    paginatedReports.forEach(data => {
+                        let formattedDate = 'Data Desconhecida';
+                        if (data.timestamp) {
+                            try {
+                                formattedDate = new Date(data.timestamp).toLocaleDateString('pt-BR', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                });
+                            } catch(e) {}
+                        }
+                        
+                        let membersText = '';
+                        if (Array.isArray(data.killerIds) && data.killerIds.length > 0) membersText += `<span class="text-red-400 text-xs font-bold block">Killer: ${data.killerIds.join(', ')}</span>`;
+                        if (Array.isArray(data.assistIds) && data.assistIds.length > 0) membersText += `<span class="text-orange-400 text-xs font-bold block">Assistência: ${data.assistIds.join(', ')}</span>`;
+                        if (Array.isArray(data.executorIds) && data.executorIds.length > 0 && (!Array.isArray(data.killerIds) || data.killerIds.length === 0)) membersText += `<span class="text-orange-400 text-xs font-bold block">Killer/PT (Antigo): ${data.executorIds.join(', ')}</span>`;
+                        if (Array.isArray(data.healerIds) && data.healerIds.length > 0) membersText += `<span class="text-green-400 text-xs font-bold block">Healers: ${data.healerIds.join(', ')}</span>`;
+                        
+                        let targetText = '';
+                        let finalDesc = '';
+
+                        if (Array.isArray(data.targets) && data.targets.length > 0) {
+                            targetText = data.targets.map(t => t.name || 'Desconhecido').join(', ');
+                            const descParts = data.targets.map(t => {
+                                let d = `🎯 <b>${t.name || 'Alvo'}</b>: BT ${t.btBase}`;
+                                if (t.isSpecial) d += ' <span class="text-red-400">[Kage x3]</span>';
+                                if (t.isOrg) d += ' <span class="text-purple-400">[ORG +100]</span>';
+                                if (t.isTrashTalk) d += ' <span class="text-blue-400">[Trash +20]</span>';
+                                d += ` = <b>${t.total} pts</b>`;
+                                return d;
+                            });
+                            
+                            let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw || 0} Pts (`;
+                            if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
+                            if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
+                            if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
+                            divisaoText += `)</span>`;
+                            
+                            finalDesc = descParts.join('<br>') + divisaoText;
+                        } else {
+                            targetText = data.targetName || 'N/A';
+                            finalDesc = `BT: ${data.totalPointsRaw || 0}. ` + 
+                                            (data.isSpecial ? '[Kage x3]. ' : '') + 
+                                            (data.isOrg ? '[ORG +100]. ' : '') + 
+                                            (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
+                                            `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker || 0} pts/cada | Healer: ${data.pointsPerHealer || 0} pts</span>`;
+                        }
+
+                        let actionBtns = '';
+                        if (isWriterMode || isMasterAdminMode) {
+                            actionBtns = `
+                                <div class="mt-2 flex gap-2">
+                                    <button onclick="window.editReport('${data.reportId}')" class="text-blue-400 hover:text-blue-500 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Editar Registro">✏️ Editar</button>
+                                    <button onclick="window.deleteReport('${data.reportId}')" class="text-red-500 hover:text-red-700 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Excluir Registro permanentemente">🗑️</button>
+                                </div>
+                            `;
+                        }
+
+                        reportsLog.innerHTML += `
+                            <tr class="hover:bg-gray-700/50">
+                                <td class="px-4 py-2 text-xs text-gray-400 w-2/12 break-all align-top">
+                                    <span class="font-mono text-gray-300 block mb-1">${data.reportId}</span>
+                                    ${actionBtns}
+                                </td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12 align-top">
+                                    ${membersText}
+                                </td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold align-top">${targetText}</td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-gray-300 w-4/12 align-top">${finalDesc}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12 align-top">
+                                    <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                const tableContainer = reportsLog.closest('.overflow-x-auto');
+                if (tableContainer && tableContainer.parentElement) {
+                    const oldPagination = tableContainer.parentElement.querySelector('.reports-pagination');
+                    if (oldPagination) oldPagination.remove(); 
+
+                    if (totalPages > 1) {
+                        const fId = filterId ? `'${filterId}'` : 'null';
+                        const tId = `'${targetId}'`;
+                        const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
+                        const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
+
+                        const paginationHtml = `
+                            <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full reports-pagination">
+                                <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
+                                <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
+                                <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
+                            </div>
+                        `;
+                        const paginationDiv = document.createElement('div');
+                        paginationDiv.className = 'reports-pagination';
+                        paginationDiv.innerHTML = paginationHtml;
+                        tableContainer.parentElement.appendChild(paginationDiv);
+                    }
+                }
+            } catch (err) {
+                const reportsLog = document.getElementById(targetId);
+                if (reportsLog) {
+                    reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-red-500 font-bold bg-red-900/20 rounded">❌ Erro no Histórico: ${err.message}. Abra o console (F12) para ver detalhes.</td></tr>`;
+                }
+                console.error("Erro renderReportsLogFiltered:", err);
             }
         }
 

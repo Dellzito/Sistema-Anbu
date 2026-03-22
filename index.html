@@ -11,6 +11,7 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 4px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
+        .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
         .executor-list-container {
             min-height: 50px; padding: 8px; border: 1px solid #4b5563; 
             border-radius: 8px; background-color: #374151; 
@@ -18,86 +19,61 @@
         }
         .executor-tag {
             display: flex; align-items: center; padding: 4px 8px;
-            border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #fff;
+            border-radius: 9999px; font-size: 0.875rem; font-weight: 600;
+            color: #fff;
         }
-        .killer-tag { background-color: #dc2626; }
-        .assist-tag { background-color: #d97706; }
-        .healer-tag { background-color: #059669; }
+        .killer-tag { background-color: #dc2626; } /* red-600 */
+        .assist-tag { background-color: #d97706; } /* yellow-600 */
+        .healer-tag { background-color: #059669; } /* green-600 */
+        
         .executor-remove-btn { margin-left: 6px; cursor: pointer; opacity: 0.8; }
+        .executor-remove-btn:hover { opacity: 1; }
         .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; text-align: center; }
         .nav-link:hover:not(.active) { background-color: #1e293b; }
         .nav-link.active { color: #f87171; border-bottom: 2px solid #f87171; }
-
-        /* Status Online */
-        .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
-        #online-list-container { display: flex; gap: 8px; overflow-x: auto; padding: 8px; }
-
-        /* Pânico */
-        .panic-active-btn { animation: pulse-red 1s infinite; background: #ef4444 !important; color: white !important; }
-        @keyframes pulse-red {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
     </style>
 </head>
 <body class="p-4 sm:p-8 text-gray-100">
 
     <div id="app" class="max-w-6xl mx-auto space-y-8">
-        <header class="pb-4 border-b border-red-700/50 relative">
-            <div class="absolute right-0 top-0 flex items-center gap-2">
-                <button onclick="window.openFloatingWindow()" class="p-2 bg-gray-800 rounded-lg border border-gray-600 text-blue-400 hover:text-white transition" title="Overlay">🔲</button>
-                <button id="panic-audio-toggle" onclick="window.togglePanicAudio()" class="p-2 bg-gray-800 rounded-lg border border-gray-600 text-gray-400 hover:text-white transition">
-                    <span id="panic-audio-icon">🔇</span>
-                </button>
-                <button id="panic-btn" onclick="window.triggerPanic()" class="hidden writer-only bg-red-900/30 border border-red-600 text-red-500 px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition">🚨 PÂNICO</button>
-            </div>
-
-            <h1 class="text-4xl font-bold text-red-500 text-center mb-4">📜 Central de Inteligência — Esquadrão ANBU</h1>
-            
+        <header class="pb-4 border-b border-red-700/50">
+            <h1 id="main-title" class="text-4xl font-bold text-red-500 text-center mb-4">📜 Sistema de Registro — Esquadrão ANBU</h1>
             <nav class="flex flex-wrap justify-center bg-gray-900 rounded-xl shadow-lg p-1 gap-2">
                 <a class="nav-link" onclick="window.renderPage('home')" id="nav-home">Home</a>
-                <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Rank</a>
+                <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Ver Rank</a>
                 <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico de BTs</a>
-                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos</a>
-                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil</a>
+                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos Eliminados</a>
+                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do ANBU</a>
                 <a class="nav-link" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar BT</a>
                 <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Autorização</a>
             </nav>
-
-            <div class="mt-4 bg-gray-900/50 rounded-lg border border-gray-800 p-2">
-                <p class="text-[10px] text-gray-500 uppercase font-bold mb-1 ml-2">Ninjas em Patrulha (Online):</p>
-                <div id="online-list-container">
-                    <span class="text-gray-600 italic text-xs">Nenhum ninja logado...</span>
-                </div>
-            </div>
         </header>
-
-        <div id="panic-banner" class="hidden bg-red-600 text-white p-6 rounded-xl text-center font-bold text-2xl animate-bounce shadow-2xl border-4 border-white">
-            ⚠️ <span id="panic-msg">SINAL DE APOIO DETECTADO!</span> ⚠️
-        </div>
-
+        
         <div id="content" class="min-h-[60vh]"></div>
+
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
         <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Firebase...</div>
+        
         <datalist id="known-targets"></datalist>
     </div>
 
     <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4">
+        <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
             <h3 id="modal-title" class="text-xl font-bold text-red-400">Título</h3>
             <p id="modal-message" class="text-gray-300">Mensagem</p>
             <div id="modal-input-container" class="space-y-3 hidden">
-                <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden"></label>
+                <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden">Input 1</label>
                 <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
                 <select id="modal-select-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-                <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden"></label>
+
+                <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden">Input 2</label>
                 <select id="modal-select-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
+                
                 <span id="modal-error" class="text-red-400 text-sm hidden"></span>
             </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg">Cancelar</button>
-                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg">Confirmar</button>
+            <div id="modal-actions" class="flex justify-end gap-3 pt-2">
+                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
             </div>
         </div>
     </div>
@@ -110,7 +86,8 @@
             updateDoc, deleteDoc, getDocs, addDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const FB_CONFIG = {
+        // CONFIGURAÇÕES DO FIREBASE
+        const CUSTOM_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
             projectId: "g-2cb53",
@@ -119,298 +96,1569 @@
             appId: "1:292095146978:web:836d833230907d081017bb"
         };
         
+        const appId = CUSTOM_FIREBASE_CONFIG.projectId;
+        const firebaseConfig = CUSTOM_FIREBASE_CONFIG;
+        
+        let isMasterAdminMode = false; 
+        let isWriterMode = false; 
+        let currentPage = 'home';
+        let currentAccessId = 'ANONYMOUS'; 
+        
         let app, db, auth;
-        let isMasterAdminMode = false, isWriterMode = false, currentPage = 'home', currentAccessId = 'ANONYMOUS';
-        let ninjasData = {}, reportsData = [], accessKeysData = {};
-        let selectedKillers = [], selectedAssists = [], selectedHealers = [];
-        let targetEntryCount = 0; window.isEditingMode = false;
-        let currentReportId = '';
-
-        const COLS = {
-            REPORTS: `artifacts/g-2cb53/public/data/reports`,
-            NINJAS: `artifacts/g-2cb53/public/data/ninjas`, 
-            ACCESS: `artifacts/g-2cb53/public/data/access_keys`,
-            PANIC: `artifacts/g-2cb53/public/data/panic_system`,
-            PRESENCE: `artifacts/g-2cb53/public/status/presence`,
-            LOGS: `artifacts/g-2cb53/users/audit_user_log/audit_events` 
+        let currentReportId = ''; 
+        
+        let selectedKillers = []; 
+        let selectedAssists = []; 
+        let selectedHealers = []; 
+        
+        let targetEntryCount = 0; 
+        window.isEditingMode = false; 
+        
+        let ninjasData = {}; 
+        let reportsData = []; 
+        let accessKeysData = {}; 
+        
+        const COLLECTIONS = {
+            REPORTS: `artifacts/${appId}/public/data/reports`,
+            NINJAS: `artifacts/${appId}/public/data/ninjas`, 
+            ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`, 
+            AUDIT_LOG: `artifacts/${appId}/users/audit_user_log/audit_events` 
         };
 
-        const MAESTRIAS = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
+        const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
 
-        // --- SISTEMA DE PÂNICO E JANELA ---
-        let panicAudio = false;
-        const siren = new Audio('https://orangefree.sounds.com/alerts/emergency_siren.mp3');
-        siren.loop = true;
-
-        window.togglePanicAudio = () => {
-            panicAudio = !panicAudio;
-            document.getElementById('panic-audio-icon').textContent = panicAudio ? '🔊' : '🔇';
-            document.getElementById('panic-audio-toggle').classList.toggle('border-green-500', panicAudio);
-            if(panicAudio) { siren.play().then(() => { siren.pause(); siren.currentTime = 0; }); }
-        };
-
-        window.triggerPanic = async () => {
-            if (currentAccessId === 'ANONYMOUS') return;
-            const ref = doc(db, COLS.PANIC, "status");
-            await setDoc(ref, { active: true, by: currentAccessId, time: Date.now() });
-            setTimeout(() => updateDoc(ref, { active: false }), 15000);
-            window.logAction('PANIC_BTN', { by: currentAccessId });
-        };
-
-        window.openFloatingWindow = () => window.open(window.location.href, 'ANBU_POP', 'width=450,height=650');
-
-        async function updatePresence(isOnline) {
-            if (currentAccessId === 'ANONYMOUS') return;
-            await setDoc(doc(db, COLS.PRESENCE, currentAccessId), { id: currentAccessId, lastSeen: Date.now(), online: isOnline }, { merge: true });
+        window.logAction = async function(action, details) {
+            if (!db) return;
+            try {
+                await addDoc(collection(db, COLLECTIONS.AUDIT_LOG), {
+                    timestamp: new Date().toISOString(),
+                    actorAccessId: currentAccessId,
+                    action: action,
+                    details: details,
+                    level: isMasterAdminMode ? 'MASTER_ADMIN' : (isWriterMode ? 'WRITER' : 'ANON')
+                });
+            } catch (e) { console.error(e); }
         }
 
-        // --- LÓGICA DE REGISTRO DE BTs (SUA LÓGICA ORIGINAL RECONSTRUÍDA) ---
-        window.addTargetEntry = () => {
+        function getRankIcon(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return `#${rank}`;
+        }
+        
+        function normalizeId(id) {
+            return id.trim().toLowerCase();
+        }
+        
+        let resolveModalPromise = null; 
+        window.openCustomModal = function(title, message, type, data = {}) {
+            return new Promise(resolve => {
+                resolveModalPromise = resolve;
+                const modal = document.getElementById('custom-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalMessage = document.getElementById('modal-message');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+                
+                const inputContainer = document.getElementById('modal-input-container');
+                const input1 = document.getElementById('modal-input-1');
+                const select1 = document.getElementById('modal-select-1');
+                const select2 = document.getElementById('modal-select-2');
+                const label1 = document.getElementById('input-label-1');
+                const label2 = document.getElementById('input-label-2');
+
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                
+                inputContainer.classList.add('hidden');
+                input1.classList.add('hidden');
+                select1.classList.add('hidden');
+                select2.classList.add('hidden');
+                label1.classList.add('hidden');
+                label2.classList.add('hidden');
+                
+                confirmBtn.onclick = null;
+                cancelBtn.onclick = null;
+                confirmBtn.classList.remove('bg-red-600', 'bg-orange-600');
+                confirmBtn.classList.add('bg-blue-600');
+
+                if (type === 'confirm') {
+                    confirmBtn.textContent = 'Confirmar';
+                    confirmBtn.classList.remove('bg-blue-600');
+                    confirmBtn.classList.add('bg-red-600');
+                } else if (type === 'ninjaEdit') {
+                    const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                    const newStatusText = data.isActive ? 'INATIVO' : 'ATIVO';
+                    modalMessage.innerHTML = `O ANBU **${data.id}** está atualmente <span class="font-bold ${data.isActive ? 'text-green-400' : 'text-red-400'}">${statusText}</span>. Deseja alternar o status para **${newStatusText}**?`;
+                    confirmBtn.textContent = `Alternar Status`;
+                    confirmBtn.classList.add('bg-orange-600'); 
+                } else if (type === 'masteryEdit') {
+                    inputContainer.classList.remove('hidden');
+                    
+                    label1.textContent = '1ª Maestria:';
+                    label1.classList.remove('hidden');
+                    select1.classList.remove('hidden');
+                    select1.innerHTML = MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
+                    if (data.m1) select1.value = data.m1;
+
+                    label2.textContent = '2ª Maestria (Opcional):';
+                    label2.classList.remove('hidden');
+                    select2.classList.remove('hidden');
+                    select2.innerHTML = '<option value="">-- Nenhuma --</option>' + MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
+                    if (data.m2) select2.value = data.m2;
+
+                    confirmBtn.textContent = `Salvar Maestrias`;
+                    confirmBtn.onclick = () => closeCustomModal({ m1: select1.value, m2: select2.value });
+                }
+
+                cancelBtn.onclick = () => closeCustomModal(false);
+                if (type !== 'masteryEdit') {
+                    confirmBtn.onclick = () => closeCustomModal(true);
+                }
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        }
+
+        function closeCustomModal(result) {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (resolveModalPromise) {
+                resolveModalPromise(result);
+                resolveModalPromise = null;
+            }
+        }
+        
+        window.updateTargetSuggestions = function() {
+            try {
+                const dataList = document.getElementById('known-targets');
+                if (!dataList) return;
+
+                const targetsMap = {};
+                reportsData.forEach(report => {
+                    if (Array.isArray(report.targets) && report.targets.length > 0) {
+                        report.targets.forEach(t => {
+                            if (t && t.name) {
+                                const lower = t.name.trim().toLowerCase();
+                                if (!targetsMap[lower]) targetsMap[lower] = t.name.trim();
+                            }
+                        });
+                    } else if (report.targetName) {
+                        const lower = report.targetName.trim().toLowerCase();
+                        if (!targetsMap[lower]) targetsMap[lower] = report.targetName.trim();
+                    }
+                });
+
+                const sortedTargets = Object.values(targetsMap).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+                dataList.innerHTML = sortedTargets.map(t => `<option value="${t}">`).join('');
+            } catch(e) { console.error("Erro updateTargetSuggestions:", e); }
+        }
+
+        window.addTargetEntry = function() {
             const container = document.getElementById('targets-container');
             if (!container) return;
+            
             targetEntryCount++;
             const targetId = `target-${targetEntryCount}`;
+            
             const html = `
-                <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 relative mb-4">
-                    <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 font-bold">✖</button>
-                    <div class="grid grid-cols-2 gap-4">
-                        <input type="text" list="known-targets" placeholder="Nick do Alvo" class="target-name p-2 rounded bg-gray-800 text-white" oninput="window.updateDescriptionPreview()">
-                        <input type="number" placeholder="BT Base" class="target-bt p-2 rounded bg-gray-800 text-white font-bold" oninput="window.updateDescriptionPreview()">
+                <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
+                    <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 hover:text-red-500 font-bold" title="Remover Alvo">✖</button>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Alvo Morto (Nick)</label>
+                            <input type="text" list="known-targets" placeholder="Ex: inimigo_xyz" class="target-name w-full p-2.5 rounded-lg bg-gray-800 border border-gray-600 focus:ring-red-500 text-white shadow-inner" oninput="window.updateDescriptionPreview()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">BT Base</label>
+                            <input type="number" min="0" placeholder="Ex: 103" class="target-bt w-full p-2.5 rounded-lg bg-gray-800 border border-gray-600 focus:ring-red-500 text-white shadow-inner font-bold text-lg" oninput="window.updateDescriptionPreview()">
+                        </div>
                     </div>
-                    <div class="flex gap-4 mt-2 text-xs">
-                        <label><input type="checkbox" class="target-chk-special" onchange="window.updateDescriptionPreview()"> Kage (x3)</label>
-                        <label><input type="checkbox" class="target-chk-org" onchange="window.updateDescriptionPreview()"> ORG (+100)</label>
-                        <label><input type="checkbox" class="target-chk-trashtalk" onchange="window.updateDescriptionPreview()"> Trash (+20)</label>
+
+                    <div class="flex flex-wrap gap-4 mt-2 pt-2 border-t border-gray-600">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="target-chk-special form-checkbox h-4 w-4 text-red-600 bg-gray-800 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 text-sm">É Kage? (BT x3)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="target-chk-org form-checkbox h-4 w-4 text-red-600 bg-gray-800 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 text-sm">ORG Especial (+100 Pts)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="target-chk-trashtalk form-checkbox h-4 w-4 text-red-600 bg-gray-800 border-gray-600 rounded focus:ring-red-500" onchange="window.updateDescriptionPreview()">
+                            <span class="text-gray-200 text-sm">Trash Talk? (+20 Pts)</span>
+                        </label>
                     </div>
-                </div>`;
+                </div>
+            `;
             container.insertAdjacentHTML('beforeend', html);
-        };
-
-        window.removeTargetEntry = (id) => { document.getElementById(id)?.remove(); window.updateDescriptionPreview(); };
-
-        window.updateDescriptionPreview = () => {
-            const entries = document.querySelectorAll('.target-entry');
-            let total = 0, targetsList = [];
-            entries.forEach(e => {
-                let base = parseInt(e.querySelector('.target-bt').value || 0);
-                if(e.querySelector('.target-chk-special').checked) base *= 3;
-                if(e.querySelector('.target-chk-org').checked) base += 100;
-                if(e.querySelector('.target-chk-trashtalk').checked) base += 20;
-                total += base;
-                targetsList.push(`${e.querySelector('.target-name').value || 'Alvo'} (${base} pts)`);
-            });
-
-            const pKiller = total;
-            const pAssist = selectedAssists.length > 0 ? Math.floor(total/3) : 0;
-            const pHealer = total;
-
-            document.getElementById('description-preview').innerHTML = `Alvos: ${targetsList.join(', ')} <br> <b>Total: ${total} Pts</b> (Killer/Healer: ${total} | Assist: ${pAssist})`;
-            document.getElementById('total-points').value = `Total Caçada: ${total} Pts`;
-            const submitBtn = document.getElementById('submit-report');
-            if(submitBtn) submitBtn.disabled = (total === 0 || !isWriterMode);
-        };
-
-        window.submitReport = async () => {
-            const entries = document.querySelectorAll('.target-entry');
-            let totalRaw = 0, targetsData = [];
-            entries.forEach(e => {
-                let base = parseInt(e.querySelector('.target-bt').value || 0);
-                let final = base;
-                if(e.querySelector('.target-chk-special').checked) final *= 3;
-                if(e.querySelector('.target-chk-org').checked) final += 100;
-                if(e.querySelector('.target-chk-trashtalk').checked) final += 20;
-                totalRaw += final;
-                targetsData.push({ name: e.querySelector('.target-name').value, btBase: base, total: final });
-            });
-
-            const data = {
-                reportId: currentReportId || `BT-${Date.now()}`,
-                targets: targetsData,
-                killerIds: selectedKillers,
-                assistIds: selectedAssists,
-                healerIds: selectedHealers,
-                totalPointsRaw: totalRaw,
-                pointsPerKiller: totalRaw,
-                pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalRaw/3) : 0,
-                pointsPerHealer: totalRaw,
-                timestamp: new Date().toISOString()
-            };
-
-            const batch = writeBatch(db);
-            batch.set(doc(db, COLS.REPORTS, data.reportId), data);
-            
-            // Atualizar Ranks individuais
-            [...selectedKillers, ...selectedHealers].forEach(id => {
-                const n = ninjasData[id];
-                batch.update(doc(db, COLS.NINJAS, id), { rankPoints: (n.rankPoints || 0) + totalRaw, missionsCompleted: (n.missionsCompleted || 0) + 1 });
-            });
-            selectedAssists.forEach(id => {
-                const n = ninjasData[id];
-                batch.update(doc(db, COLS.NINJAS, id), { rankPoints: (n.rankPoints || 0) + data.pointsPerAssist, missionsCompleted: (n.missionsCompleted || 0) + 1 });
-            });
-
-            await batch.commit();
-            alert("BT Registrado com Sucesso!");
-            window.renderPage('reports_log');
-        };
-
-        // --- GESTÃO DE UI E NAVEGAÇÃO ---
-        window.renderPage = (name) => {
-            currentPage = name;
-            const content = document.getElementById('content');
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            document.getElementById(`nav-${name}`)?.classList.add('active');
-            content.innerHTML = '';
-
-            switch(name) {
-                case 'home': content.innerHTML = `<div class="bg-gray-800 p-20 rounded-xl text-center shadow-2xl border border-red-900/20"><h2 class="text-3xl font-bold text-red-500">Bem-vindo, ANBU ${currentAccessId}</h2><p class="text-gray-400 mt-4 italic">"Nas sombras, protegemos a vila."</p></div>`; break;
-                case 'admin_panel': content.innerHTML = window.renderAutorizacao(); break;
-                case 'report_form': content.innerHTML = window.renderCriarRelatorio(); if(isWriterMode) { window.generateReportId(); window.addTargetEntry(); window.updateExecutorSelect(); } break;
-                case 'scoreboard': content.innerHTML = window.renderRank(); window.renderScoreboard(); break;
-                case 'reports_log': content.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
-                case 'targets_log': content.innerHTML = `<div>Alvos eliminados...</div>`; break; // Implementar similar ao scoreboard
-            }
-            window.toggleWriterUI(isWriterMode);
-        };
-
-        window.renderAutorizacao = () => `
-            <div class="max-w-md mx-auto bg-gray-900 p-8 rounded-2xl border border-red-500/30">
-                <h2 class="text-2xl font-bold text-red-500 text-center mb-6">Sincronizar Acesso</h2>
-                <div class="space-y-4">
-                    <input id="access-id-input" type="text" placeholder="ID ANBU" class="w-full p-3 rounded-lg bg-gray-800 border border-gray-700">
-                    <input id="access-key-input" type="password" placeholder="Chave de Acesso" class="w-full p-3 rounded-lg bg-gray-800 border border-gray-700">
-                    <button onclick="window.checkAccessKey()" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-bold transition shadow-lg">Entrar no Sistema</button>
-                </div>
-            </div>`;
-
-        window.renderCriarRelatorio = () => `
-            <section class="bg-gray-800 p-6 rounded-xl space-y-6">
-                <h2 class="text-2xl font-bold text-red-400 border-b border-gray-700 pb-2">Novo Registro de Caçada</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="text-xs font-bold text-red-500">KILLER</label>
-                        <select id="new-killer-id-select" class="w-full p-2 rounded bg-gray-700" onchange="window.addExecutor('killer')"></select>
-                        <div id="killers-tag-container" class="executor-list-container mt-2"></div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-orange-500">ASSISTÊNCIA</label>
-                        <select id="new-assist-id-select" class="w-full p-2 rounded bg-gray-700" onchange="window.addExecutor('assist')"></select>
-                        <div id="assists-tag-container" class="executor-list-container mt-2"></div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-green-500">HEALER</label>
-                        <select id="new-healer-id-select" class="w-full p-2 rounded bg-gray-700" onchange="window.addExecutor('healer')"></select>
-                        <div id="healers-tag-container" class="executor-list-container mt-2"></div>
-                    </div>
-                </div>
-                <div id="targets-container" class="pt-4 border-t border-gray-700"></div>
-                <div class="bg-gray-900 p-4 rounded-lg">
-                    <label class="text-xs text-gray-500">RESUMO MATEMÁTICO:</label>
-                    <div id="description-preview" class="text-sm italic text-gray-300">Aguardando dados...</div>
-                    <input id="total-points" readonly class="bg-transparent text-green-400 font-bold mt-2">
-                </div>
-                <button id="submit-report" onclick="window.submitReport()" class="w-full bg-red-600 py-4 rounded-xl font-bold disabled:opacity-50">SALVAR REGISTRO</button>
-            </section>`;
-
-        // Funções auxiliares de UI (Selects, Tags, Rank)
-        window.updateExecutorSelect = () => {
-            const active = Object.values(ninjasData).filter(n => n.isActive);
-            ['killer', 'assist', 'healer'].forEach(type => {
-                const select = document.getElementById(`new-${type}-id-select`);
-                if(select) select.innerHTML = `<option value="">Selecionar...</option>` + active.map(n => `<option value="${n.id}">${n.id}</option>`).join('');
-            });
-        };
-
-        window.addExecutor = (type) => {
-            const id = document.getElementById(`new-${type}-id-select`).value;
-            if(!id) return;
-            if(type === 'killer') selectedKillers = [id]; // Killer é único por registro geralmente
-            if(type === 'assist') if(!selectedAssists.includes(id)) selectedAssists.push(id);
-            if(type === 'healer') if(!selectedHealers.includes(id)) selectedHealers.push(id);
-            window.updateExecutorTags();
             window.updateDescriptionPreview();
-        };
+        }
 
-        window.updateExecutorTags = () => {
-            document.getElementById('killers-tag-container').innerHTML = selectedKillers.map(id => `<span class="executor-tag killer-tag">${id}</span>`).join('');
-            document.getElementById('assists-tag-container').innerHTML = selectedAssists.map(id => `<span class="executor-tag assist-tag">${id}</span>`).join('');
-            document.getElementById('healers-tag-container').innerHTML = selectedHealers.map(id => `<span class="executor-tag healer-tag">${id}</span>`).join('');
-        };
+        window.removeTargetEntry = function(targetId) {
+            const el = document.getElementById(targetId);
+            if (el) {
+                el.remove();
+                window.updateDescriptionPreview();
+            }
+        }
 
-        window.renderScoreboard = () => {
-            const table = document.getElementById('ninjas-scoreboard');
-            const sorted = Object.values(ninjasData).sort((a,b) => b.rankPoints - a.rankPoints);
-            table.innerHTML = sorted.map((n, i) => `
-                <tr class="border-b border-gray-700">
-                    <td class="p-2">#${i+1}</td>
-                    <td class="p-2 text-red-400 font-bold">${n.id}</td>
-                    <td class="p-2 text-green-400">${Math.round(n.rankPoints)} Pts</td>
-                    <td class="p-2">${n.missionsCompleted || 0}</td>
-                </tr>`).join('');
-        };
+        function _gatherReportData() {
+            const targetEntries = document.querySelectorAll('.target-entry');
+            let totalPointsRaw = 0;
+            const targetsData = [];
 
-        // --- FIREBASE LISTENERS ---
-        function initGlobalListeners() {
-            onSnapshot(collection(db, COLS.ACCESS), (s) => s.forEach(d => accessKeysData[d.id] = d.data()));
-            onSnapshot(collection(db, COLS.NINJAS), (s) => { s.forEach(d => ninjasData[d.id] = d.data()); if(currentPage==='scoreboard') window.renderScoreboard(); });
-            onSnapshot(collection(db, COLS.REPORTS), (s) => { reportsData = []; s.forEach(d => reportsData.push(d.data())); });
-            
-            // Ouvinte Online
-            onSnapshot(collection(db, COLS.PRESENCE), (snap) => {
-                const container = document.getElementById('online-list-container');
-                container.innerHTML = '';
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    if(d.online && (Date.now() - d.lastSeen < 300000)) {
-                        container.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded-full text-[11px] font-bold border border-gray-700"><span class="online-dot"></span>${d.id.toUpperCase()}</div>`;
-                    }
+            targetEntries.forEach((entry, index) => {
+                const name = entry.querySelector('.target-name').value.trim() || `Alvo ${index + 1}`;
+                let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10);
+                if (isNaN(btBase)) btBase = 0;
+
+                const isSpecial = entry.querySelector('.target-chk-special').checked;
+                const isOrg = entry.querySelector('.target-chk-org').checked;
+                const isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
+
+                let targetTotal = btBase;
+                if (isSpecial) targetTotal *= 3;
+                if (isOrg) targetTotal += 100;
+                if (isTrashTalk) targetTotal += 20;
+
+                totalPointsRaw += targetTotal;
+
+                targetsData.push({
+                    name: name,
+                    btBase: btBase,
+                    isSpecial: isSpecial,
+                    isOrg: isOrg,
+                    isTrashTalk: isTrashTalk,
+                    total: targetTotal
                 });
             });
 
-            // Ouvinte Pânico
-            onSnapshot(doc(db, COLS.PANIC, "status"), (snap) => {
-                const d = snap.data();
-                const banner = document.getElementById('panic-banner');
-                if(d?.active) {
-                    banner.classList.remove('hidden');
-                    document.getElementById('panic-msg').innerHTML = `🚨 ALERTA: ${d.by.toUpperCase()} PRECISA DE AJUDA! 🚨`;
-                    document.getElementById('panic-btn').classList.add('panic-active-btn');
-                    if(panicAudio) siren.play();
+            const pointsPerKiller = totalPointsRaw;
+            const pointsPerHealer = totalPointsRaw; 
+            
+            const assistsCount = selectedAssists.length;
+            const pointsPerAssist = assistsCount > 0 ? Math.floor(totalPointsRaw / 3) : 0;
+
+            return {
+                reportId: currentReportId,
+                targets: targetsData, 
+                killerIds: selectedKillers,
+                assistIds: selectedAssists,
+                healerIds: selectedHealers,
+                totalPointsRaw: totalPointsRaw,
+                pointsPerKiller: pointsPerKiller,
+                pointsPerAssist: pointsPerAssist,
+                pointsPerHealer: pointsPerHealer,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        window.generateReportId = function() {
+            const reportIdElement = document.getElementById('report-id-display');
+            if (!reportIdElement) return;
+            const datePart = new Date().toISOString().slice(0,10).replace(/-/g,'');
+            const uuidPart = crypto.randomUUID().substring(0, 8);
+            currentReportId = `BT-${datePart}-${uuidPart}`;
+            reportIdElement.value = currentReportId;
+        }
+
+        window.calculateTotalPoints = function() {
+            const data = _gatherReportData();
+            const totalPointsInput = document.getElementById('total-points');
+            const submitBtn = document.getElementById('submit-report');
+
+            if (!data || !totalPointsInput || !submitBtn) return;
+            
+            totalPointsInput.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} pts | Assists: ${data.pointsPerAssist} pts | Healers: ${data.pointsPerHealer} pts)`;
+
+            const hasPartyMembers = (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0;
+            const hasTargets = data.targets.length > 0;
+            const isReady = isWriterMode && hasPartyMembers && hasTargets && data.totalPointsRaw > 0; 
+            
+            submitBtn.disabled = !isReady;
+            if (isReady) {
+                 submitBtn.classList.remove('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            } else {
+                 submitBtn.classList.add('bg-red-600/50', 'cursor-not-allowed');
+                 submitBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            }
+        }
+        
+        window.updateDescriptionPreview = function() {
+            const previewDiv = document.getElementById('description-preview');
+            if (!previewDiv) return;
+
+            const data = _gatherReportData();
+            let previewText = ``;
+            
+            if (data.targets.length > 0) {
+                previewText += `Alvos (${data.targets.length}): ` + data.targets.map(t => `${t.name} (${t.total} pts)`).join(', ') + `. `;
+            } else {
+                previewText += `[Nenhum alvo adicionado]. `;
+            }
+
+            if (data.killerIds.length > 0) previewText += `Killer: ${data.killerIds.join(', ')} (${data.pointsPerKiller} pts). `;
+            if (data.assistIds.length > 0) previewText += `Assistência: ${data.assistIds.join(', ')} (${data.pointsPerAssist} pts/cada). `;
+            if (data.healerIds.length > 0) previewText += `Healers: ${data.healerIds.join(', ')} (${data.pointsPerHealer} pts). `;
+            
+            if (data.killerIds.length === 0 && data.assistIds.length === 0 && data.healerIds.length === 0) {
+                previewText += `[Nenhum ANBU selecionado]. `;
+            }
+
+            previewText += `=> TOTAL DA CAÇADA: ${data.totalPointsRaw} Pts.`;
+            previewDiv.textContent = previewText.trim();
+            window.calculateTotalPoints();
+        }
+
+        window.submitReport = async function() {
+            if (!isWriterMode) return;
+
+            const data = _gatherReportData();
+            const statusElement = document.getElementById('status');
+
+            if (!data || (data.killerIds.length === 0 && data.assistIds.length === 0 && data.healerIds.length === 0) || data.totalPointsRaw === 0) {
+                 window.openCustomModal('Erro', 'Preencha o valor do BT e adicione pelo menos um ANBU na PT.', 'info');
+                 return;
+            }
+
+            statusElement.classList.remove('hidden');
+            statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+            statusElement.textContent = window.isEditingMode ? `Salvando alterações e recalculando...` : `Registrando BT e atualizando Rank...`;
+
+            const batch = writeBatch(db);
+
+            try {
+                const reportRef = doc(db, COLLECTIONS.REPORTS, data.reportId);
+                batch.set(reportRef, data); 
+
+                if (!window.isEditingMode) {
+                    for (const participantId of data.killerIds) {
+                        const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
+                        batch.set(ninjaRef, { 
+                            rankPoints: (ninjasData[participantId]?.rankPoints || 0) + data.pointsPerKiller,
+                            missionsCompleted: (ninjasData[participantId]?.missionsCompleted || 0) + 1,
+                        }, { merge: true });
+                    }
+                    for (const participantId of data.assistIds) {
+                        const ninjaRef = doc(db, COLLECTIONS.NINJAS, participantId);
+                        batch.set(ninjaRef, { 
+                            rankPoints: (ninjasData[participantId]?.rankPoints || 0) + data.pointsPerAssist,
+                            missionsCompleted: (ninjasData[participantId]?.missionsCompleted || 0) + 1,
+                        }, { merge: true });
+                    }
+                    for (const healerId of data.healerIds) {
+                        const ninjaRef = doc(db, COLLECTIONS.NINJAS, healerId);
+                        batch.set(ninjaRef, { 
+                            rankPoints: (ninjasData[healerId]?.rankPoints || 0) + data.pointsPerHealer,
+                            missionsCompleted: (ninjasData[healerId]?.missionsCompleted || 0) + 1,
+                        }, { merge: true });
+                    }
+                    await batch.commit();
                 } else {
-                    banner.classList.add('hidden');
-                    document.getElementById('panic-btn').classList.remove('panic-active-btn');
-                    siren.pause(); siren.currentTime = 0;
+                    await batch.commit();
+                    await window.recalculateAllRanks(true);
+                    window.isEditingMode = false;
+                }
+
+                statusElement.textContent = `✅ Sucesso! Registro finalizado.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                
+                selectedKillers = [];
+                selectedAssists = [];
+                selectedHealers = [];
+                window.updateExecutorTags();
+                window.updateExecutorSelect(); 
+                window.generateReportId();
+                
+                const targetsContainer = document.getElementById('targets-container');
+                if (targetsContainer) targetsContainer.innerHTML = '';
+                window.addTargetEntry(); 
+
+                window.updateDescriptionPreview(); 
+                document.getElementById('submit-report').innerHTML = 'Salvar Caçada e Atualizar Rank';
+
+            } catch (e) {
+                statusElement.textContent = `❌ Erro no Registro: ${e.message}.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+            }
+            setTimeout(() => statusElement.classList.add('hidden'), 7000);
+        }
+
+        window.deleteReport = function(reportId) {
+            if (!isWriterMode && !isMasterAdminMode) return;
+            
+            window.openCustomModal('Excluir Registro', `Tem certeza que deseja excluir o registro ${reportId}? Isso não pode ser desfeito e os pontos serão recalculados automaticamente.`, 'confirm').then(async (confirmed) => {
+                if (confirmed) {
+                    const statusElement = document.getElementById('status');
+                    statusElement.classList.remove('hidden');
+                    statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                    statusElement.textContent = `Excluindo registro ${reportId}...`;
+                    
+                    try {
+                        await deleteDoc(doc(db, COLLECTIONS.REPORTS, reportId));
+                        window.logAction('DELETE_REPORT', { reportId: reportId });
+                        await window.recalculateAllRanks(true); 
+                        
+                        statusElement.textContent = `✅ Registro excluído e ranks atualizados com sucesso!`;
+                        statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    } catch (e) {
+                        statusElement.textContent = `❌ Erro: ${e.message}`;
+                        statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                    }
+                    setTimeout(() => statusElement.classList.add('hidden'), 5000);
                 }
             });
         }
 
-        window.checkAccessKey = async () => {
-            const id = document.getElementById('access-id-input').value.trim().toLowerCase();
-            const key = document.getElementById('access-key-input').value.trim();
-            const data = accessKeysData[id];
-            if (data && data.key === key) {
-                currentAccessId = id; isWriterMode = true;
-                isMasterAdminMode = (data.level === 'master_admin');
-                await updatePresence(true);
-                window.renderPage('home');
-                setInterval(() => updatePresence(true), 60000);
-            } else { alert("Acesso negado."); }
-        };
+        window.editReport = function(reportId) {
+            if (!isWriterMode && !isMasterAdminMode) return;
+            const report = reportsData.find(r => r.reportId === reportId);
+            if (!report) return;
 
-        window.toggleWriterUI = (show) => document.querySelectorAll('.writer-only').forEach(el => show ? el.classList.remove('hidden') : el.classList.add('hidden'));
-        window.generateReportId = () => currentReportId = `BT-${Date.now()}`;
+            window.renderPage('report_form');
 
-        window.onload = async () => {
-            app = initializeApp(FB_CONFIG);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            await signInAnonymously(auth);
-            initGlobalListeners();
-            window.renderPage('home');
-        };
+            currentReportId = report.reportId;
+            window.isEditingMode = true;
+
+            selectedKillers = report.killerIds || [];
+            selectedAssists = report.assistIds || report.executorIds || []; 
+            selectedHealers = report.healerIds || [];
+
+            const targetsContainer = document.getElementById('targets-container');
+            targetsContainer.innerHTML = '';
+            targetEntryCount = 0;
+
+            if (Array.isArray(report.targets) && report.targets.length > 0) {
+                report.targets.forEach(t => {
+                    window.addTargetEntry();
+                    const entry = document.getElementById(`target-${targetEntryCount}`);
+                    entry.querySelector('.target-name').value = t.name;
+                    entry.querySelector('.target-bt').value = t.btBase;
+                    entry.querySelector('.target-chk-special').checked = t.isSpecial;
+                    entry.querySelector('.target-chk-org').checked = t.isOrg;
+                    entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk;
+                });
+            } else if (report.targetName) {
+                window.addTargetEntry();
+                const entry = document.getElementById(`target-${targetEntryCount}`);
+                entry.querySelector('.target-name').value = report.targetName;
+                entry.querySelector('.target-bt').value = report.btBase || report.totalPointsRaw;
+                entry.querySelector('.target-chk-special').checked = report.isSpecial;
+                entry.querySelector('.target-chk-org').checked = report.isOrg;
+                entry.querySelector('.target-chk-trashtalk').checked = report.isTrashTalk;
+            } else {
+                window.addTargetEntry(); 
+            }
+
+            window.updateExecutorTags();
+            window.updateExecutorSelect();
+            window.updateDescriptionPreview();
+
+            document.getElementById('submit-report').innerHTML = '💾 Salvar Alterações da Caçada (Recalculará Ranks)';
+            document.getElementById('report-id-display').value = currentReportId;
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.updateExecutorSelect = function() {
+            const selectKiller = document.getElementById('new-killer-id-select');
+            const selectAssist = document.getElementById('new-assist-id-select');
+            const selectHeal = document.getElementById('new-healer-id-select');
+            if (!selectKiller || !selectAssist || !selectHeal) return;
+            
+            const activeNinjas = Object.values(ninjasData).filter(n => n.isActive);
+            activeNinjas.sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
+
+            let optionsKiller = '<option value="" disabled selected>Selecionar Killer</option>';
+            let optionsAssist = '<option value="" disabled selected>Selecionar Assistência</option>';
+            let optionsHeal = '<option value="" disabled selected>Selecionar Healer</option>';
+
+            activeNinjas.forEach(ninja => {
+                if (!ninja.id) return; 
+                
+                const elementLabel = ninja.element ? ` (${ninja.element})` : '';
+                
+                if (!selectedKillers.includes(ninja.id) && !selectedAssists.includes(ninja.id) && !selectedHealers.includes(ninja.id)) {
+                    optionsKiller += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    optionsAssist += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    
+                    if (ninja.element && ninja.element.includes('Med (Chakra)')) {
+                        optionsHeal += `<option value="${ninja.id}">${ninja.id}${elementLabel}</option>`;
+                    }
+                }
+            });
+
+            selectKiller.innerHTML = optionsKiller;
+            selectAssist.innerHTML = optionsAssist;
+            selectHeal.innerHTML = optionsHeal;
+        }
+
+        window.addExecutor = function(type) {
+            let selectId = '';
+            let targetArray = null;
+
+            if (type === 'killer') { selectId = 'new-killer-id-select'; targetArray = selectedKillers; }
+            if (type === 'assist') { selectId = 'new-assist-id-select'; targetArray = selectedAssists; }
+            if (type === 'healer') { selectId = 'new-healer-id-select'; targetArray = selectedHealers; }
+
+            const select = document.getElementById(selectId);
+            if (!select || !select.value) return;
+
+            targetArray.push(select.value);
+            
+            select.value = ''; 
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
         
-        window.renderRank = () => `<table class="w-full text-left"><thead><tr class="text-gray-500"><th>Rank</th><th>Ninja</th><th>Pontos</th><th>Missões</th></tr></thead><tbody id="ninjas-scoreboard"></tbody></table>`;
-        window.renderRelatorios = () => `<div id="reports-log-container">Histórico de BTs...</div>`;
+        window.removeExecutor = function(ninjaId, type) {
+            if (type === 'killer') selectedKillers = selectedKillers.filter(id => id !== ninjaId);
+            if (type === 'assist') selectedAssists = selectedAssists.filter(id => id !== ninjaId);
+            if (type === 'healer') selectedHealers = selectedHealers.filter(id => id !== ninjaId);
+            
+            window.updateExecutorTags();
+            window.updateExecutorSelect(); 
+            window.updateDescriptionPreview(); 
+        }
+
+        window.updateExecutorTags = function() { 
+            const containerKiller = document.getElementById('killers-tag-container');
+            const containerAssist = document.getElementById('assists-tag-container');
+            const containerHeal = document.getElementById('healers-tag-container');
+            if (!containerKiller || !containerAssist || !containerHeal) return;
+            
+            let htmlKiller = selectedKillers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Killer selecionado.</span>' : '';
+            selectedKillers.forEach(id => {
+                htmlKiller += `<span class="executor-tag killer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'killer')">✖</span></span>`;
+            });
+            containerKiller.innerHTML = htmlKiller;
+
+            let htmlAssist = selectedAssists.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhuma Assistência selecionada.</span>' : '';
+            selectedAssists.forEach(id => {
+                htmlAssist += `<span class="executor-tag assist-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'assist')">✖</span></span>`;
+            });
+            containerAssist.innerHTML = htmlAssist;
+
+            let htmlHeal = selectedHealers.length === 0 ? '<span class="text-gray-400 text-sm italic">Nenhum Healer selecionado.</span>' : '';
+            selectedHealers.forEach(id => {
+                htmlHeal += `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'healer')">✖</span></span>`;
+            });
+            containerHeal.innerHTML = htmlHeal;
+        }
+
+        window.addNinja = async function() {
+            if (!isMasterAdminMode) return;
+
+            const newNinjaIdInput = document.getElementById('new-ninja-id');
+            const m1Select = document.getElementById('new-ninja-mastery-1');
+            const m2Select = document.getElementById('new-ninja-mastery-2');
+            
+            const ninjaId = newNinjaIdInput.value.trim();
+            const m1 = m1Select.value;
+            const m2 = m2Select.value;
+            
+            const normalizedId = normalizeId(ninjaId);
+            const statusElement = document.getElementById('status');
+
+            if (!ninjaId) {
+                statusElement.textContent = '❌ O ID do ANBU não pode ser vazio.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            if (ninjasData[normalizedId]) {
+                statusElement.textContent = `❌ O ANBU '${normalizedId}' já está cadastrado.`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                return;
+            }
+
+            let finalElement = m1;
+            if (m2 && m2 !== m1) {
+                finalElement += ` / ${m2}`;
+            }
+
+            try {
+                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
+                    id: normalizedId, 
+                    element: finalElement, 
+                    isActive: true, 
+                    rankPoints: 0, 
+                    missionsCompleted: 0
+                });
+                
+                newNinjaIdInput.value = ''; 
+                m2Select.value = ''; 
+                
+                statusElement.textContent = `✅ ANBU '${normalizedId}' (${finalElement}) cadastrado com sucesso!`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                statusElement.classList.remove('hidden');
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+
+                window.updateExecutorSelect();
+                window.logAction('ADD_GUARDIAN', { guardianId: normalizedId, element: finalElement });
+
+            } catch (e) { console.error(e); }
+        }
+        
+        window.deleteNinja = function(id) { 
+            if (!isMasterAdminMode) return;
+            window.openCustomModal('Confirmação de Exclusão', `Excluir permanentemente o ANBU '${id}'?`, 'confirm').then(async (confirmed) => {
+                 if (confirmed) {
+                     try {
+                         await deleteDoc(doc(db, COLLECTIONS.NINJAS, id));
+                         selectedKillers = selectedKillers.filter(execId => execId !== id);
+                         selectedAssists = selectedAssists.filter(execId => execId !== id);
+                         selectedHealers = selectedHealers.filter(execId => execId !== id);
+                         window.updateExecutorTags();
+                         window.updateExecutorSelect(); 
+                         window.logAction('DELETE_GUARDIAN', { guardianId: id });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
+        
+        window.editNinja = function(id) { 
+            if (!isMasterAdminMode) return;
+            const ninja = ninjasData[id];
+            if (!ninja) return;
+
+            window.openCustomModal('Alternar Status do ANBU', null, 'ninjaEdit', { id: ninja.id, isActive: ninja.isActive }).then(async (confirmed) => {
+                 if (confirmed) {
+                     try {
+                         await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { isActive: !ninja.isActive });
+                         window.logAction('EDIT_GUARDIAN_STATUS', { guardianId: id });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
+
+        window.editNinjaMastery = function(id) {
+            if (!isMasterAdminMode) return;
+            const ninja = ninjasData[id];
+            if (!ninja) return;
+
+            let currentM1 = "Fogo";
+            let currentM2 = "";
+            if (ninja.element) {
+                const parts = ninja.element.split(' / ');
+                currentM1 = parts[0];
+                if (parts.length > 1) currentM2 = parts[1];
+            }
+
+            window.openCustomModal('Editar Maestrias', `Alterar as maestrias do ANBU ${id}:`, 'masteryEdit', { m1: currentM1, m2: currentM2 }).then(async (result) => {
+                 if (result) {
+                     try {
+                         let finalElement = result.m1;
+                         if (result.m2 && result.m2 !== result.m1) {
+                             finalElement += ` / ${result.m2}`;
+                         }
+                         await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { element: finalElement });
+                         window.logAction('EDIT_GUARDIAN_MASTERY', { guardianId: id, newElement: finalElement });
+                     } catch (e) { console.error(e); }
+                 }
+            });
+        }
+        
+        window.copyReportId = function() { 
+             const reportIdElement = document.getElementById('report-id-display');
+             if (reportIdElement) {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = reportIdElement.value;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try { document.execCommand('copy'); } catch (err) {}
+                document.body.removeChild(tempInput);
+            }
+        }
+
+        window.clearReportsLog = async function() {
+            if (!isMasterAdminMode) return;
+            const confirmed = await window.openCustomModal(
+                'Confirmação de Exclusão', 'DELETAR TODO o Histórico de Registros e ZERAR os Ranks? Ação IRREVERSÍVEL.', 'confirm'
+            );
+            
+            if (confirmed) {
+                const statusElement = document.getElementById('status');
+                statusElement.classList.remove('hidden');
+                try {
+                    const reportsSnapshot = await getDocs(collection(db, COLLECTIONS.REPORTS)); 
+                    const ninjaSnapshot = await getDocs(collection(db, COLLECTIONS.NINJAS));
+                    
+                    let batch = writeBatch(db);
+                    reportsSnapshot.forEach((doc) => batch.delete(doc.ref));
+                    ninjaSnapshot.forEach((doc) => {
+                        if(doc.id) batch.update(doc.ref, { rankPoints: 0, missionsCompleted: 0 });
+                    });
+                    
+                    await batch.commit();
+
+                    statusElement.textContent = `✅ Sucesso! Registros excluídos e Ranks resetados.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    window.logAction('CLEAR_REPORTS_LOG_AND_RESET_RANKS', { });
+                    
+                } catch (e) {
+                    statusElement.textContent = `❌ Erro: ${e.message}`;
+                    statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                }
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.recalculateAllRanks = async function(calledInternally = false) {
+            if (!isWriterMode && !isMasterAdminMode) return;
+            if (!calledInternally) {
+                const confirmed = await window.openCustomModal(
+                    'Confirmação de Recálculo', 'RECALCULAR todos os Ranks com base no histórico de BTs?', 'confirm'
+                );
+                if (!confirmed) return;
+            }
+
+            const statusElement = document.getElementById('status');
+            if (!calledInternally) {
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded-lg block';
+                statusElement.textContent = `Recalculando Ranks...`;
+            }
+
+            try {
+                const tempNinjas = {};
+                
+                Object.values(ninjasData).forEach(ninja => {
+                    if(ninja.id) tempNinjas[ninja.id] = { ...ninja, rankPoints: 0, missionsCompleted: 0 };
+                });
+
+                let applyBatch = writeBatch(db);
+
+                reportsData.forEach((report) => {
+                    if (Array.isArray(report.killerIds) && report.killerIds.length > 0) {
+                        report.killerIds.forEach(id => {
+                             if (tempNinjas[id]) {
+                                 tempNinjas[id].rankPoints += Number(report.pointsPerKiller || report.totalPointsRaw || 0) || 0;
+                                 tempNinjas[id].missionsCompleted += 1;
+                             }
+                        });
+                    }
+                    if (Array.isArray(report.assistIds) && report.assistIds.length > 0) {
+                        report.assistIds.forEach(id => {
+                             if (tempNinjas[id]) {
+                                 tempNinjas[id].rankPoints += Number(report.pointsPerAssist || 0) || 0;
+                                 tempNinjas[id].missionsCompleted += 1;
+                             }
+                        });
+                    }
+                    if (Array.isArray(report.executorIds) && report.executorIds.length > 0 && (!Array.isArray(report.killerIds) || report.killerIds.length === 0) && (!Array.isArray(report.assistIds) || report.assistIds.length === 0)) {
+                        report.executorIds.forEach(id => {
+                             if (tempNinjas[id]) {
+                                 tempNinjas[id].rankPoints += Number(report.pointsPerAttacker || report.totalPointsRaw || 0) || 0;
+                                 tempNinjas[id].missionsCompleted += 1;
+                             }
+                        });
+                    }
+                    if (Array.isArray(report.healerIds) && report.healerIds.length > 0) {
+                        report.healerIds.forEach(id => {
+                             if (tempNinjas[id]) {
+                                 tempNinjas[id].rankPoints += Number(report.pointsPerHealer || report.totalPointsRaw || 0) || 0;
+                                 tempNinjas[id].missionsCompleted += 1;
+                             }
+                        });
+                    }
+                });
+
+                Object.values(tempNinjas).forEach(ninja => {
+                    if(ninja.id) {
+                        applyBatch.set(doc(db, COLLECTIONS.NINJAS, ninja.id), {
+                            rankPoints: isNaN(ninja.rankPoints) ? 0 : ninja.rankPoints,
+                            missionsCompleted: isNaN(ninja.missionsCompleted) ? 0 : ninja.missionsCompleted
+                        }, { merge: true });
+                    }
+                });
+
+                await applyBatch.commit();
+
+                if (!calledInternally) {
+                    statusElement.textContent = `✅ Sucesso! Recálculo concluído.`;
+                    statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                    setTimeout(() => statusElement.classList.add('hidden'), 5000);
+                }
+            } catch (e) {
+                statusElement.textContent = `❌ Erro no Recálculo: ${e.message}`;
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 7000);
+            }
+        }
+
+        window.renderScoreboard = function() {
+            const scoreboardBody = document.getElementById('ninjas-scoreboard');
+            if (!scoreboardBody) return; 
+            
+            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id); 
+            guardians.sort((a, b) => b.rankPoints - a.rankPoints);
+            
+            scoreboardBody.innerHTML = '';
+
+            guardians.forEach((ninja, index) => {
+                const rankIcon = getRankIcon(index + 1);
+                const elementIcon = ninja.element ? ` <span class="text-xs text-gray-500">(${ninja.element})</span>` : '';
+                scoreboardBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-red-300">${ninja.id}${elementIcon}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-green-400">${Math.round(ninja.rankPoints)} Pts</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${ninja.missionsCompleted || 0}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderNinjasTable = function() {
+            const ninjasBody = document.getElementById('ninjas-cadastro');
+            if (!ninjasBody) return; 
+            
+            const showActionColumn = isMasterAdminMode;
+            const actionHeader = ninjasBody.closest('table').querySelector('th.admin-only');
+            if (actionHeader) {
+                if (showActionColumn) actionHeader.classList.remove('hidden');
+                else actionHeader.classList.add('hidden');
+            }
+
+            const sortedNinjas = Object.values(ninjasData).sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
+            ninjasBody.innerHTML = '';
+
+            sortedNinjas.forEach(data => {
+                if (!data.id) return; 
+                
+                const statusClass = data.isActive ? 'text-green-400' : 'text-red-400';
+                const statusText = data.isActive ? 'Ativo' : 'Inativo';
+                const elementText = data.element ? data.element : 'Não definido';
+                
+                const actionCell = showActionColumn ? `
+                    <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end">
+                        <button onclick="window.editNinja('${data.id}')" class="text-blue-500 hover:text-blue-700 transition duration-150 edit-btn bg-gray-900 py-1 px-2 rounded">Status</button>
+                        <button onclick="window.editNinjaMastery('${data.id}')" class="text-yellow-500 hover:text-yellow-700 transition duration-150 edit-btn bg-gray-900 py-1 px-2 rounded">Maestria</button>
+                        <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-red-700 transition duration-150 bg-gray-900 py-1 px-2 rounded">Excluir</button>
+                    </td>
+                ` : '';
+
+                ninjasBody.innerHTML += `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-white">${data.id}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${elementText}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm ${statusClass}">${statusText}</td>
+                        ${actionCell}
+                    </tr>
+                `;
+            });
+        }
+
+        window.renderTargetsTable = function(page = 1) {
+            try {
+                const tbody = document.getElementById('targets-scoreboard');
+                if (!tbody) return;
+
+                const targetsMap = {};
+
+                reportsData.forEach(report => {
+                    if (Array.isArray(report.targets) && report.targets.length > 0) {
+                        report.targets.forEach(t => {
+                            if (t && t.name) {
+                                const name = t.name.trim().toLowerCase();
+                                if (!targetsMap[name]) targetsMap[name] = { name: t.name || 'Desconhecido', count: 0, totalBT: 0 };
+                                targetsMap[name].count += 1;
+                                targetsMap[name].totalBT += (t.btBase || 0);
+                            }
+                        });
+                    } else if (report.targetName) {
+                        const name = report.targetName.trim().toLowerCase();
+                        if (!targetsMap[name]) targetsMap[name] = { name: report.targetName, count: 0, totalBT: 0 };
+                        targetsMap[name].count += 1;
+                        targetsMap[name].totalBT += (report.btBase || report.totalPointsRaw || 0);
+                    }
+                });
+
+                const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
+
+                const ITEMS_PER_PAGE = 10;
+                const totalPages = Math.ceil(sortedTargets.length / ITEMS_PER_PAGE);
+                if (page < 1) page = 1;
+                if (page > totalPages && totalPages > 0) page = totalPages;
+
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const paginatedTargets = sortedTargets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                tbody.innerHTML = '';
+                if (sortedTargets.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">Nenhum alvo registrado ainda.</td></tr>`;
+                    return;
+                }
+
+                paginatedTargets.forEach((target, index) => {
+                    const realIndex = startIndex + index + 1; 
+                    const rankIcon = getRankIcon(realIndex);
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-700/50">
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${rankIcon}</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-orange-300 capitalize">${target.name}</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-red-400">${target.count}x</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-300">${target.totalBT} BT Base</td>
+                        </tr>
+                    `;
+                });
+
+                const tableContainer = tbody.closest('.overflow-x-auto');
+                if (tableContainer && tableContainer.parentElement) {
+                    const oldPagination = tableContainer.parentElement.querySelector('.targets-pagination');
+                    if (oldPagination) oldPagination.remove();
+
+                    if (totalPages > 1) {
+                        const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
+                        const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
+
+                        const paginationHtml = `
+                            <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full targets-pagination">
+                                <button onclick="window.renderTargetsTable(${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
+                                <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
+                                <button onclick="window.renderTargetsTable(${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
+                            </div>
+                        `;
+                        const paginationDiv = document.createElement('div');
+                        paginationDiv.className = 'targets-pagination';
+                        paginationDiv.innerHTML = paginationHtml;
+                        tableContainer.parentElement.appendChild(paginationDiv);
+                    }
+                }
+            } catch (err) { console.error("Erro renderTargetsTable:", err); }
+        }
+
+        // AQUIIII! A função que eu engoli sem querer
+        window.renderReportsLog = function() {
+            window.renderReportsLogFiltered(null, 'reports-log');
+        }
+
+        window.renderReportsLogFiltered = function(filterId = null, targetId = 'filtered-reports-log', page = 1) {
+            try {
+                const reportsLog = document.getElementById(targetId);
+                const guardianSummaryDiv = document.getElementById('guardian-summary');
+                if (!reportsLog) return;
+                
+                reportsLog.innerHTML = '';
+                let filteredReports = reportsData;
+
+                if (filterId) {
+                    filteredReports = reportsData.filter(report => {
+                        const isKiller = Array.isArray(report.killerIds) && report.killerIds.includes(filterId);
+                        const isAssist = Array.isArray(report.assistIds) && report.assistIds.includes(filterId);
+                        const isLegacyExecutor = Array.isArray(report.executorIds) && report.executorIds.includes(filterId);
+                        const isHealer = Array.isArray(report.healerIds) && report.healerIds.includes(filterId);
+                        return isKiller || isAssist || isLegacyExecutor || isHealer;
+                    });
+                }
+                
+                if (filterId && guardianSummaryDiv) {
+                    const ninjaData = ninjasData[filterId];
+                    if (ninjaData) {
+                        
+                        let killCount = 0, killPoints = 0;
+                        let assistCount = 0, assistPoints = 0;
+                        let healCount = 0, healPoints = 0;
+
+                        filteredReports.forEach(r => {
+                            let targetsInReport = (Array.isArray(r.targets) && r.targets.length > 0) ? r.targets.length : 1;
+                            
+                            if (Array.isArray(r.killerIds) && r.killerIds.includes(filterId)) {
+                                killCount += targetsInReport;
+                                killPoints += (r.pointsPerKiller || r.totalPointsRaw || 0);
+                            }
+                            if (Array.isArray(r.assistIds) && r.assistIds.includes(filterId)) {
+                                assistCount += targetsInReport;
+                                assistPoints += (r.pointsPerAssist || 0);
+                            }
+                            if (Array.isArray(r.executorIds) && r.executorIds.includes(filterId) && (!Array.isArray(r.killerIds) || !r.killerIds.includes(filterId)) && (!Array.isArray(r.assistIds) || !r.assistIds.includes(filterId))) {
+                                killCount += targetsInReport; 
+                                killPoints += (r.pointsPerAttacker || 0);
+                            }
+                            if (Array.isArray(r.healerIds) && r.healerIds.includes(filterId)) {
+                                healCount += targetsInReport;
+                                healPoints += (r.pointsPerHealer || r.totalPointsRaw || 0);
+                            }
+                        });
+
+                        guardianSummaryDiv.innerHTML = `
+                            <div class="flex flex-col md:flex-row justify-between items-center border-b border-gray-600 pb-4 mb-4">
+                                <div class="text-center md:text-left">
+                                    <h3 class="text-2xl font-bold text-red-400 uppercase tracking-wider">${filterId}</h3>
+                                    <p class="text-sm text-gray-300 mt-1">${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'} | Maestria: <span class="text-white font-medium">${ninjaData.element || 'Não definida'}</span></p>
+                                </div>
+                                <div class="text-center md:text-right mt-4 md:mt-0">
+                                    <p class="text-xs text-gray-400 uppercase">Rank Points Totais</p>
+                                    <p class="text-3xl font-bold text-green-400">${Math.round(ninjaData.rankPoints)} <span class="text-sm text-gray-500">Pts</span></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Caçadas Feitas</p>
+                                    <p class="text-xl font-bold text-white mt-1">${ninjaData.missionsCompleted}</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Como Killer</p>
+                                    <p class="text-xl font-bold text-red-400 mt-1">${killCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${killPoints} pts</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Assistências</p>
+                                    <p class="text-xl font-bold text-orange-400 mt-1">${assistCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${assistPoints} pts</p>
+                                </div>
+                                <div class="bg-gray-800 p-3 rounded-lg border border-gray-600 text-center">
+                                    <p class="text-xs text-gray-400 uppercase">Como Healer</p>
+                                    <p class="text-xl font-bold text-green-400 mt-1">${healCount} <span class="text-sm text-gray-500">Alvos</span></p>
+                                    <p class="text-xs text-gray-400 mt-1">Gerou: ${healPoints} pts</p>
+                                </div>
+                            </div>
+                        `;
+                        guardianSummaryDiv.classList.remove('hidden');
+                    }
+                } else if (guardianSummaryDiv) {
+                    guardianSummaryDiv.classList.add('hidden');
+                }
+
+                const sortedReports = [...filteredReports].sort((a, b) => {
+                    const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
+                });
+
+                const ITEMS_PER_PAGE = 10;
+                const totalPages = Math.ceil(sortedReports.length / ITEMS_PER_PAGE);
+                if (page < 1) page = 1;
+                if (page > totalPages && totalPages > 0) page = totalPages;
+
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const paginatedReports = sortedReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                if (sortedReports.length === 0) {
+                     reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center italic text-gray-500">Nenhum registro encontrado${filterId ? ` para o ANBU "${filterId}"` : ''}.</td></tr>`;
+                } else {
+                    paginatedReports.forEach(data => {
+                        let formattedDate = 'Data Desconhecida';
+                        if (data.timestamp) {
+                            try {
+                                formattedDate = new Date(data.timestamp).toLocaleDateString('pt-BR', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                });
+                            } catch(e) {}
+                        }
+                        
+                        let membersText = '';
+                        if (Array.isArray(data.killerIds) && data.killerIds.length > 0) membersText += `<span class="text-red-400 text-xs font-bold block">Killer: ${data.killerIds.join(', ')}</span>`;
+                        if (Array.isArray(data.assistIds) && data.assistIds.length > 0) membersText += `<span class="text-orange-400 text-xs font-bold block">Assistência: ${data.assistIds.join(', ')}</span>`;
+                        if (Array.isArray(data.executorIds) && data.executorIds.length > 0 && (!Array.isArray(data.killerIds) || data.killerIds.length === 0)) membersText += `<span class="text-orange-400 text-xs font-bold block">Killer/PT (Antigo): ${data.executorIds.join(', ')}</span>`;
+                        if (Array.isArray(data.healerIds) && data.healerIds.length > 0) membersText += `<span class="text-green-400 text-xs font-bold block">Healers: ${data.healerIds.join(', ')}</span>`;
+                        
+                        let targetText = '';
+                        let finalDesc = '';
+
+                        if (Array.isArray(data.targets) && data.targets.length > 0) {
+                            targetText = data.targets.map(t => t.name || 'Desconhecido').join(', ');
+                            const descParts = data.targets.map(t => {
+                                let d = `🎯 <b>${t.name || 'Alvo'}</b>: BT ${t.btBase}`;
+                                if (t.isSpecial) d += ' <span class="text-red-400">[Kage x3]</span>';
+                                if (t.isOrg) d += ' <span class="text-purple-400">[ORG +100]</span>';
+                                if (t.isTrashTalk) d += ' <span class="text-blue-400">[Trash +20]</span>';
+                                d += ` = <b>${t.total} pts</b>`;
+                                return d;
+                            });
+                            
+                            let divisaoText = `<span class="text-xs text-gray-500 font-bold mt-2 block">TOTAL DA CAÇADA: ${data.totalPointsRaw || 0} Pts (`;
+                            if (data.pointsPerKiller > 0) divisaoText += `Killer: ${data.pointsPerKiller}/cada | `;
+                            if (data.pointsPerAssist > 0) divisaoText += `Assists: ${data.pointsPerAssist}/cada | `;
+                            if (data.pointsPerHealer > 0) divisaoText += `Healer: ${data.pointsPerHealer}/cada`;
+                            divisaoText += `)</span>`;
+                            
+                            finalDesc = descParts.join('<br>') + divisaoText;
+                        } else {
+                            targetText = data.targetName || 'N/A';
+                            finalDesc = `BT: ${data.totalPointsRaw || 0}. ` + 
+                                            (data.isSpecial ? '[Kage x3]. ' : '') + 
+                                            (data.isOrg ? '[ORG +100]. ' : '') + 
+                                            (data.isTrashTalk ? '[Trash Talk]. ' : '') + 
+                                            `<br><span class="text-xs text-gray-500">Killer: ${data.pointsPerAttacker || 0} pts/cada | Healer: ${data.pointsPerHealer || 0} pts</span>`;
+                        }
+
+                        let actionBtns = '';
+                        if (isWriterMode || isMasterAdminMode) {
+                            actionBtns = `
+                                <div class="mt-2 flex gap-2">
+                                    <button onclick="window.editReport('${data.reportId}')" class="text-blue-400 hover:text-blue-500 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Editar Registro">✏️ Editar</button>
+                                    <button onclick="window.deleteReport('${data.reportId}')" class="text-red-500 hover:text-red-700 font-bold bg-gray-900 py-1 px-2 rounded text-xs" title="Excluir Registro permanentemente">🗑️</button>
+                                </div>
+                            `;
+                        }
+
+                        reportsLog.innerHTML += `
+                            <tr class="hover:bg-gray-700/50">
+                                <td class="px-4 py-2 text-xs text-gray-400 w-2/12 break-all align-top">
+                                    <span class="font-mono text-gray-300 block mb-1">${data.reportId}</span>
+                                    ${actionBtns}
+                                </td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-white w-3/12 align-top">
+                                    ${membersText}
+                                </td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-orange-300 w-2/12 font-bold align-top">${targetText}</td>
+                                <td class="px-4 py-2 whitespace-normal text-sm text-gray-300 w-4/12 align-top">${finalDesc}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm w-1/12 align-top">
+                                    <span class="font-mono text-gray-400 text-xs">${formattedDate}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                const tableContainer = reportsLog.closest('.overflow-x-auto');
+                if (tableContainer && tableContainer.parentElement) {
+                    const oldPagination = tableContainer.parentElement.querySelector('.reports-pagination');
+                    if (oldPagination) oldPagination.remove(); 
+
+                    if (totalPages > 1) {
+                        const fId = filterId ? `'${filterId}'` : 'null';
+                        const tId = `'${targetId}'`;
+                        const prevDisabled = page === 1 ? 'disabled opacity-50 cursor-not-allowed' : '';
+                        const nextDisabled = page === totalPages ? 'disabled opacity-50 cursor-not-allowed' : '';
+
+                        const paginationHtml = `
+                            <div class="flex justify-center items-center gap-4 mt-4 p-2 w-full reports-pagination">
+                                <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page - 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${prevDisabled}>Anterior</button>
+                                <span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded-lg">Página ${page} de ${totalPages}</span>
+                                <button onclick="window.renderReportsLogFiltered(${fId}, ${tId}, ${page + 1})" class="px-4 py-2 bg-gray-700 hover:bg-red-600 rounded-lg text-white font-bold transition" ${nextDisabled}>Próxima</button>
+                            </div>
+                        `;
+                        const paginationDiv = document.createElement('div');
+                        paginationDiv.className = 'reports-pagination';
+                        paginationDiv.innerHTML = paginationHtml;
+                        tableContainer.parentElement.appendChild(paginationDiv);
+                    }
+                }
+            } catch (err) {
+                const reportsLog = document.getElementById(targetId);
+                if (reportsLog) {
+                    reportsLog.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-red-500 font-bold bg-red-900/20 rounded">❌ Erro no Histórico: ${err.message}. Abra o console (F12) para ver detalhes.</td></tr>`;
+                }
+                console.error("Erro renderReportsLogFiltered:", err);
+            }
+        }
+
+        window.renderTargetsLog = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-orange-400 text-center">Ranking de Alvos Eliminados</h2>
+                    <p class="text-center text-gray-400">Estatísticas de quem a ANBU mais finalizou.</p>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Posição</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Nick do Alvo</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Vezes Finalizado</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de BT Base Extraído</th>
+                                </tr>
+                            </thead>
+                            <tbody id="targets-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderNinjaPanel = function() {
+            const allIdsSorted = Object.values(ninjasData).sort((a, b) => (a.id || '').toLowerCase().localeCompare((b.id || '').toLowerCase()));
+            const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => `<option value="${n.id}" class="${!n.isActive ? 'text-red-400' : ''}">${n.id} (${n.isActive ? 'Ativo' : 'Inativo'})</option>`).join('');
+            
+            return `
+                <section class="space-y-6 pt-4">
+                    <h2 class="text-3xl font-bold text-red-400 text-center flex justify-center items-center gap-2">
+                        Perfil do ANBU e Histórico
+                    </h2>
+                    <div class="max-w-md mx-auto space-y-2">
+                        <label for="ninja-filter-select" class="block text-sm font-medium text-gray-300">Selecionar ANBU</label>
+                        <select id="ninja-filter-select" onchange="window.renderReportsLogFiltered(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner">
+                            <option value="">-- Ver Todos os Registros --</option>
+                            ${ninjaOptions}
+                        </select>
+                    </div>
+                    <div id="guardian-summary" class="w-full max-w-4xl mx-auto p-4 bg-gray-700 rounded-lg shadow-inner hidden"></div>
+                    <div id="filtered-reports-container" class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto mt-4">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">ID Registro</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/12">Alvos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-4/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filtered-reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                await signInAnonymously(auth);
+                
+                document.getElementById('auth-info').textContent = `Conectado ao Banco Central ANBU`;
+                setupFirestoreListeners(); 
+                window.renderPage(currentPage);
+                window.generateReportId(); 
+            } catch (error) {
+                document.getElementById('status').textContent = `❌ Erro ao conectar: ${error.message}`;
+            }
+        }
+        
+        function setupFirestoreListeners() {
+            if (!db) return;
+
+            onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snapshot) => {
+                accessKeysData = {};
+                snapshot.forEach(doc => accessKeysData[doc.id] = doc.data());
+                if (currentPage === 'admin_panel') window.renderPage(currentPage); 
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.NINJAS), (snapshot) => {
+                ninjasData = {};
+                snapshot.forEach(doc => ninjasData[doc.id] = doc.data());
+                window.updateExecutorSelect && window.updateExecutorSelect();
+                if (['scoreboard', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'admin_panel') window.renderNinjasTable && window.renderNinjasTable();
+            }, (error) => {});
+
+            onSnapshot(collection(db, COLLECTIONS.REPORTS), (snapshot) => {
+                reportsData = [];
+                snapshot.forEach(doc => reportsData.push(doc.data()));
+                window.updateTargetSuggestions(); 
+                if (['reports_log', 'ninja_panel'].includes(currentPage)) window.renderPage(currentPage);
+                else if (currentPage === 'targets_log') window.renderTargetsTable && window.renderTargetsTable();
+            }, (error) => {});
+        }
+        
+        window.toggleWriterUI = function(isAuthorized) {
+            isWriterMode = isAuthorized;
+            const writerElements = document.querySelectorAll('.writer-only');
+            writerElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+
+        window.toggleMasterAdminUI = function(isAuthorized) {
+            isMasterAdminMode = isAuthorized;
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => isAuthorized ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        }
+        
+        window.checkAccessKey = async function() {
+            const idInput = document.getElementById('access-id-input');
+            const keyInput = document.getElementById('access-key-input');
+            const statusElement = document.getElementById('status');
+            if (!idInput || !keyInput) return;
+
+            const id = idInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!id || !key) return;
+            
+            const accessData = accessKeysData[id];
+
+            if (accessData && accessData.key === key) {
+                currentAccessId = id; 
+                if (accessData.level === 'master_admin') {
+                    window.toggleMasterAdminUI(true);
+                    window.toggleWriterUI(true);
+                } else if (accessData.level === 'report_writer') {
+                    window.toggleWriterUI(true);
+                    window.toggleMasterAdminUI(false);
+                }
+                keyInput.value = ''; idInput.value = '';
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = `✅ Acesso LIBERADO. ID: ${id}.`;
+                statusElement.className = 'text-green-400 p-4 bg-green-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 3000);
+                window.renderPage(currentPage);
+            } else {
+                currentAccessId = 'ANONYMOUS'; 
+                window.toggleWriterUI(false);
+                window.toggleMasterAdminUI(false);
+                statusElement.classList.remove('hidden');
+                statusElement.textContent = '❌ ID ou Senha Incorreta.';
+                statusElement.className = 'text-red-400 p-4 bg-red-900/50 rounded-lg block';
+                setTimeout(() => statusElement.classList.add('hidden'), 5000);
+            }
+        }
+        
+        window.renderPage = function(pageName) {
+            currentPage = pageName;
+            const contentDiv = document.getElementById('content');
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            const activeLink = document.getElementById(`nav-${pageName}`);
+            if (activeLink) activeLink.classList.add('active');
+
+            contentDiv.innerHTML = '';
+
+            switch (pageName) {
+                case 'home': contentDiv.innerHTML = window.renderHome(); break;
+                case 'scoreboard': contentDiv.innerHTML = window.renderRank(); window.renderScoreboard(); break;
+                case 'reports_log': contentDiv.innerHTML = window.renderRelatorios(); window.renderReportsLog(); break;
+                case 'targets_log': contentDiv.innerHTML = window.renderTargetsLog(); window.renderTargetsTable(); break;
+                case 'ninja_panel': contentDiv.innerHTML = window.renderNinjaPanel(); window.renderReportsLogFiltered(); break;
+                case 'report_form':
+                    contentDiv.innerHTML = window.renderCriarRelatorio();
+                    if (!isWriterMode) {
+                        contentDiv.innerHTML += '<p class="text-center text-red-500 pt-8">Faça Login na aba Autorização para registrar BTs.</p>';
+                        break;
+                    }
+                    
+                    if (!window.isEditingMode) {
+                        window.updateExecutorSelect(); 
+                        window.updateExecutorTags(); 
+                        window.generateReportId(); 
+                        window.addTargetEntry(); 
+                        window.updateDescriptionPreview(); 
+                    }
+                    break;
+                case 'admin_panel':
+                    contentDiv.innerHTML = window.renderAutorizacao();
+                    window.renderNinjasTable();
+                    break;
+                default: contentDiv.innerHTML = window.renderHome();
+            }
+            
+            window.toggleMasterAdminUI(isMasterAdminMode);
+            window.toggleWriterUI(isWriterMode);
+        }
+
+        window.renderHome = function() { return `
+                <section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-8">
+                    <h2 class="text-3xl font-bold text-red-400">Bem-vindo(a), ANBU.</h2>
+                    <div class="max-w-3xl mx-auto space-y-4 text-center p-4">
+                        <p class="text-lg text-gray-300">Painel Central do Esquadrão ANBU para registro de BTs e divisão de pontuação.</p>
+                        <h3 class="text-lg font-bold text-red-400 pt-6">Use o menu acima para navegar.</h3>
+                    </div>
+                </section>
+        `; }
+
+        window.renderCriarRelatorio = function() { return `
+            <section class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+                <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de BTs - ANBU</h2>
+
+                <div class="grid grid-cols-1 gap-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-300">Killer (Recebe 100% dos Pontos)</label>
+                            <div class="flex gap-2">
+                                <select id="new-killer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('killer')" class="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
+                            </div>
+                            <div id="killers-tag-container" class="executor-list-container"></div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-300">Assistência (Ganham 1/3 do Total)</label>
+                            <div class="flex gap-2">
+                                <select id="new-assist-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-orange-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('assist')" class="py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition duration-200 font-semibold">Adicionar</button>
+                            </div>
+                            <div id="assists-tag-container" class="executor-list-container"></div>
+                        </div>
+
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-300">Healers na PT (Recebem BT Integral)</label>
+                            <div class="flex gap-2">
+                                <select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 text-white shadow-inner"></select>
+                                <button type="button" onclick="window.addExecutor('healer')" class="py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200 font-semibold">Healer</button>
+                            </div>
+                            <div id="healers-tag-container" class="executor-list-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 border-t border-gray-700 pt-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-bold text-red-400">Alvos Mortos</h3>
+                            <button type="button" onclick="window.addTargetEntry()" class="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow transition duration-200">
+                                ➕ Adicionar Outro Alvo
+                            </button>
+                        </div>
+                        
+                        <div id="targets-container" class="space-y-4"></div>
+                    </div>
+                    
+                    <div class="space-y-2 border-t border-gray-700 pt-4">
+                        <label for="report-id-display" class="block text-sm font-medium text-gray-300">ID Único do Registro</label>
+                        <div class="flex gap-2">
+                            <input id="report-id-display" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-red-300 font-mono shadow-inner cursor-not-allowed">
+                            <button type="button" onclick="window.copyReportId()" class="p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition duration-200" title="Copiar ID">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1zm2 13a1 1 0 001-1v-2a1 1 0 10-2 0v2a1 1 0 001 1z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 pt-4 border-t border-gray-700/50">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300">Distribuição Matemática da PT</label>
+                        <input id="total-points" type="text" readonly class="w-full p-2.5 rounded-lg bg-gray-600/50 border border-gray-600 text-green-400 font-bold shadow-inner cursor-not-allowed" value="Preencha os alvos acima">
+                    </div>
+                </div>
+
+                <div class="pt-4 space-y-2 border-t border-gray-700/50">
+                    <h3 class="text-xl font-medium text-gray-300">Resumo do Registro:</h3>
+                    <div id="description-preview" class="p-4 bg-gray-700 rounded-lg text-gray-300 italic min-h-[50px]"></div>
+                </div>
+
+                <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white text-lg transition duration-200 shadow-lg shadow-red-500/50 cursor-not-allowed" disabled onclick="window.submitReport()">
+                    Salvar Caçada e Atualizar Rank
+                </button>
+            </section>
+        `; }
+        
+        window.renderRank = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Rank da ANBU</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Rank</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Total de Pontos</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Caçadas Concluídas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-scoreboard" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderRelatorios = function() {
+            return `
+                <section class="space-y-4 pt-8">
+                    <h2 class="text-3xl font-bold text-red-400 text-center">Registro Completo de Caçadas (BTs)</h2>
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">ID Registro / Ações</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-3/12">Membros da PT</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-2/12">Alvos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-4/12">Descrição/Pontos</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-1/12">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-log" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+        }
+
+        window.renderAutorizacao = function() {
+             const accessStatus = isMasterAdminMode ? 
+                `<div class="text-center text-green-400 font-bold text-lg p-2">✅ MASTER ADMIN ATIVO</div>` : 
+                (isWriterMode ? `<div class="text-yellow-400 font-bold text-lg p-2">✅ ANBU ESCRITOR ATIVO</div>` :
+                `<div class="text-center text-red-400 font-bold text-lg p-2">❌ ACESSO INATIVO</div>`);
+
+            return `
+                <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl shadow-inner border border-red-500/50">
+                     <h2 class="text-2xl font-bold text-red-400 text-center">Autorização de Escrita (Login)</h2>
+                     <div id="admin-status-display">${accessStatus}</div>
+                     <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
+                         <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-inner">
+                         <button id="set-access-key-btn" class="w-full md:w-auto py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white transition duration-200" onclick="window.checkAccessKey()">Logar</button>
+                     </div>
+                </section>
+                
+                <section class="space-y-4 pt-8 pb-16">
+                    <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs (Membros Oficiais)</h2>
+                    
+                    <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col sm:flex-row gap-4 admin-only hidden flex-wrap">
+                        <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-600 text-white min-w-[200px]">
+                        
+                        <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="Fogo" selected>Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+                        
+                        <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2 rounded-lg bg-gray-800 border border-gray-600 text-white">
+                             <option value="" selected>2ª (Opcional)</option>
+                             <option value="Fogo">Fogo</option>
+                             <option value="Água">Água</option>
+                             <option value="Vento">Vento</option>
+                             <option value="Terra">Terra</option>
+                             <option value="Raio">Raio</option>
+                             <option value="Med (Chakra)">Med (Chakra)</option>
+                             <option value="Med (Int)">Med (Int)</option>
+                             <option value="WM">WM</option>
+                             <option value="TAI">TAI</option>
+                        </select>
+
+                        <button id="add-ninja" class="w-full sm:w-auto py-2 px-4 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold text-white transition duration-200" onclick="window.addNinja()">Cadastrar ANBU</button>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">ID ANBU</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Maestrias</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase admin-only hidden">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ninjas-cadastro" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div id="writer-tools" class="pt-8 space-y-4 writer-only hidden">
+                    <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Ferramentas de Manutenção</h3>
+                    <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white text-lg transition duration-200">
+                        🔄 Recalcular Todos os Ranks
+                    </button>
+                </div>
+
+                <div id="admin-tools" class="pt-4 space-y-4 admin-only hidden">
+                    <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Ferramentas de Exclusão (Admin Master)</h3>
+                    <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg font-bold text-white transition duration-200">
+                        ⚔️ Excluir Histórico de Registros (ZERA Ranks)
+                    </button>
+                </div>
+            `;
+        }
+        
+        window.onload = function() { initializeFirebase(); }
     </script>
 </body>
 </html>

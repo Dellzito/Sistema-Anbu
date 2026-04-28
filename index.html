@@ -108,11 +108,11 @@
         let accessKeysData = {}; 
 
         const COLLECTIONS = {
-            REPORTS: \`artifacts/\${appId}/public/data/reports\`,
-            EVENT_REPORTS: \`artifacts/\${appId}/public/data/event_reports\`, 
-            PENDING_REPORTS: \`artifacts/\${appId}/public/data/pending_reports\`, 
-            NINJAS: \`artifacts/\${appId}/public/data/ninjas\`, 
-            ACCESS_KEYS: \`artifacts/\${appId}/public/data/access_keys\`
+            REPORTS: `artifacts/${appId}/public/data/reports`,
+            EVENT_REPORTS: `artifacts/${appId}/public/data/event_reports`, 
+            PENDING_REPORTS: `artifacts/${appId}/public/data/pending_reports`, 
+            NINJAS: `artifacts/${appId}/public/data/ninjas`, 
+            ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`
         };
 
         const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
@@ -121,7 +121,7 @@
         // FUNÇÕES ÚTEIS E MODAIS
         // ==========================================
         function getRankIcon(rank) {
-            if (rank === 1) return '🥇'; if (rank === 2) return '🥈'; if (rank === 3) return '🥉'; return \`#\${rank}\`;
+            if (rank === 1) return '🥇'; if (rank === 2) return '🥈'; if (rank === 3) return '🥉'; return `#${rank}`;
         }
         function normalizeId(id) { return id.trim().toLowerCase(); }
 
@@ -168,16 +168,16 @@
         window.generateReportId = function() {
             const el = document.getElementById('report-id-display');
             if (!el) return;
-            currentReportId = \`BT-\${new Date().toISOString().slice(0,10).replace(/-/g,'')}-\${crypto.randomUUID().substring(0, 8)}\`;
+            currentReportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0, 8)}`;
             el.value = currentReportId;
         }
 
         window.addTargetEntry = function() {
             const container = document.getElementById('targets-container'); if (!container) return;
-            targetEntryCount++; const targetId = \`target-\${targetEntryCount}\`;
-            container.insertAdjacentHTML('beforeend', \`
-                <div id="\${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
-                    <button type="button" onclick="window.removeTargetEntry('\${targetId}')" class="absolute top-2 right-2 text-red-400 font-bold">✖</button>
+            targetEntryCount++; const targetId = `target-${targetEntryCount}`;
+            container.insertAdjacentHTML('beforeend', `
+                <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
+                    <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 font-bold">✖</button>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm text-gray-300">Alvo Morto (Nick)</label><input type="text" class="target-name w-full p-2 rounded bg-gray-800 text-white" oninput="window.updateDescriptionPreview()"></div>
                         <div><label class="block text-sm text-gray-300">BT Base</label><input type="number" min="0" class="target-bt w-full p-2 rounded bg-gray-800 text-white font-bold" oninput="window.updateDescriptionPreview()"></div>
@@ -187,7 +187,7 @@
                         <label><input type="checkbox" class="target-chk-org" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">ORG (+100)</span></label>
                         <label><input type="checkbox" class="target-chk-trashtalk" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">Trash Talk (+20)</span></label>
                     </div>
-                </div>\`);
+                </div>`);
             window.updateDescriptionPreview();
         }
 
@@ -196,7 +196,7 @@
         function _gatherReportData() {
             let totalPointsRaw = 0; const targetsData = [];
             document.querySelectorAll('.target-entry').forEach((entry, idx) => {
-                const name = entry.querySelector('.target-name').value.trim() || \`Alvo \${idx + 1}\`;
+                const name = entry.querySelector('.target-name').value.trim() || `Alvo ${idx + 1}`;
                 let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10); if (isNaN(btBase)) btBase = 0;
                 const isSpecial = entry.querySelector('.target-chk-special').checked, isOrg = entry.querySelector('.target-chk-org').checked, isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
                 let targetTotal = btBase; if (isSpecial) targetTotal *= 3; if (isOrg) targetTotal += 100; if (isTrashTalk) targetTotal += 20;
@@ -223,7 +223,7 @@
             const input = document.getElementById('total-points');
             if (!btn || !input) return;
 
-            input.value = \`Soma: \${data.totalPointsRaw} (Killer: \${data.pointsPerKiller} | Assists: \${data.pointsPerAssist})\`;
+            input.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} | Assists: ${data.pointsPerAssist})`;
             const isReady = isWriterMode && (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0 && data.targets.length > 0 && data.totalPointsRaw > 0;
 
             btn.disabled = !isReady;
@@ -255,7 +255,7 @@
 
                 await batch.commit();
 
-                statusEl.textContent = \`✅ Registro efetuado com sucesso!\`; statusEl.className = 'text-green-400 p-4 bg-green-900/50 rounded block';
+                statusEl.textContent = `✅ Registro efetuado com sucesso!`; statusEl.className = 'text-green-400 p-4 bg-green-900/50 rounded block';
 
                 selectedKillers = []; selectedAssists = []; selectedHealers = []; processingPendingId = null;
                 window.updateExecutorTags(); window.updateExecutorSelect(); window.generateReportId();
@@ -263,7 +263,7 @@
 
                 setTimeout(() => { statusEl.classList.add('hidden'); }, 3000);
 
-            } catch (e) { statusEl.textContent = \`❌ Erro: \${e.message}\`; statusEl.className = 'text-red-400 p-4 bg-red-900/50 rounded block'; }
+            } catch (e) { statusEl.textContent = `❌ Erro: ${e.message}`; statusEl.className = 'text-red-400 p-4 bg-red-900/50 rounded block'; }
         }
 
         // ==========================================
@@ -277,7 +277,7 @@
 
             active.forEach(n => {
                 if (!selectedKillers.includes(n.id) && !selectedAssists.includes(n.id) && !selectedHealers.includes(n.id)) {
-                    optK += \`<option value="\${n.id}">\${n.id}</option>\`; optA += \`<option value="\${n.id}">\${n.id}</option>\`; optH += \`<option value="\${n.id}">\${n.id}</option>\`;
+                    optK += `<option value="${n.id}">${n.id}</option>`; optA += `<option value="${n.id}">${n.id}</option>`; optH += `<option value="${n.id}">${n.id}</option>`;
                 }
             });
             sK.innerHTML = optK; sA.innerHTML = optA; sH.innerHTML = optH;
@@ -285,7 +285,7 @@
 
         window.addExecutor = function(type) {
             const targetArray = type === 'killer' ? selectedKillers : (type === 'assist' ? selectedAssists : selectedHealers);
-            const select = document.getElementById(\`new-\${type}-id-select\`);
+            const select = document.getElementById(`new-${type}-id-select`);
             if (!select || !select.value) return;
             targetArray.push(select.value); select.value = '';
             window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
@@ -301,9 +301,9 @@
         window.updateExecutorTags = function() {
             const cK = document.getElementById('killers-tag-container'), cA = document.getElementById('assists-tag-container'), cH = document.getElementById('healers-tag-container');
             if (!cK) return;
-            cK.innerHTML = selectedKillers.length ? selectedKillers.map(id => \`<span class="executor-tag killer-tag">\${id}<span class="executor-remove-btn" onclick="window.removeExecutor('\${id}', 'killer')">✖</span></span>\`).join('') : '';
-            cA.innerHTML = selectedAssists.length ? selectedAssists.map(id => \`<span class="executor-tag assist-tag">\${id}<span class="executor-remove-btn" onclick="window.removeExecutor('\${id}', 'assist')">✖</span></span>\`).join('') : '';
-            cH.innerHTML = selectedHealers.length ? selectedHealers.map(id => \`<span class="executor-tag healer-tag">\${id}<span class="executor-remove-btn" onclick="window.removeExecutor('\${id}', 'healer')">✖</span></span>\`).join('') : '';
+            cK.innerHTML = selectedKillers.length ? selectedKillers.map(id => `<span class="executor-tag killer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'killer')">✖</span></span>`).join('') : '';
+            cA.innerHTML = selectedAssists.length ? selectedAssists.map(id => `<span class="executor-tag assist-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'assist')">✖</span></span>`).join('') : '';
+            cH.innerHTML = selectedHealers.length ? selectedHealers.map(id => `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}', 'healer')">✖</span></span>`).join('') : '';
         }
 
         // ==========================================
@@ -316,7 +316,7 @@
             const normalizedId = normalizeId(ninjaId);
 
             if (!ninjaId) { alert("O ID não pode ser vazio."); return; }
-            if (ninjasData[normalizedId]) { alert(\`Membro '\${normalizedId}' já existe!\`); return; }
+            if (ninjasData[normalizedId]) { alert(`Membro '${normalizedId}' já existe!`); return; }
 
             try {
                 await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), {
@@ -330,14 +330,14 @@
 
         window.deleteNinja = async function(id) {
             if (!isMasterAdminMode) return;
-            const confirm = await window.openCustomModal('Excluir Membro', \`Deseja realmente apagar os dados de \${id}?\`, 'confirm');
+            const confirm = await window.openCustomModal('Excluir Membro', `Deseja realmente apagar os dados de ${id}?`, 'confirm');
             if (confirm) { try { await deleteDoc(doc(db, COLLECTIONS.NINJAS, id)); } catch(e) {} }
         }
 
         window.editNinjaAvatar = function(id) {
             if (!isMasterAdminMode) return;
             const ninja = ninjasData[id];
-            window.openCustomModal('Foto de Perfil', \`Cole o link (URL) da imagem.\`, 'photoEdit', { url: ninja.avatarUrl || '' })
+            window.openCustomModal('Foto de Perfil', `Cole o link (URL) da imagem.`, 'photoEdit', { url: ninja.avatarUrl || '' })
             .then(async (res) => {
                 if (res !== false) { try { await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { avatarUrl: res.url }); } catch (e) {} }
             });
@@ -361,13 +361,13 @@
                 const pts = Number(ninja[pointProperty] || 0);
                 if (isEvent && pts === 0) return; // No evento, só mostra quem tem ponto
 
-                scoreboardBody.innerHTML += \`
+                scoreboardBody.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
-                        <td class="px-6 py-3 font-bold text-center">\${getRankIcon(index + 1)}</td>
-                        <td class="px-6 py-3 font-medium text-white">\${ninja.id}</td>
-                        <td class="px-6 py-3 font-bold text-green-400">\${Math.round(pts)} Pts</td>
-                        <td class="px-6 py-3 text-gray-300">\${ninja[missionProperty] || 0}</td>
-                    </tr>\`;
+                        <td class="px-6 py-3 font-bold text-center">${getRankIcon(index + 1)}</td>
+                        <td class="px-6 py-3 font-medium text-white">${ninja.id}</td>
+                        <td class="px-6 py-3 font-bold text-green-400">${Math.round(pts)} Pts</td>
+                        <td class="px-6 py-3 text-gray-300">${ninja[missionProperty] || 0}</td>
+                    </tr>`;
             });
         }
 
@@ -376,17 +376,17 @@
             if (!reportsLog) return;
             reportsLog.innerHTML = '';
 
-            if (reportsData.length === 0) { reportsLog.innerHTML = \`<tr><td colspan="4" class="text-center p-4 text-gray-500">Nenhum registro.</td></tr>\`; return; }
+            if (reportsData.length === 0) { reportsLog.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-500">Nenhum registro.</td></tr>`; return; }
 
             const sorted = [...reportsData].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 50);
             sorted.forEach(data => {
                 let membersText = '';
-                if (data.killerIds?.length) membersText += \`<span class="text-red-400 text-xs font-bold block">Killer: \${data.killerIds.join(', ')}</span>\`;
-                if (data.assistIds?.length) membersText += \`<span class="text-orange-400 text-xs font-bold block">Assist: \${data.assistIds.join(', ')}</span>\`;
-                if (data.healerIds?.length) membersText += \`<span class="text-green-400 text-xs font-bold block">Heal: \${data.healerIds.join(', ')}</span>\`;
+                if (data.killerIds?.length) membersText += `<span class="text-red-400 text-xs font-bold block">Killer: ${data.killerIds.join(', ')}</span>`;
+                if (data.assistIds?.length) membersText += `<span class="text-orange-400 text-xs font-bold block">Assist: ${data.assistIds.join(', ')}</span>`;
+                if (data.healerIds?.length) membersText += `<span class="text-green-400 text-xs font-bold block">Heal: ${data.healerIds.join(', ')}</span>`;
 
                 let targetText = data.targets ? data.targets.map(t => t.name).join(', ') : 'N/A';
-                reportsLog.innerHTML += \`<tr class="hover:bg-gray-700/50"><td class="p-3 text-xs text-gray-400 font-mono align-top">\${data.reportId}</td><td class="p-3 text-sm w-3/12 align-top">\${membersText}</td><td class="p-3 text-sm text-orange-300 font-bold align-top capitalize">\${targetText}</td><td class="p-3 text-sm text-white font-bold align-top">\${data.totalPointsRaw || 0} Pts</td></tr>\`;
+                reportsLog.innerHTML += `<tr class="hover:bg-gray-700/50"><td class="p-3 text-xs text-gray-400 font-mono align-top">${data.reportId}</td><td class="p-3 text-sm w-3/12 align-top">${membersText}</td><td class="p-3 text-sm text-orange-300 font-bold align-top capitalize">${targetText}</td><td class="p-3 text-sm text-white font-bold align-top">${data.totalPointsRaw || 0} Pts</td></tr>`;
             });
         }
 
@@ -394,33 +394,33 @@
             currentPage = pageName;
             const contentDiv = document.getElementById('content');
             document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            if (document.getElementById(\`nav-\${pageName}\`)) document.getElementById(\`nav-\${pageName}\`).classList.add('active');
+            if (document.getElementById(`nav-${pageName}`)) document.getElementById(`nav-${pageName}`).classList.add('active');
 
             contentDiv.innerHTML = '';
 
             switch (pageName) {
                 case 'home':
-                    contentDiv.innerHTML = \`<section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl"><h2 class="text-3xl font-bold text-red-400">QG Forças Especiais da Leaf</h2></section>\`;
+                    contentDiv.innerHTML = `<section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl"><h2 class="text-3xl font-bold text-red-400">QG Forças Especiais da Leaf</h2></section>`;
                     break;
                 case 'scoreboard':
-                    contentDiv.innerHTML = \`<section class="space-y-4 pt-8"><h2 class="text-3xl font-bold text-red-400 text-center">Rank Geral (Dia-a-Dia)</h2><div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs text-gray-300">Rank</th><th class="px-6 py-3 text-left text-xs text-gray-300">Membro</th><th class="px-6 py-3 text-left text-xs text-gray-300">Pontos</th><th class="px-6 py-3 text-left text-xs text-gray-300">Missões</th></tr></thead><tbody id="ninjas-scoreboard" class="divide-y divide-gray-700"></tbody></table></div></section>\`;
+                    contentDiv.innerHTML = `<section class="space-y-4 pt-8"><h2 class="text-3xl font-bold text-red-400 text-center">Rank Geral (Dia-a-Dia)</h2><div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-700"><tr><th class="px-6 py-3 text-left text-xs text-gray-300">Rank</th><th class="px-6 py-3 text-left text-xs text-gray-300">Membro</th><th class="px-6 py-3 text-left text-xs text-gray-300">Pontos</th><th class="px-6 py-3 text-left text-xs text-gray-300">Missões</th></tr></thead><tbody id="ninjas-scoreboard" class="divide-y divide-gray-700"></tbody></table></div></section>`;
                     window.renderScoreboard(false);
                     break;
                 case 'event_panel':
-                    contentDiv.innerHTML = \`<section class="space-y-4 pt-8"><h2 class="text-3xl font-black text-yellow-400 text-center uppercase tracking-widest">🌟 RANK DO EVENTO 🌟</h2><p class="text-center text-gray-400">Pontuação isolada para eventos especiais.</p><div class="bg-gray-800 border-2 border-yellow-600/50 p-4 rounded-xl shadow-[0_0_15px_rgba(202,138,4,0.3)] overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-900 border-b border-yellow-600/50"><tr><th class="px-6 py-3 text-left text-xs text-yellow-400">Rank</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Membro</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Pontos do Evento</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Missões do Evento</th></tr></thead><tbody id="event-scoreboard" class="divide-y divide-gray-700"></tbody></table></div></section>\`;
+                    contentDiv.innerHTML = `<section class="space-y-4 pt-8"><h2 class="text-3xl font-black text-yellow-400 text-center uppercase tracking-widest">🌟 RANK DO EVENTO 🌟</h2><p class="text-center text-gray-400">Pontuação isolada para eventos especiais.</p><div class="bg-gray-800 border-2 border-yellow-600/50 p-4 rounded-xl shadow-[0_0_15px_rgba(202,138,4,0.3)] overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-900 border-b border-yellow-600/50"><tr><th class="px-6 py-3 text-left text-xs text-yellow-400">Rank</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Membro</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Pontos do Evento</th><th class="px-6 py-3 text-left text-xs text-yellow-400">Missões do Evento</th></tr></thead><tbody id="event-scoreboard" class="divide-y divide-gray-700"></tbody></table></div></section>`;
                     window.renderScoreboard(true);
                     break;
                 case 'reports_log':
-                    contentDiv.innerHTML = \`<section class="space-y-4 pt-8"><h2 class="text-3xl font-bold text-red-400 text-center">Histórico Geral</h2><div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-700"><tr><th class="p-3 text-left text-xs text-gray-300">ID</th><th class="p-3 text-left text-xs text-gray-300">Membros</th><th class="p-3 text-left text-xs text-gray-300">Alvos</th><th class="p-3 text-left text-xs text-gray-300">Pontos</th></tr></thead><tbody id="reports-log" class="divide-y divide-gray-700"></tbody></table></div></section>\`;
+                    contentDiv.innerHTML = `<section class="space-y-4 pt-8"><h2 class="text-3xl font-bold text-red-400 text-center">Histórico Geral</h2><div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-700"><tr><th class="p-3 text-left text-xs text-gray-300">ID</th><th class="p-3 text-left text-xs text-gray-300">Membros</th><th class="p-3 text-left text-xs text-gray-300">Alvos</th><th class="p-3 text-left text-xs text-gray-300">Pontos</th></tr></thead><tbody id="reports-log" class="divide-y divide-gray-700"></tbody></table></div></section>`;
                     window.renderReportsLogFiltered();
                     break;
                 case 'ninja_panel': 
                     const allIdsSorted = Object.values(ninjasData).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-                    const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => \`<option value="\${n.id}">\${n.id}</option>\`).join('');
-                    contentDiv.innerHTML = \`<section class="space-y-6 pt-4"><h2 class="text-3xl font-bold text-red-400 text-center">Dossiê Militar</h2><div class="max-w-md mx-auto space-y-2"><select id="ninja-filter-select" onchange="window.renderNinjaPanelContent(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white font-bold"><option value="">-- Escolha um Membro --</option>\${ninjaOptions}</select></div><div id="guardian-summary" class="w-full max-w-5xl mx-auto hidden"></div></section>\`;
+                    const ninjaOptions = allIdsSorted.filter(n => n.id).map(n => `<option value="${n.id}">${n.id}</option>`).join('');
+                    contentDiv.innerHTML = `<section class="space-y-6 pt-4"><h2 class="text-3xl font-bold text-red-400 text-center">Dossiê Militar</h2><div class="max-w-md mx-auto space-y-2"><select id="ninja-filter-select" onchange="window.renderNinjaPanelContent(this.value)" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white font-bold"><option value="">-- Escolha um Membro --</option>${ninjaOptions}</select></div><div id="guardian-summary" class="w-full max-w-5xl mx-auto hidden"></div></section>`;
                     break;
                 case 'report_form':
-                    contentDiv.innerHTML = \`
+                    contentDiv.innerHTML = `
                     <section class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
                         <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de Missão</h2>
                         <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
@@ -438,11 +438,11 @@
                         <div class="space-y-2 border-t border-gray-700 pt-4"><label class="block text-sm text-gray-300">ID da Missão</label><input id="report-id-display" type="text" readonly class="w-full p-2 bg-gray-600 text-red-300 font-mono cursor-not-allowed"></div>
                         <div class="space-y-2 pt-4"><input id="total-points" type="text" readonly class="w-full p-2 bg-gray-600 text-green-400 font-bold cursor-not-allowed" value="..."></div>
                         <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 text-white font-bold rounded cursor-not-allowed" disabled onclick="window.submitReport()">Salvar Caçada</button>
-                    </section>\`;
+                    </section>`;
                     if (!window.isEditingMode) { window.updateExecutorSelect(); window.generateReportId(); window.addTargetEntry(); }
                     break;
                 case 'admin_panel':
-                    contentDiv.innerHTML = \`<section class="bg-gray-900 p-6 rounded-xl border border-red-500/50 max-w-lg mx-auto mt-8"><h2 class="text-2xl font-bold text-red-400 text-center mb-4">Acesso Restrito</h2><input id="access-id-input" type="text" placeholder="Seu ID" class="w-full p-2 mb-2 bg-gray-700 text-white rounded"><input id="access-key-input" type="password" placeholder="Sua Senha" class="w-full p-2 mb-4 bg-gray-700 text-white rounded"><button class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded" onclick="window.checkAccessKey()">Entrar</button></section>
+                    contentDiv.innerHTML = `<section class="bg-gray-900 p-6 rounded-xl border border-red-500/50 max-w-lg mx-auto mt-8"><h2 class="text-2xl font-bold text-red-400 text-center mb-4">Acesso Restrito</h2><input id="access-id-input" type="text" placeholder="Seu ID" class="w-full p-2 mb-2 bg-gray-700 text-white rounded"><input id="access-key-input" type="password" placeholder="Sua Senha" class="w-full p-2 mb-4 bg-gray-700 text-white rounded"><button class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded" onclick="window.checkAccessKey()">Entrar</button></section>
                     
                     <section class="mt-8 admin-only hidden space-y-4">
                         <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro de Membros</h2>
@@ -453,12 +453,12 @@
                         </div>
                         
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-700"><tr><th class="px-4 py-3 text-left text-xs text-gray-300">Membro</th><th class="px-4 py-3 text-left text-xs text-gray-300">Maestria</th><th class="px-4 py-3 text-right text-xs text-gray-300">Ações</th></tr></thead><tbody id="ninjas-cadastro" class="divide-y divide-gray-700"></tbody></table></div>
-                    </section>\`;
+                    </section>`;
 
                     if (isMasterAdminMode) {
                         const tbody = document.getElementById('ninjas-cadastro');
                         Object.values(ninjasData).sort((a,b)=>a.id.localeCompare(b.id)).forEach(data => {
-                            tbody.innerHTML += \`<tr class="hover:bg-gray-700/50"><td class="px-4 py-3 font-bold text-white">\${data.id}</td><td class="px-4 py-3 text-gray-300">\${data.element||''}</td><td class="px-4 py-3 text-right"><button onclick="window.editNinjaAvatar('\${data.id}')" class="text-purple-400 bg-gray-900 px-2 py-1 rounded mr-2">📷 Foto</button><button onclick="window.deleteNinja('\${data.id}')" class="text-red-500 bg-gray-900 px-2 py-1 rounded">Excluir</button></td></tr>\`;
+                            tbody.innerHTML += `<tr class="hover:bg-gray-700/50"><td class="px-4 py-3 font-bold text-white">${data.id}</td><td class="px-4 py-3 text-gray-300">${data.element||''}</td><td class="px-4 py-3 text-right"><button onclick="window.editNinjaAvatar('${data.id}')" class="text-purple-400 bg-gray-900 px-2 py-1 rounded mr-2">📷 Foto</button><button onclick="window.deleteNinja('${data.id}')" class="text-red-500 bg-gray-900 px-2 py-1 rounded">Excluir</button></td></tr>`;
                         });
                     }
                     break;
@@ -474,30 +474,30 @@
 
             const ninjaData = ninjasData[filterId];
             if (ninjaData && guardianSummaryDiv) {
-                const avatarUrl = ninjaData.avatarUrl ? ninjaData.avatarUrl : \`https://ui-avatars.com/api/?name=\${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true\`;
+                const avatarUrl = ninjaData.avatarUrl ? ninjaData.avatarUrl : `https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true`;
 
-                guardianSummaryDiv.innerHTML = \`
+                guardianSummaryDiv.innerHTML = `
                     <div class="bg-gray-800 rounded-xl shadow-2xl p-6 border border-gray-700">
                         <div class="flex flex-col md:flex-row items-center gap-6 border-b border-gray-700 pb-6 mb-6">
-                            <img src="\${avatarUrl}" alt="Foto de \${filterId}" class="profile-avatar">
+                            <img src="${avatarUrl}" alt="Foto de ${filterId}" class="profile-avatar">
                             <div class="text-center md:text-left flex-grow">
-                                <h3 class="text-4xl font-black text-white uppercase tracking-wider">\${filterId}</h3>
+                                <h3 class="text-4xl font-black text-white uppercase tracking-wider">${filterId}</h3>
                                 <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2">
-                                    <span class="px-3 py-1 rounded-full text-sm font-bold \${ninjaData.isActive ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}">\${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'}</span>
-                                    <span class="px-3 py-1 bg-gray-700 rounded-full text-sm font-bold text-gray-300">Maestria: \${ninjaData.element || 'N/A'}</span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold ${ninjaData.isActive ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}">${ninjaData.isActive ? '🟢 Ativo' : '🔴 Inativo'}</span>
+                                    <span class="px-3 py-1 bg-gray-700 rounded-full text-sm font-bold text-gray-300">Maestria: ${ninjaData.element || 'N/A'}</span>
                                 </div>
                             </div>
                             <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 text-center min-w-[150px]">
                                 <p class="text-xs text-gray-400 uppercase font-bold">Pontos (Geral)</p>
-                                <p class="text-4xl font-black text-green-400 drop-shadow-md mt-1">\${Math.round(ninjaData.rankPoints || 0)}</p>
+                                <p class="text-4xl font-black text-green-400 drop-shadow-md mt-1">${Math.round(ninjaData.rankPoints || 0)}</p>
                             </div>
                             <div class="bg-gray-900 p-4 rounded-xl border border-yellow-700 text-center min-w-[150px]">
                                 <p class="text-xs text-yellow-400 uppercase font-bold">Pontos (Evento)</p>
-                                <p class="text-4xl font-black text-yellow-400 drop-shadow-md mt-1">\${Math.round(ninjaData.eventPoints || 0)}</p>
+                                <p class="text-4xl font-black text-yellow-400 drop-shadow-md mt-1">${Math.round(ninjaData.eventPoints || 0)}</p>
                             </div>
                         </div>
                     </div>
-                \`;
+                `;
                 guardianSummaryDiv.classList.remove('hidden');
             }
         }
@@ -512,7 +512,7 @@
                 auth = getAuth(app);
                 await signInAnonymously(auth);
                 
-                document.getElementById('auth-info').textContent = \`Conexão Segura Estabelecida\`;
+                document.getElementById('auth-info').textContent = `Conexão Segura Estabelecida`;
                 
                 onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (snap) => { accessKeysData = {}; snap.forEach(doc => accessKeysData[doc.id] = doc.data()); });
                 
@@ -533,7 +533,7 @@
                 window.renderPage(currentPage);
 
             } catch (error) { 
-                document.getElementById('status').textContent = \`❌ Erro: \${error.message}\`; 
+                document.getElementById('status').textContent = `❌ Erro: ${error.message}`; 
                 document.getElementById('status').classList.remove('hidden'); 
             }
         }

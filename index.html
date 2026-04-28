@@ -12,16 +12,8 @@
         ::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 4px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
-        .executor-list-container {
-            min-height: 50px; padding: 8px; border: 1px solid #4b5563; 
-            border-radius: 8px; background-color: #374151; 
-            display: flex; flex-wrap: wrap; gap: 6px;
-        }
-        .executor-tag {
-            display: flex; align-items: center; padding: 4px 8px;
-            border-radius: 9999px; font-size: 0.875rem; font-weight: 600;
-            color: #fff;
-        }
+        .executor-list-container { min-height: 50px; padding: 8px; border: 1px solid #4b5563; border-radius: 8px; background-color: #374151; display: flex; flex-wrap: wrap; gap: 6px; }
+        .executor-tag { display: flex; align-items: center; padding: 4px 8px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #fff; }
         .killer-tag { background-color: #dc2626; } 
         .assist-tag { background-color: #d97706; } 
         .healer-tag { background-color: #059669; } 
@@ -41,11 +33,12 @@
             <nav class="flex flex-wrap justify-center bg-gray-900 rounded-xl shadow-lg p-1 gap-2">
                 <a class="nav-link active" onclick="window.renderPage('home')" id="nav-home">QG</a>
                 <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Rank Geral</a>
-                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico de Missões</a>
-                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos Eliminados</a>
-                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do Membro</a>
-                <a class="nav-link writer-only hidden" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar Manualmente</a>
-                <a class="nav-link writer-only hidden text-yellow-400" onclick="window.renderPage('audit_panel')" id="nav-audit_panel">Auditoria (Bot) <span id="audit-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span></a>
+                <a class="nav-link text-yellow-400 font-black" onclick="window.renderPage('event_panel')" id="nav-event_panel">🌟 EVENTO</a>
+                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico</a>
+                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos</a>
+                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil</a>
+                <a class="nav-link writer-only hidden" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar Missão</a>
+                <a class="nav-link writer-only hidden text-blue-400" onclick="window.renderPage('audit_panel')" id="nav-audit_panel">Auditoria (Bot) <span id="audit-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span></a>
                 <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Acesso Restrito</a>
             </nav>
         </header>
@@ -53,7 +46,7 @@
         <div id="content" class="min-h-[60vh]"></div>
 
         <div id="status" class="text-center p-4 rounded-lg hidden"></div>
-        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando aos servidores seguros...</div>
+        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Banco de Dados...</div>
         
         <datalist id="known-targets"></datalist>
     </div>
@@ -66,14 +59,12 @@
                 <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden">Input 1</label>
                 <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
                 <select id="modal-select-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-
                 <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden">Input 2</label>
                 <select id="modal-select-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-                <span id="modal-error" class="text-red-400 text-sm hidden"></span>
             </div>
             <div id="modal-actions" class="flex justify-end gap-3 pt-2">
-                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
-                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
+                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg">Cancelar</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg">Confirmar</button>
             </div>
         </div>
     </div>

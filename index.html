@@ -5,1334 +5,1268 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QG Forças Especiais da Leaf</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+        :root {
+            --bg-dark: #0a0c12;
+            --sidebar-dark: #0d0f16;
+            --card-dark: #12151e;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --text-muted: #94a3b8;
+        }
+
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-dark); color: #e2e8f0; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 4px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
-        .executor-list-container { min-height: 50px; padding: 8px; border: 1px solid #4b5563; border-radius: 8px; background-color: #374151; display: flex; flex-wrap: wrap; gap: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+
+        /* Sidebar */
+        .sidebar { background-color: var(--sidebar-dark); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar.collapsed { width: 80px; }
+        .sidebar.collapsed .hide { display: none; }
+        .item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; color: var(--text-muted); transition: all 0.2s; cursor: pointer; margin-bottom: 4px; }
+        .item:hover { background: rgba(255, 255, 255, 0.03); color: #fff; }
+        .item.active { background: rgba(255, 255, 255, 0.05); color: #fff; box-shadow: inset 4px 0 0 var(--accent-red); }
+
+        /* Cards & UI */
+        .panel { background-color: var(--card-dark); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; }
+        .stat-card { padding: 24px; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.1); }
+        .progress-bar { height: 6px; background: #1e293b; border-radius: 10px; overflow: hidden; }
+        .badge-points { background: rgba(34, 197, 94, 0.1); color: #4ade80; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+
+        .executor-list-container { min-height: 50px; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background-color: rgba(0, 0, 0, 0.2); display: flex; flex-wrap: wrap; gap: 6px; }
         .executor-tag { display: flex; align-items: center; padding: 4px 8px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #fff; }
-        .killer-tag { background-color: #dc2626; }
-        .assist-tag { background-color: #d97706; }
-        .healer-tag { background-color: #059669; }
+        .killer-tag { background-color: #ef4444; }
+        .assist-tag { background-color: #f59e0b; }
+        .healer-tag { background-color: #10b981; }
         .executor-remove-btn { margin-left: 6px; cursor: pointer; opacity: 0.8; }
         .executor-remove-btn:hover { opacity: 1; }
-        .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; text-align: center; position: relative; }
-        .nav-link:hover:not(.active) { background-color: #1e293b; }
-        .nav-link.active { color: #f87171; border-bottom: 2px solid #f87171; }
-
-        /* === PERFIL === */
-        .profile-header { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #374151; margin-bottom: 16px; flex-wrap: wrap; }
-        .profile-avatar-sm { width: 72px; height: 72px; border-radius: 50%; border: 3px solid #374151; object-fit: cover; flex-shrink: 0; }
-        .profile-pts-block { margin-left: auto; text-align: right; }
+        .filter-bar input, .filter-bar select { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; outline: none; }
+        .filter-bar input:focus, .filter-bar select:focus { border-color: var(--accent-red); }
         .combat-bar { height: 8px; border-radius: 4px; background: #1e293b; overflow: hidden; display: flex; gap: 1px; margin-top: 6px; }
         .combat-bar-seg { height: 100%; transition: width 0.5s ease; }
-        .stat-card { background: #0f172a; border-radius: 8px; padding: 10px 14px; text-align: center; }
-        .stat-card-val { font-size: 1.4rem; font-weight: 700; }
-        .stat-card-lbl { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .profile-section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 8px; }
-
-        /* === HISTÓRICO: filtros === */
-        .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-        .filter-bar input, .filter-bar select { background: #1e293b; border: 1px solid #374151; color: #e5e7eb; border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; outline: none; }
-        .filter-bar input:focus, .filter-bar select:focus { border-color: #ef4444; }
+        
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
     </style>
 </head>
-<body class="p-4 sm:p-8 text-gray-100">
+<body>
 
-    <div id="app" class="max-w-6xl mx-auto space-y-8">
-        <header class="pb-4 border-b border-red-700/50">
-            <h1 id="main-title" class="text-4xl font-bold text-red-500 text-center mb-4">🍁 Forças Especiais da Leaf<br><span class="text-2xl text-gray-400">ANBU & 12 Guardiões</span></h1>
-            <nav class="flex flex-wrap justify-center bg-gray-900 rounded-xl shadow-lg p-1 gap-2">
-                <a class="nav-link active" onclick="window.renderPage('home')" id="nav-home">QG</a>
-                <a class="nav-link" onclick="window.renderPage('scoreboard')" id="nav-scoreboard">Rank Geral</a>
-                <a class="nav-link text-yellow-400 font-black" onclick="window.renderPage('event_panel')" id="nav-event_panel">🌟 EVENTO</a>
-                <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico</a>
-                <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos Eliminados</a>
-                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do Membro</a>
-                <a class="nav-link writer-only hidden" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar Missão</a>
-                <a class="nav-link writer-only hidden text-blue-400 font-bold" onclick="window.renderPage('audit_panel')" id="nav-audit_panel">
-                    Auditoria (Bot)
-                    <span id="audit-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
-                </a>
-                <a class="nav-link" onclick="window.renderPage('admin_panel')" id="nav-admin_panel">Acesso Restrito</a>
-            </nav>
-        </header>
-
-        <div id="content" class="min-h-[60vh]"></div>
-        <div id="status" class="text-center p-4 rounded-lg hidden"></div>
-        <div id="auth-info" class="text-sm text-center text-yellow-500">Conectando ao Banco de Dados...</div>
-        <datalist id="known-targets"></datalist>
-    </div>
-
-    <!-- MODAL -->
-    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
-            <h3 id="modal-title" class="text-xl font-bold text-red-400">Título</h3>
-            <p id="modal-message" class="text-gray-300">Mensagem</p>
-            <div id="modal-input-container" class="space-y-3 hidden">
-                <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden">Input 1</label>
-                <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
-                <select id="modal-select-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-                <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden">Input 2</label>
-                <select id="modal-select-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-            </div>
-            <div id="modal-actions" class="flex justify-end gap-3 pt-2">
-                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
-                <button id="modal-confirm-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150">Confirmar</button>
+<div class="flex min-h-screen">
+    <aside id="sidebar" class="sidebar w-64 border-r border-white/5 p-4 flex flex-col fixed h-full z-50">
+        <div class="flex items-center gap-3 px-2 mb-8">
+            <div class="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center font-black text-white">忍</div>
+            <div class="hide">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-white">QG</div>
+                <div class="text-xs font-black uppercase text-red-500">Forças Especiais</div>
             </div>
         </div>
+
+        <div class="text-[10px] uppercase tracking-widest text-slate-500 px-3 mb-4 hide font-bold">Operações</div>
+        <nav class="flex-1">
+            <a class="item active nav-link" id="nav-dashboard" onclick="window.renderPage('dashboard')"><span>🏠</span><span class="hide">QG</span></a>
+            <a class="item nav-link" id="nav-rank" onclick="window.renderPage('rank')"><span>🏆</span><span class="hide">Rank Geral</span></a>
+            <a class="item nav-link" id="nav-evento" onclick="window.renderPage('evento')"><span>✨</span><span class="hide">Evento</span></a>
+            <a class="item nav-link" id="nav-historico" onclick="window.renderPage('historico')"><span>📜</span><span class="hide">Histórico</span></a>
+            <a class="item nav-link" id="nav-alvos" onclick="window.renderPage('alvos')"><span>🎯</span><span class="hide">Alvos Eliminados</span></a>
+            <a class="item nav-link" id="nav-perfil" onclick="window.renderPage('perfil')"><span>👤</span><span class="hide">Perfil do Membro</span></a>
+        </nav>
+
+        <div class="text-[10px] uppercase tracking-widest text-slate-500 px-3 my-4 hide font-bold">Comando</div>
+        <nav>
+            <a class="item nav-link writer-only hidden" id="nav-report_form" onclick="window.renderPage('report_form')"><span>📝</span><span class="hide">Registrar Missão</span></a>
+            <a class="item nav-link writer-only hidden" id="nav-audit_panel" onclick="window.renderPage('audit_panel')">
+                <span class="relative">🛡️<span id="audit-badge" class="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center hidden">0</span></span>
+                <span class="hide">Auditoria</span>
+            </a>
+            <a class="item nav-link" id="nav-admin_panel" onclick="window.renderPage('admin_panel')"><span>⚙️</span><span class="hide">Administração</span></a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8 transition-all duration-300" id="main-content">
+        <header class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+            <div class="flex items-center gap-4">
+                <button onclick="window.toggleSidebar()" class="text-slate-400 hover:text-white">☰</button>
+                <div>
+                    <h1 id="title" class="text-xl font-bold text-white">QG - Quartel General</h1>
+                    <p id="subtitle" class="text-sm text-slate-500">Visão tática consolidada das Forças Especiais</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div id="status" class="hidden text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg"></div>
+                <div id="auth-info" class="border border-yellow-500 text-yellow-500 px-3 py-1.5 rounded-full text-[10px] uppercase font-black tracking-wider shadow-lg shadow-yellow-500/10">Conectando...</div>
+                
+                <div id="auth-status-badge" class="hidden items-center gap-2 bg-green-900/20 border border-green-500/30 px-3 py-1.5 rounded-full text-green-400 text-[10px] uppercase font-bold shadow-lg shadow-green-900/20">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
+                </div>
+                <button id="logout-btn" onclick="window.logout()" class="hidden px-4 py-1.5 bg-white/5 hover:bg-red-600/80 border border-white/10 hover:border-red-500 rounded-full text-slate-300 hover:text-white text-[10px] uppercase font-bold transition">Sair</button>
+            </div>
+        </header>
+
+        <section id="dashboard" class="page space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="panel stat-card border-l-2 border-l-blue-500">
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-500">Membros Ativos</div>
+                    <div id="dash-membros" class="text-3xl font-bold mt-1 text-white">0</div>
+                    <div id="dash-membros-total" class="text-[10px] text-slate-500 mt-1">0 no total</div>
+                </div>
+                <div class="panel stat-card border-l-2 border-l-red-500">
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-500">Missões Totais</div>
+                    <div id="dash-missoes" class="text-3xl font-bold mt-1 text-white">0</div>
+                </div>
+                <div class="panel stat-card border-l-2 border-l-green-500">
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-500">Pontos Totais</div>
+                    <div id="dash-pontos" class="text-3xl font-bold mt-1 text-green-500">0</div>
+                </div>
+                <div class="panel stat-card border-l-2 border-l-yellow-500 cursor-pointer hover:bg-white/5" onclick="window.renderPage('audit_panel')">
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-500">Pendências Bot</div>
+                    <div id="dash-pendencias" class="text-3xl font-bold mt-1 text-yellow-500">0</div>
+                    <div class="text-[10px] text-slate-500 mt-1">aguardando revisão</div>
+                </div>
+                <div class="panel stat-card bg-gradient-to-br from-red-950/20 to-transparent border border-red-500/20 cursor-pointer" onclick="window.renderPage('rank')">
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-red-500">Top Jogador</div>
+                    <div id="dash-top-nome" class="text-3xl font-black text-red-500 mt-1 italic truncate">---</div>
+                    <div id="dash-top-pts" class="text-[10px] text-slate-500 mt-1">0 pts</div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 panel p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold">Rank das forças especiais <span class="block text-xs font-normal text-slate-500">Elite operacional</span></h3>
+                        <a href="#" onclick="window.renderPage('rank')" class="text-xs text-blue-500 hover:underline">Ver ranking completo →</a>
+                    </div>
+                    <div id="homeRankPreview" class="space-y-4"></div>
+                </div>
+
+                <div class="panel p-6">
+                    <h3 class="font-bold mb-6">Últimas Missões <span class="block text-xs font-normal text-slate-500">Feed de operações</span></h3>
+                    <div id="activityFeed" class="space-y-4"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rank" class="page hidden space-y-6">
+            <div class="panel p-6">
+                <div class="flex justify-between items-center mb-8">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Classificação Geral</h2>
+                        <p class="text-sm text-slate-500">Ranking baseado em missões concluídas e poder total</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-4 pl-2 font-bold">Rank</th>
+                                <th class="pb-4 font-bold">Ninja</th>
+                                <th class="pb-4 font-bold text-center">Kills / Assists / Heals</th>
+                                <th class="pb-4 text-right pr-2 font-bold">Pontuação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullRankTable" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="evento" class="page hidden space-y-6">
+            <div class="panel p-6 border border-yellow-600/30 bg-gradient-to-br from-yellow-900/10 to-transparent">
+                <div class="flex justify-between items-center mb-8">
+                    <div>
+                        <h2 class="text-xl font-black text-yellow-400 uppercase">🌟 Rank do Evento</h2>
+                        <p class="text-sm text-slate-500">Pontuação especial de missões de evento ativas</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-yellow-600 border-b border-white/5">
+                                <th class="pb-4 pl-2 font-bold">Rank</th>
+                                <th class="pb-4 font-bold">Ninja</th>
+                                <th class="pb-4 font-bold text-center">Kills / Assists / Heals (Evento)</th>
+                                <th class="pb-4 text-right pr-2 font-bold">Pts Evento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventRankTable" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="historico" class="page hidden space-y-6">
+            <div class="panel p-6">
+                <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+                    <div class="flex gap-2">
+                        <button onclick="window.setHistoryMode(false)" id="btn-hist-geral" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm">Geral</button>
+                        <button onclick="window.setHistoryMode(true)" id="btn-hist-evento" class="px-4 py-2 bg-gray-800 text-yellow-500 border border-yellow-600/50 rounded-lg font-bold text-sm">Eventos 🌟</button>
+                    </div>
+                    <div class="filter-bar flex gap-2 w-full md:w-auto">
+                        <input id="history-search" type="text" placeholder="Buscar ninja, alvo ou ID..." class="flex-grow md:w-64" oninput="window.renderReportsLogFiltered()">
+                        <select id="history-date-filter" onchange="window.renderReportsLogFiltered()">
+                            <option value="all">Todos os períodos</option>
+                            <option value="today">Hoje</option>
+                            <option value="week">Últimos 7 dias</option>
+                            <option value="month">Este mês</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-3 text-left">Data / ID</th>
+                                <th class="pb-3 text-left">Esquadrão</th>
+                                <th class="pb-3 text-left">Alvos</th>
+                                <th class="pb-3 text-left">Pontos Totais</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-log" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="alvos" class="page hidden space-y-6">
+            <div class="panel p-6">
+                <h2 class="text-xl font-bold text-orange-400 mb-6">Lista de Procurados Neutralizados</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-3 text-center">Posição</th>
+                                <th class="pb-3 text-left">Nick do Alvo</th>
+                                <th class="pb-3 text-left">Vezes Finalizado</th>
+                                <th class="pb-3 text-left">Total BT Base</th>
+                            </tr>
+                        </thead>
+                        <tbody id="targets-scoreboard" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="perfil" class="page hidden space-y-6">
+            <div class="max-w-md mx-auto mb-6">
+                <select id="ninja-filter-select" onchange="window.renderNinjaProfile(this.value, 1)" class="w-full p-3 rounded-xl bg-gray-800 border border-white/10 text-white font-bold outline-none focus:border-red-500">
+                    <option value="">-- Selecione um Operador --</option>
+                </select>
+            </div>
+            <div id="guardian-summary" class="w-full max-w-5xl mx-auto hidden"></div>
+            <div id="profile-history-container" class="panel p-6 mt-4 hidden">
+                <h3 class="text-lg text-white font-bold mb-4">Histórico Individual</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-3">Data/ID</th>
+                                <th class="pb-3">Esquadrão</th>
+                                <th class="pb-3">Alvos</th>
+                                <th class="pb-3">Pontos Gerados</th>
+                            </tr>
+                        </thead>
+                        <tbody id="profile-history-log" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="report_form" class="page hidden max-w-4xl mx-auto space-y-6">
+            <div class="panel p-6 space-y-6 border-t-4 border-t-red-600">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">📝 Lançar Relatório de Missão</h2>
+                
+                <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo de Operação</label>
+                        <div class="flex gap-6">
+                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="daily" checked class="h-4 w-4 text-red-600"><span class="text-white font-bold text-sm">Geral</span></label>
+                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="event" class="h-4 w-4 text-yellow-500"><span class="text-yellow-400 font-bold text-sm">Evento 🌟</span></label>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-64">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Data da Missão</label>
+                        <input type="datetime-local" id="report-date-input" class="w-full p-2 rounded-lg bg-gray-900 border border-white/10 text-white font-mono text-sm outline-none focus:border-red-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-red-400 uppercase tracking-widest">Killers (Assassinos)</label>
+                        <div class="flex gap-2"><select id="new-killer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-800 border border-white/10 text-white outline-none focus:border-red-500 text-sm"></select><button onclick="window.addExecutor('killer')" class="px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition">Add</button></div>
+                        <div id="killers-tag-container" class="executor-list-container"></div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-orange-400 uppercase tracking-widest">Assists (Suporte Dano)</label>
+                        <div class="flex gap-2"><select id="new-assist-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-800 border border-white/10 text-white outline-none focus:border-orange-500 text-sm"></select><button onclick="window.addExecutor('assist')" class="px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold transition">Add</button></div>
+                        <div id="assists-tag-container" class="executor-list-container"></div>
+                    </div>
+                    <div class="md:col-span-2 space-y-2">
+                        <label class="block text-[10px] font-bold text-green-400 uppercase tracking-widest">Healers (Médicos)</label>
+                        <div class="flex gap-2"><select id="new-healer-id-select" class="flex-grow p-2.5 rounded-lg bg-gray-800 border border-white/10 text-white outline-none focus:border-green-500 text-sm"></select><button onclick="window.addExecutor('healer')" class="px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition">Add</button></div>
+                        <div id="healers-tag-container" class="executor-list-container"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-4 border-t border-white/10 pt-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white">🎯 Alvos Eliminados</h3>
+                        <button onclick="window.addTargetEntry()" class="py-1.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition">➕ Add Alvo</button>
+                    </div>
+                    <div id="targets-container" class="space-y-4"></div>
+                </div>
+
+                <div class="space-y-2 border-t border-white/10 pt-6">
+                    <input id="report-id-display" type="text" readonly class="w-full p-3 rounded-lg bg-gray-900 border border-white/5 text-slate-500 font-mono text-sm cursor-not-allowed text-center">
+                </div>
+                <div class="space-y-2 pt-2">
+                    <input id="total-points" type="text" readonly class="w-full p-3 rounded-lg bg-green-900/20 border border-green-500/30 text-green-400 font-bold cursor-not-allowed text-center">
+                </div>
+                <button id="submit-report" class="w-full py-4 mt-4 bg-gray-700 text-white font-bold rounded-xl cursor-not-allowed transition" disabled onclick="window.submitReport()">Salvar Caçada</button>
+            </div>
+        </section>
+
+        <section id="audit_panel" class="page hidden space-y-6">
+            <div class="panel p-6 border-t-4 border-t-blue-500">
+                <h2 class="text-2xl font-bold text-white mb-6">🛡️ Auditoria de Missões (Discord Bot)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-3 pl-2">Autor (Discord)</th>
+                                <th class="pb-3">Vínculo</th>
+                                <th class="pb-3">Texto Original</th>
+                                <th class="pb-3">Data</th>
+                                <th class="pb-3 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="admin_panel" class="page hidden max-w-5xl mx-auto space-y-6">
+            <div class="panel p-6 border border-red-500/30 bg-gradient-to-br from-red-950/20 to-transparent">
+                <h2 class="text-xl font-bold text-red-400 text-center mb-4">Acesso Restrito ao Comando</h2>
+                <div id="admin-status-display" class="text-center mb-6"></div>
+                <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
+                    <input id="access-id-input" type="text" placeholder="ID de Acesso" class="flex-grow p-3 rounded-xl bg-gray-900 border border-white/10 text-white outline-none focus:border-red-500">
+                    <input id="access-key-input" type="password" placeholder="Senha" class="flex-grow p-3 rounded-xl bg-gray-900 border border-white/10 text-white outline-none focus:border-red-500">
+                    <button class="py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition" onclick="window.checkAccessKey()">Entrar</button>
+                </div>
+            </div>
+
+            <div class="panel p-6 admin-only hidden space-y-6">
+                <h2 class="text-xl font-bold text-yellow-400 border-b border-white/10 pb-4">Cadastro de Operadores ANBU & 12</h2>
+                <div class="flex flex-col sm:flex-row gap-4 bg-gray-800/50 p-4 rounded-xl border border-white/5 items-center">
+                    <input id="new-ninja-id" type="text" placeholder="Nick do Ninja" class="flex-grow p-3 rounded-lg bg-gray-900 text-white border border-white/10 text-sm">
+                    <select id="new-ninja-org" class="w-full sm:w-40 p-3 rounded-lg bg-gray-900 text-white border border-white/10 text-sm">
+                        <option value="ANBU">ANBU</option>
+                        <option value="12 Guardiões">12 Guardiões</option>
+                    </select>
+                    <input type="date" id="new-ninja-date" class="w-full sm:w-40 p-3 rounded-lg bg-gray-900 text-white border border-white/10 text-sm" title="Data de Entrada">
+                    <select id="new-ninja-mastery-1" class="w-full sm:w-32 p-3 rounded-lg bg-gray-900 text-white border border-white/10 text-sm"></select>
+                    <select id="new-ninja-mastery-2" class="w-full sm:w-32 p-3 rounded-lg bg-gray-900 text-white border border-white/10 text-sm"></select>
+                    <button class="py-3 px-6 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg transition" onclick="window.addNinja()">Cadastrar</button>
+                </div>
+                
+                <div class="overflow-x-auto mt-6">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5">
+                                <th class="pb-3 pl-2">Membro</th>
+                                <th class="pb-3">Org & Data Entrada</th>
+                                <th class="pb-3">Maestria</th>
+                                <th class="pb-3">Discord ID</th>
+                                <th class="pb-3">Status</th>
+                                <th class="pb-3 text-right pr-2">Ferramentas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ninjas-cadastro" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel p-6 writer-only hidden space-y-4">
+                <h3 class="text-lg font-bold text-red-400">Manutenção de Dados</h3>
+                <button onclick="window.recalculateAllRanks()" class="w-full py-3 px-4 bg-gray-800 hover:bg-gray-700 border border-white/10 text-white font-bold rounded-xl transition">🔄 Forçar Recálculo de Todos os Ranks</button>
+            </div>
+            
+            <div class="panel p-6 admin-only hidden space-y-4 border-t-4 border-t-red-600">
+                <h3 class="text-lg font-bold text-red-600">Zona de Perigo</h3>
+                <button onclick="window.clearReportsLog()" class="w-full py-3 px-4 bg-red-900/50 hover:bg-red-800 border border-red-500/50 text-red-200 font-bold rounded-xl transition">⚠️ APAGAR TODO O HISTÓRICO (Zerar Ranks)</button>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<datalist id="known-targets"></datalist>
+
+<div id="custom-modal" class="fixed inset-0 bg-gray-900/90 backdrop-blur-sm hidden items-center justify-center p-4 z-[100] overflow-y-auto">
+    <div id="modal-content" class="bg-gray-800 rounded-2xl shadow-2xl border border-white/10 p-6 w-full max-w-xl space-y-5 my-8">
+        <h3 id="modal-title" class="text-xl font-bold text-white">Título</h3>
+        <p id="modal-message" class="text-slate-400 text-sm">Mensagem</p>
+        
+        <div id="modal-dynamic-form" class="hidden"></div>
+        
+        <div id="modal-actions" class="flex justify-end gap-3 pt-4 border-t border-white/5 mt-4">
+            <button id="modal-cancel-btn" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition">Cancelar</button>
+            <button id="modal-confirm-btn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition">Confirmar</button>
+        </div>
     </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import {
-            getFirestore, doc, setDoc, onSnapshot, collection, writeBatch,
-            updateDoc, deleteDoc, getDocs
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, writeBatch, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const CUSTOM_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
-            authDomain: "g-2cb53.firebaseapp.com",
-            projectId: "g-2cb53",
-            storageBucket: "g-2cb53.firebasestorage.app",
-            messagingSenderId: "292095146978",
-            appId: "1:292095146978:web:836d833230907d081017bb"
-        };
+    const CUSTOM_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
+        authDomain: "g-2cb53.firebaseapp.com",
+        projectId: "g-2cb53",
+        storageBucket: "g-2cb53.firebasestorage.app",
+        messagingSenderId: "292095146978",
+        appId: "1:292095146978:web:836d833230907d081017bb"
+    };
 
-        const appId = CUSTOM_FIREBASE_CONFIG.projectId;
-        let app, db, auth;
+    let app, db, auth;
+    let isMasterAdminMode = false;
+    let isWriterMode = false;
+    let currentPage = 'dashboard';
+    let currentAccessId = 'ANONYMOUS';
+    let currentReportId = '';
+    let processingPendingId = null;
 
-        let isMasterAdminMode = false;
-        let isWriterMode = false;
-        let currentPage = 'home';
-        let currentAccessId = 'ANONYMOUS';
-        let currentReportId = '';
-        let processingPendingId = null;
+    let selectedKillers = []; let selectedAssists = []; let selectedHealers = [];
+    let targetEntryCount = 0;
+    window.isEditingMode = false;
 
-        let selectedKillers = [];
-        let selectedAssists = [];
-        let selectedHealers = [];
-        let targetEntryCount = 0;
-        window.isEditingMode = false;
+    let ninjasData = {}; let reportsData = []; let eventReportsData = []; let pendingData = []; let accessKeysData = {};
+    let historySearchTerm = ''; let historyDateFilter = 'all'; let historyIsEvent = false;
 
-        let ninjasData = {};
-        let reportsData = [];
-        let eventReportsData = [];
-        let pendingData = [];
-        let accessKeysData = {};
+    const COLLECTIONS = {
+        REPORTS: `artifacts/${CUSTOM_FIREBASE_CONFIG.projectId}/public/data/reports`,
+        EVENT_REPORTS: `artifacts/${CUSTOM_FIREBASE_CONFIG.projectId}/public/data/event_reports`,
+        PENDING_REPORTS: `artifacts/${CUSTOM_FIREBASE_CONFIG.projectId}/public/data/pending_reports`,
+        NINJAS: `artifacts/${CUSTOM_FIREBASE_CONFIG.projectId}/public/data/ninjas`,
+        ACCESS_KEYS: `artifacts/${CUSTOM_FIREBASE_CONFIG.projectId}/public/data/access_keys`
+    };
 
-        // Guarda o filtro de busca atual do histórico
-        let historySearchTerm = '';
-        let historyDateFilter = 'all';
-        let historyIsEvent = false;
+    const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
 
-        const COLLECTIONS = {
-            REPORTS: `artifacts/${appId}/public/data/reports`,
-            EVENT_REPORTS: `artifacts/${appId}/public/data/event_reports`,
-            PENDING_REPORTS: `artifacts/${appId}/public/data/pending_reports`,
-            NINJAS: `artifacts/${appId}/public/data/ninjas`,
-            ACCESS_KEYS: `artifacts/${appId}/public/data/access_keys`
-        };
+    // Utils
+    function getRankIcon(rank) { return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`; }
+    function normalizeId(id) { return id.trim().toLowerCase(); }
+    
+    // Função para manter 1ª letra maiúscula
+    function capitalizeName(str) {
+        if (!str) return '';
+        return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+    }
 
-        const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
+    // Calcula os stats em tempo real (Kills, Assists, Heals)
+    function getNinjaStats(id, isEvent) {
+        let k=0, a=0, h=0;
+        const list = isEvent ? eventReportsData : reportsData;
+        list.forEach(r => {
+            const trg = r.targets?.length || 1;
+            if(r.killerIds?.includes(id)) k += trg;
+            if(r.assistIds?.includes(id)) a += trg;
+            if(r.healerIds?.includes(id)) h += trg;
+            if(r.executorIds?.includes(id) && (!r.killerIds || !r.killerIds.includes(id))) k += trg; 
+        });
+        return {k, a, h};
+    }
 
-        function getRankIcon(rank) {
-            if (rank === 1) return '🥇';
-            if (rank === 2) return '🥈';
-            if (rank === 3) return '🥉';
-            return `#${rank}`;
-        }
-        function normalizeId(id) { return id.trim().toLowerCase(); }
+    function showStatus(msg, type='info') {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = `px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all ${type==='error'?'bg-red-900/80 text-red-400 border border-red-500/30': type==='success'?'bg-green-900/80 text-green-400 border border-green-500/30':'bg-blue-900/80 text-blue-400 border border-blue-500/30'}`;
+        el.classList.remove('hidden');
+        if(type==='success' || type==='error') setTimeout(() => el.classList.add('hidden'), 4000);
+    }
 
-        // ==========================================
-        // MODAL
-        // ==========================================
-        let resolveModalPromise = null;
-        window.openCustomModal = function(title, message, type, data = {}) {
-            return new Promise(resolve => {
-                resolveModalPromise = resolve;
-                const modal = document.getElementById('custom-modal');
-                document.getElementById('modal-title').textContent = title;
-                document.getElementById('modal-message').innerHTML = message || '';
+    // Navegação Perfil via Click
+    window.goToProfile = function(ninjaId) {
+        window.renderPage('perfil');
+        setTimeout(() => {
+            const sel = document.getElementById('ninja-filter-select');
+            if (sel) {
+                sel.value = ninjaId;
+                window.renderNinjaProfile(ninjaId, 1);
+            }
+        }, 50);
+    };
 
-                const confirmBtn = document.getElementById('modal-confirm-btn');
-                const cancelBtn = document.getElementById('modal-cancel-btn');
-                const inputContainer = document.getElementById('modal-input-container');
-                const input1 = document.getElementById('modal-input-1'), select1 = document.getElementById('modal-select-1'), select2 = document.getElementById('modal-select-2');
-                const label1 = document.getElementById('input-label-1'), label2 = document.getElementById('input-label-2');
+    // Modal
+    let resolveModalPromise = null;
+    window.openCustomModal = function(title, message, type, data = {}) {
+        return new Promise(resolve => {
+            resolveModalPromise = resolve;
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').innerHTML = message || '';
 
-                inputContainer.classList.add('hidden'); input1.classList.add('hidden'); select1.classList.add('hidden'); select2.classList.add('hidden'); label1.classList.add('hidden'); label2.classList.add('hidden');
-                confirmBtn.className = 'px-4 py-2 text-white font-semibold rounded-lg transition duration-150 bg-blue-600 hover:bg-blue-700';
-                confirmBtn.onclick = null; cancelBtn.onclick = null;
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            const dynamicForm = document.getElementById('modal-dynamic-form');
 
-                if (type === 'confirm') {
-                    confirmBtn.textContent = 'Confirmar'; confirmBtn.classList.replace('bg-blue-600', 'bg-red-600');
-                    confirmBtn.onclick = () => closeCustomModal(true);
-                } else if (type === 'photoEdit') {
-                    inputContainer.classList.remove('hidden'); label1.classList.remove('hidden'); input1.classList.remove('hidden');
-                    label1.textContent = 'URL da Imagem:'; input1.type = 'text'; input1.value = data.url || '';
-                    confirmBtn.textContent = 'Salvar Foto';
-                    confirmBtn.onclick = () => closeCustomModal({ url: input1.value.trim() });
-                } else if (type === 'ninjaEdit') {
-                    confirmBtn.textContent = 'Alternar Status'; confirmBtn.classList.replace('bg-blue-600', 'bg-orange-600');
-                    confirmBtn.onclick = () => closeCustomModal(true);
-                } else if (type === 'discordIdEdit') {
-                    inputContainer.classList.remove('hidden'); label1.classList.remove('hidden'); input1.classList.remove('hidden');
-                    label1.textContent = 'ID do Discord (18 dígitos):'; input1.type = 'text'; input1.value = data.discordId || '';
-                    input1.placeholder = 'Ex: 123456789012345678';
-                    confirmBtn.textContent = 'Salvar ID Discord';
-                    confirmBtn.onclick = () => closeCustomModal({ discordId: input1.value.trim() });
-                } else if (type === 'masteryEdit') {
-                    inputContainer.classList.remove('hidden');
-                    label1.textContent = '1ª Maestria:'; label1.classList.remove('hidden'); select1.classList.remove('hidden');
-                    select1.innerHTML = MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
-                    if (data.m1) select1.value = data.m1;
-                    label2.textContent = '2ª Maestria (Opcional):'; label2.classList.remove('hidden'); select2.classList.remove('hidden');
-                    select2.innerHTML = '<option value="">-- Nenhuma --</option>' + MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
-                    if (data.m2) select2.value = data.m2;
-                    confirmBtn.textContent = 'Salvar Maestrias';
-                    confirmBtn.onclick = () => closeCustomModal({ m1: select1.value, m2: select2.value });
-                }
+            dynamicForm.classList.add('hidden'); dynamicForm.innerHTML = '';
+            confirmBtn.className = 'px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition';
+            confirmBtn.onclick = null; cancelBtn.onclick = null;
 
-                cancelBtn.onclick = () => closeCustomModal(false);
-                modal.classList.remove('hidden'); modal.classList.add('flex');
-            });
-        }
+            if (type === 'confirm') {
+                confirmBtn.textContent = 'Confirmar'; confirmBtn.classList.replace('bg-blue-600', 'bg-red-600'); confirmBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+                confirmBtn.onclick = () => closeCustomModal(true);
+            } else if (type === 'ninjaFullEdit') {
+                dynamicForm.classList.remove('hidden');
+                dynamicForm.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div><label class="block text-xs font-bold text-slate-400 mb-1">Status</label><select id="edit-status" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+                        <div><label class="block text-xs font-bold text-slate-400 mb-1">Organização</label><select id="edit-org" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option></select></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-400 mb-1">Data de Entrada</label><input type="date" id="edit-date" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500"></div>
+                        <div><label class="block text-xs font-bold text-slate-400 mb-1">Maestria Principal</label><select id="edit-m1" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500">${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+                        <div><label class="block text-xs font-bold text-slate-400 mb-1">Maestria Secundária</label><select id="edit-m2" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500"><option value="">-- Nenhuma --</option>${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-400 mb-1">ID do Discord (Numérico)</label><input type="text" id="edit-discord" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500" placeholder="Ex: 123456789012345678"></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-400 mb-1">URL da Foto de Perfil (Avatar)</label><input type="text" id="edit-photo" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500" placeholder="Cole o link da imagem aqui"></div>
+                    </div>
+                `;
+                
+                document.getElementById('edit-status').value = data.isActive ? "true" : "false";
+                document.getElementById('edit-org').value = data.org || "ANBU";
+                document.getElementById('edit-date').value = data.entranceDate || "";
+                document.getElementById('edit-m1').value = data.m1 || "Fogo";
+                document.getElementById('edit-m2').value = data.m2 || "";
+                document.getElementById('edit-discord').value = data.discordId || "";
+                document.getElementById('edit-photo').value = data.avatarUrl || "";
 
-        function closeCustomModal(result) {
-            document.getElementById('custom-modal').classList.add('hidden');
-            document.getElementById('custom-modal').classList.remove('flex');
-            if (resolveModalPromise) { resolveModalPromise(result); resolveModalPromise = null; }
-        }
-
-        // ==========================================
-        // AUDITORIA DO BOT
-        // ==========================================
-        window.renderAuditPanel = function() {
-            let html = `<section class="space-y-4 pt-8">
-                <h2 class="text-3xl font-bold text-blue-400 text-center">Auditoria de Missões (Bot Sentinela)</h2>
-                <div class="bg-gray-800 p-4 rounded-xl shadow-xl overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-700">
-                <thead class="bg-gray-700"><tr>
-                    <th class="p-3 text-left text-xs text-gray-300">Enviado por</th>
-                    <th class="p-3 text-left text-xs text-gray-300">Vínculo</th>
-                    <th class="p-3 text-left text-xs text-gray-300">Texto Original (Discord)</th>
-                    <th class="p-3 text-left text-xs text-gray-300">Data</th>
-                    <th class="p-3 text-center text-xs text-gray-300">Ações</th>
-                </tr></thead>
-                <tbody class="bg-gray-800 divide-y divide-gray-700">`;
-
-            if (pendingData.length === 0) {
-                html += `<tr><td colspan="5" class="p-6 text-center text-gray-500 italic">Nenhum relatório pendente enviado pelo bot do Discord.</td></tr>`;
-            } else {
-                pendingData.forEach(p => {
-                    const date = new Date(p.timestamp).toLocaleString('pt-BR');
-                    // Verifica vínculo por discordId
-                    const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
-                    const vinculoBadge = vinculado
-                        ? `<span class="bg-green-900/60 text-green-400 text-xs px-2 py-1 rounded font-bold">🔗 ${vinculado.id}</span>`
-                        : `<span class="bg-yellow-900/60 text-yellow-400 text-xs px-2 py-1 rounded font-bold">⚠️ Não vinculado</span>`;
-                    html += `<tr class="hover:bg-gray-700/50">
-                        <td class="p-3 text-sm text-blue-400 font-bold">${p.authorTag}</td>
-                        <td class="p-3 text-sm">${vinculoBadge}</td>
-                        <td class="p-3 text-sm text-gray-300 font-mono bg-gray-900 rounded">${p.rawText}</td>
-                        <td class="p-3 text-sm text-gray-400">${date}</td>
-                        <td class="p-3 text-sm text-center whitespace-nowrap">
-                            <button onclick="window.avaliarPending('${p.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded font-bold mr-2">Revisar</button>
-                            <button onclick="window.recusarPending('${p.id}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded font-bold">Recusar</button>
-                        </td>
-                    </tr>`;
+                confirmBtn.textContent = 'Salvar Alterações';
+                confirmBtn.onclick = () => closeCustomModal({
+                    isActive: document.getElementById('edit-status').value === "true",
+                    org: document.getElementById('edit-org').value,
+                    entranceDate: document.getElementById('edit-date').value,
+                    m1: document.getElementById('edit-m1').value,
+                    m2: document.getElementById('edit-m2').value,
+                    discordId: document.getElementById('edit-discord').value,
+                    avatarUrl: document.getElementById('edit-photo').value
                 });
             }
-            html += `</tbody></table></div></section>`;
-            return html;
+
+            cancelBtn.onclick = () => closeCustomModal(false);
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        });
+    }
+    function closeCustomModal(result) { document.getElementById('custom-modal').classList.add('hidden'); document.getElementById('custom-modal').classList.remove('flex'); if (resolveModalPromise) { resolveModalPromise(result); resolveModalPromise = null; } }
+
+    const pageMeta = {
+        dashboard: ['QG - Quartel General', 'Visão tática consolidada das Forças Especiais'],
+        rank: ['Rank Geral', 'Classificação completa da elite operacional'],
+        evento: ['Rank do Evento', 'Pontuações e missões em eventos ativos'],
+        historico: ['Histórico de Operações', 'Log completo de missões concluídas'],
+        alvos: ['Lista Negra', 'Ameaças neutralizadas pelo esquadrão'],
+        perfil: ['Dossiê Tático', 'Métricas individuais detalhadas'],
+        report_form: ['Registrar Missão', 'Lançamento oficial no banco de dados'],
+        admin_panel: ['Administração', 'Gestão de operadores e acesso'],
+        audit_panel: ['Auditoria Bot', 'Revisão de logs do servidor Discord']
+    };
+
+    window.toggleSidebar = function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+        const main = document.getElementById('main-content');
+        if (document.getElementById('sidebar').classList.contains('collapsed')) {
+            main.classList.replace('ml-64', 'ml-20');
+        } else {
+            main.classList.replace('ml-20', 'ml-64');
         }
+    }
 
-        window.avaliarPending = function(pendingId) {
-            const data = pendingData.find(d => d.id === pendingId);
-            if (!data) return;
-
-            processingPendingId = pendingId;
-            window.isEditingMode = false;
-            window.renderPage('report_form');
-
-            // 1º: busca por discordId (vínculo preciso)
-            let ninjaEncontrado = Object.values(ninjasData).find(n => n.discordId && n.discordId === data.authorId);
-            if (ninjaEncontrado) {
-                selectedKillers.push(ninjaEncontrado.id);
-            } else {
-                // 2º: fallback por nick no authorTag
-                let possivelKiller = Object.keys(ninjasData).find(nick => data.authorTag.toLowerCase().includes(nick.toLowerCase()));
-                if (possivelKiller) selectedKillers.push(possivelKiller);
-            }
-
-            window.addTargetEntry();
-            const entry = document.getElementById(`target-${targetEntryCount}`);
-
-            // Regex flexível: aceita "bt 150, alvo", "bt150,alvo", "bt 150 - alvo"
-            const match = data.rawText.match(/bt\s*(\d+)[,\-\s]+(.+)/i);
-            if (match) {
-                entry.querySelector('.target-bt').value = match[1];
-                entry.querySelector('.target-name').value = match[2].trim();
-            } else {
-                entry.querySelector('.target-name').value = data.rawText;
-            }
-
-            window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
-
+    window.renderPage = function(pageName) {
+        if (pageName !== 'report_form' && pageName !== 'audit_panel') { window.isEditingMode = false; processingPendingId = null; }
+        
+        if (currentPage === 'report_form' && pageName !== 'report_form') {
             const btn = document.getElementById('submit-report');
-            if (btn) btn.innerHTML = '✅ Aprovar Auditoria e Salvar Caçada';
-
-            const statusEl = document.getElementById('status');
-            statusEl.classList.remove('hidden');
-            statusEl.className = 'text-blue-400 p-4 bg-blue-900/50 rounded-lg block font-bold border border-blue-500/50';
-            const metodo = ninjaEncontrado
-                ? `✅ Killer vinculado por ID do Discord: <b>${ninjaEncontrado.id}</b>`
-                : `⚠️ Killer não encontrado por ID — verifique e ajuste manualmente.`;
-            statusEl.innerHTML = `Modo de Auditoria Ativo — ${metodo}<br><span class="text-gray-300 font-normal text-sm">Revise os dados e clique em Salvar para oficializar.</span>`;
-        }
-
-        window.recusarPending = async function(pendingId) {
-            const confirmed = await window.openCustomModal('Recusar Relatório', 'Deseja apagar permanentemente este relatório enviado pelo bot?', 'confirm');
-            if (confirmed) { try { await deleteDoc(doc(db, COLLECTIONS.PENDING_REPORTS, pendingId)); } catch (e) {} }
-        }
-
-        // ==========================================
-        // REGISTRO DE MISSÕES
-        // ==========================================
-        window.generateReportId = function() {
-            const el = document.getElementById('report-id-display');
-            if (!el) return;
-            currentReportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0, 8)}`;
-            el.value = currentReportId;
-        }
-
-        window.addTargetEntry = function() {
-            const container = document.getElementById('targets-container'); if (!container) return;
-            targetEntryCount++; const targetId = `target-${targetEntryCount}`;
-            container.insertAdjacentHTML('beforeend', `
-                <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
-                    <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 font-bold">✖</button>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm text-gray-300">Alvo Morto (Nick)</label><input type="text" list="known-targets" class="target-name w-full p-2 rounded bg-gray-800 text-white" oninput="window.updateDescriptionPreview()"></div>
-                        <div><label class="block text-sm text-gray-300">BT Base</label><input type="number" min="0" class="target-bt w-full p-2 rounded bg-gray-800 text-white font-bold" oninput="window.updateDescriptionPreview()"></div>
-                    </div>
-                    <div class="flex gap-4 mt-2 pt-2 border-t border-gray-600">
-                        <label><input type="checkbox" class="target-chk-special" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">Kage (x3)</span></label>
-                        <label><input type="checkbox" class="target-chk-org" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">ORG (+100)</span></label>
-                        <label><input type="checkbox" class="target-chk-trashtalk" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">Trash Talk (+20)</span></label>
-                    </div>
-                </div>`);
-            window.updateDescriptionPreview();
-        }
-
-        window.removeTargetEntry = function(id) { const el = document.getElementById(id); if (el) { el.remove(); window.updateDescriptionPreview(); } }
-
-        function _gatherReportData() {
-            let totalPointsRaw = 0; const targetsData = [];
-            document.querySelectorAll('.target-entry').forEach((entry, idx) => {
-                const name = entry.querySelector('.target-name').value.trim() || `Alvo ${idx + 1}`;
-                let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10); if (isNaN(btBase)) btBase = 0;
-                const isSpecial = entry.querySelector('.target-chk-special').checked, isOrg = entry.querySelector('.target-chk-org').checked, isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
-                let targetTotal = btBase; if (isSpecial) targetTotal *= 3; if (isOrg) targetTotal += 100; if (isTrashTalk) targetTotal += 20;
-                totalPointsRaw += targetTotal;
-                targetsData.push({ name, btBase, isSpecial, isOrg, isTrashTalk, total: targetTotal });
-            });
-
-            if (!currentReportId) window.generateReportId();
-            const reportTypeRadio = document.querySelector('input[name="report_type"]:checked');
-            const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
-
-            return {
-                reportId: currentReportId, isEvent,
-                targets: targetsData, killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers,
-                totalPointsRaw, pointsPerKiller: totalPointsRaw,
-                pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalPointsRaw / 3) : 0,
-                pointsPerHealer: totalPointsRaw,
-                timestamp: new Date().toISOString()
-            };
-        }
-
-        window.updateDescriptionPreview = function() {
-            const data = _gatherReportData();
-            const btn = document.getElementById('submit-report');
-            const input = document.getElementById('total-points');
-            if (!btn || !input) return;
-
-            input.value = `Soma: ${data.totalPointsRaw} (Killer: ${data.pointsPerKiller} | Assists: ${data.pointsPerAssist})`;
-            const isReady = isWriterMode && (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0 && data.targets.length > 0 && data.totalPointsRaw > 0;
-
-            btn.disabled = !isReady;
-            btn.className = isReady ? 'w-full py-3 mt-4 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-white shadow-lg' : 'w-full py-3 mt-4 bg-red-600/50 rounded-lg font-bold text-white cursor-not-allowed';
-
-            if (window.isEditingMode && isReady && !processingPendingId) {
-                btn.innerHTML = '💾 Salvar Alterações da Caçada (Recalculará Ranks)';
+            if (btn && !btn.disabled) {
+                window.openCustomModal('Sair do formulário?', 'Você tem dados não salvos. Deseja sair?', 'confirm').then(c => {
+                    if (c) forceChangePage(pageName);
+                });
+                return;
             }
         }
+        forceChangePage(pageName);
+    }
 
-        window.submitReport = async function() {
-            if (!isWriterMode) return;
-            const data = _gatherReportData(), statusEl = document.getElementById('status');
+    function forceChangePage(pageName) {
+        currentPage = pageName;
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        const targetPage = document.getElementById(pageName);
+        if(targetPage) targetPage.classList.remove('hidden');
 
-            if (!data.reportId) { window.openCustomModal('Erro', 'ID Inválido, recarregue a página.', 'info'); return; }
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        const activeLink = document.getElementById(`nav-${pageName}`);
+        if(activeLink) activeLink.classList.add('active');
 
-            statusEl.classList.remove('hidden'); statusEl.className = 'text-yellow-400 p-4 bg-yellow-900/50 rounded block';
-            statusEl.textContent = window.isEditingMode ? 'Salvando alterações...' : 'Salvando no Banco de Dados...';
+        if(pageMeta[pageName]) {
+            document.getElementById('title').textContent = pageMeta[pageName][0];
+            document.getElementById('subtitle').textContent = pageMeta[pageName][1];
+        }
 
-            const batch = writeBatch(db);
-            try {
-                const collectionToUse = data.isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS;
-                batch.set(doc(db, collectionToUse, data.reportId), data);
-
-                if (processingPendingId) {
-                    batch.delete(doc(db, COLLECTIONS.PENDING_REPORTS, processingPendingId));
-                }
-
-                if (!window.isEditingMode) {
-                    const pointField = data.isEvent ? 'eventPoints' : 'rankPoints';
-                    const missionField = data.isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
-                    data.killerIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerKiller, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
-                    data.assistIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerAssist, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
-                    data.healerIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerHealer, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
-                    await batch.commit();
-                } else {
-                    await batch.commit();
-                    await window.recalculateAllRanks(true);
-                    window.isEditingMode = false;
-                }
-
-                statusEl.textContent = '✅ Registro salvo com sucesso!';
-                statusEl.className = 'text-green-400 p-4 bg-green-900/50 rounded block';
-
-                selectedKillers = []; selectedAssists = []; selectedHealers = [];
-                processingPendingId = null;
-                window.updateExecutorTags(); window.updateExecutorSelect(); window.generateReportId();
+        if(pageName === 'dashboard') updateDashboard();
+        if(pageName === 'rank') window.renderScoreboard(false);
+        if(pageName === 'evento') window.renderScoreboard(true);
+        if(pageName === 'historico') window.renderReportsLogFiltered();
+        if(pageName === 'alvos') window.renderTargetsTable(1);
+        if(pageName === 'perfil') {
+            const sel = document.getElementById('ninja-filter-select');
+            sel.innerHTML = '<option value="">-- Selecione um Operador --</option>' + Object.values(ninjasData).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).filter(n=>n.id).map(n=>`<option value="${n.id}">${capitalizeName(n.id)}</option>`).join('');
+            if(sel.value) window.renderNinjaProfile(sel.value, 1);
+        }
+        if(pageName === 'report_form') {
+            if (!isWriterMode) { 
+                showStatus('Necessário Acesso Restrito para registrar missões.', 'error');
+                forceChangePage('admin_panel'); 
+                return; 
+            }
+            if (!window.isEditingMode && !processingPendingId) {
+                selectedKillers = []; selectedAssists = []; selectedHealers = []; targetEntryCount = 0;
                 document.getElementById('targets-container').innerHTML = '';
-                window.addTargetEntry(); window.updateDescriptionPreview();
-                document.getElementById('submit-report').innerHTML = 'Salvar Caçada';
-                setTimeout(() => { statusEl.classList.add('hidden'); }, 3000);
+                
+                // Configurar Data/Hora atual
+                const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('report-date-input').value = now.toISOString().slice(0,16);
 
-            } catch (e) { statusEl.textContent = `❌ Erro: ${e.message}`; statusEl.className = 'text-red-400 p-4 bg-red-900/50 rounded block'; }
-        }
-
-        // Confirmação ao sair do formulário com dados preenchidos
-        window.safeNavigate = function(page) {
-            if (currentPage === 'report_form') {
-                const data = _gatherReportData();
-                const temDados = data.killerIds.length > 0 || data.targets.some(t => t.name !== `Alvo 1` || t.btBase > 0);
-                if (temDados) {
-                    window.openCustomModal('Sair do formulário?', 'Você tem dados preenchidos. Deseja descartar e sair?', 'confirm').then(c => { if (c) window.renderPage(page); });
-                    return;
-                }
-            }
-            window.renderPage(page);
-        }
-
-        window.updateExecutorSelect = function() {
-            const sK = document.getElementById('new-killer-id-select'), sA = document.getElementById('new-assist-id-select'), sH = document.getElementById('new-healer-id-select');
-            if (!sK) return;
-            const active = Object.values(ninjasData).filter(n => n.isActive).sort((a,b) => String(a.id||'').localeCompare(String(b.id||'')));
-            let optK = '<option value="" disabled selected>Selecionar Killer</option>', optA = '<option value="" disabled selected>Selecionar Assist</option>', optH = '<option value="" disabled selected>Selecionar Healer</option>';
-            active.forEach(n => {
-                if (!selectedKillers.includes(n.id) && !selectedAssists.includes(n.id) && !selectedHealers.includes(n.id)) {
-                    optK += `<option value="${n.id}">${n.id}</option>`;
-                    optA += `<option value="${n.id}">${n.id}</option>`;
-                    optH += `<option value="${n.id}">${n.id}</option>`;
-                }
-            });
-            sK.innerHTML = optK; sA.innerHTML = optA; sH.innerHTML = optH;
-        }
-
-        window.addExecutor = function(type) {
-            let selectId = '', targetArray = null;
-            if (type === 'killer') { selectId = 'new-killer-id-select'; targetArray = selectedKillers; }
-            if (type === 'assist') { selectId = 'new-assist-id-select'; targetArray = selectedAssists; }
-            if (type === 'healer') { selectId = 'new-healer-id-select'; targetArray = selectedHealers; }
-            const select = document.getElementById(selectId);
-            if (!select || !select.value) return;
-            targetArray.push(select.value); select.value = '';
-            window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
-        }
-
-        window.removeExecutor = function(id, type) {
-            if (type === 'killer') selectedKillers = selectedKillers.filter(x => x !== id);
-            if (type === 'assist') selectedAssists = selectedAssists.filter(x => x !== id);
-            if (type === 'healer') selectedHealers = selectedHealers.filter(x => x !== id);
-            window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
-        }
-
-        window.updateExecutorTags = function() {
-            const cK = document.getElementById('killers-tag-container'), cA = document.getElementById('assists-tag-container'), cH = document.getElementById('healers-tag-container');
-            if (!cK) return;
-            cK.innerHTML = selectedKillers.length ? selectedKillers.map(id => `<span class="executor-tag killer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','killer')">✖</span></span>`).join('') : '';
-            cA.innerHTML = selectedAssists.length ? selectedAssists.map(id => `<span class="executor-tag assist-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','assist')">✖</span></span>`).join('') : '';
-            cH.innerHTML = selectedHealers.length ? selectedHealers.map(id => `<span class="executor-tag healer-tag">${id}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','healer')">✖</span></span>`).join('') : '';
-        }
-
-        window.deleteReport = function(reportId, isEvent = false) {
-            if (!isWriterMode && !isMasterAdminMode) return;
-            window.openCustomModal('Excluir Registro', `Tem certeza que deseja excluir o registro ${reportId}? Isso recalculará os ranks.`, 'confirm').then(async (confirmed) => {
-                if (confirmed) {
-                    const statusEl = document.getElementById('status');
-                    statusEl.classList.remove('hidden'); statusEl.textContent = 'Excluindo...';
-                    try {
-                        const coll = isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS;
-                        await deleteDoc(doc(db, coll, reportId));
-                        await window.recalculateAllRanks(true);
-                        statusEl.textContent = '✅ Registro excluído e Ranks atualizados!';
-                        statusEl.className = 'text-green-400 p-4 bg-green-900/50 rounded block';
-                        setTimeout(() => statusEl.classList.add('hidden'), 3000);
-                    } catch(e) { statusEl.textContent = `❌ Erro: ${e.message}`; }
-                }
-            });
-        }
-
-        window.editReport = function(reportId, isEvent = false) {
-            if (!isWriterMode && !isMasterAdminMode) return;
-            const reportList = isEvent ? eventReportsData : reportsData;
-            const report = reportList.find(r => r.reportId === reportId);
-            if (!report) return;
-
-            window.renderPage('report_form');
-            currentReportId = report.reportId;
-            window.isEditingMode = true;
-            processingPendingId = null;
-
-            selectedKillers = report.killerIds || [];
-            selectedAssists = report.assistIds || [];
-            selectedHealers = report.healerIds || [];
-
-            const targetsContainer = document.getElementById('targets-container');
-            targetsContainer.innerHTML = '';
-            targetEntryCount = 0;
-
-            if (Array.isArray(report.targets) && report.targets.length > 0) {
-                report.targets.forEach(t => {
-                    window.addTargetEntry();
-                    const entry = document.getElementById(`target-${targetEntryCount}`);
-                    entry.querySelector('.target-name').value = t.name;
-                    entry.querySelector('.target-bt').value = t.btBase;
-                    entry.querySelector('.target-chk-special').checked = t.isSpecial;
-                    entry.querySelector('.target-chk-org').checked = t.isOrg;
-                    entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk;
-                });
-            } else { window.addTargetEntry(); }
-
-            const radio = document.querySelector(`input[name="report_type"][value="${isEvent ? 'event' : 'daily'}"]`);
-            if (radio) radio.checked = true;
-
-            window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
-            document.getElementById('report-id-display').value = currentReportId;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        window.updateTargetSuggestions = function() {
-            const dl = document.getElementById('known-targets');
-            if (!dl) return;
-            const names = new Set();
-            [...reportsData, ...eventReportsData].forEach(r => {
-                if (Array.isArray(r.targets)) r.targets.forEach(t => { if(t.name) names.add(t.name.trim()); });
-                else if (r.targetName) names.add(r.targetName.trim());
-            });
-            dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join('');
-        }
-
-        // ==========================================
-        // ADMINISTRAÇÃO E RECÁLCULO
-        // ==========================================
-        window.clearReportsLog = async function() {
-            if (!isMasterAdminMode) return;
-            const confirmed = await window.openCustomModal('DELETAR TUDO', 'Zerar TODO o Histórico (Geral e Evento) e resetar os Ranks? AÇÃO IRREVERSÍVEL.', 'confirm');
-            if (confirmed) {
-                try {
-                    const rSnap = await getDocs(collection(db, COLLECTIONS.REPORTS));
-                    const eSnap = await getDocs(collection(db, COLLECTIONS.EVENT_REPORTS));
-                    const nSnap = await getDocs(collection(db, COLLECTIONS.NINJAS));
-                    let batch = writeBatch(db);
-                    rSnap.forEach(d => batch.delete(d.ref));
-                    eSnap.forEach(d => batch.delete(d.ref));
-                    nSnap.forEach(d => { if(d.id) batch.update(d.ref, { rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); });
-                    await batch.commit(); alert("✅ Histórico zerado e Ranks reiniciados.");
-                } catch(e) { alert("Erro: " + e.message); }
+                window.addTargetEntry(); window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); window.updateDescriptionPreview();
             }
         }
+        if(pageName === 'admin_panel') window.renderNinjasTable();
+        if(pageName === 'audit_panel') window.renderAuditPanel();
 
-        window.recalculateAllRanks = async function(calledInternally = false) {
-            if (!isWriterMode && !isMasterAdminMode) return;
-            if (!calledInternally) {
-                const confirmed = await window.openCustomModal('Recalcular', 'Recalcular todos os Ranks lendo o Histórico completo?', 'confirm');
-                if (!confirmed) return;
-            }
-            try {
-                const tempNinjas = {};
-                Object.values(ninjasData).forEach(n => {
-                    if(n.id) tempNinjas[n.id] = { ...n, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 };
-                });
-                const processReport = (report, isEvent) => {
-                    const pField = isEvent ? 'eventPoints' : 'rankPoints';
-                    const mField = isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
-                    if (report.killerIds) report.killerIds.forEach(id => { if (tempNinjas[id]) { tempNinjas[id][pField] += Number(report.pointsPerKiller || report.totalPointsRaw || 0); tempNinjas[id][mField] += 1; } });
-                    if (report.assistIds) report.assistIds.forEach(id => { if (tempNinjas[id]) { tempNinjas[id][pField] += Number(report.pointsPerAssist || 0); tempNinjas[id][mField] += 1; } });
-                    if (report.executorIds && (!report.killerIds || report.killerIds.length === 0)) report.executorIds.forEach(id => { if (tempNinjas[id]) { tempNinjas[id][pField] += Number(report.pointsPerAttacker || report.totalPointsRaw || 0); tempNinjas[id][mField] += 1; } });
-                    if (report.healerIds) report.healerIds.forEach(id => { if (tempNinjas[id]) { tempNinjas[id][pField] += Number(report.pointsPerHealer || report.totalPointsRaw || 0); tempNinjas[id][mField] += 1; } });
-                };
-                reportsData.forEach(r => processReport(r, false));
-                eventReportsData.forEach(r => processReport(r, true));
-                let applyBatch = writeBatch(db);
-                Object.values(tempNinjas).forEach(n => {
-                    if(n.id) applyBatch.update(doc(db, COLLECTIONS.NINJAS, n.id), {
-                        rankPoints: isNaN(n.rankPoints) ? 0 : n.rankPoints,
-                        missionsCompleted: isNaN(n.missionsCompleted) ? 0 : n.missionsCompleted,
-                        eventPoints: isNaN(n.eventPoints) ? 0 : n.eventPoints,
-                        eventMissionsCompleted: isNaN(n.eventMissionsCompleted) ? 0 : n.eventMissionsCompleted
-                    });
-                });
-                await applyBatch.commit();
-                if (!calledInternally) alert("✅ Ranks recalculados com sucesso!");
-            } catch(e) { if(!calledInternally) alert("Erro: " + e.message); }
+        document.querySelectorAll('.writer-only').forEach(el => isWriterMode ? el.classList.remove('hidden') : el.classList.add('hidden'));
+        document.querySelectorAll('.admin-only').forEach(el => isMasterAdminMode ? el.classList.remove('hidden') : el.classList.add('hidden'));
+    }
+
+    // DASHBOARD UPDATE
+    function updateDashboard() {
+        const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id);
+        const totalPts = guardians.reduce((s, n) => s + Number(n.rankPoints||0), 0);
+        
+        document.getElementById('dash-membros').textContent = guardians.length;
+        document.getElementById('dash-membros-total').textContent = `${Object.keys(ninjasData).length} no total`;
+        document.getElementById('dash-missoes').textContent = reportsData.length;
+        document.getElementById('dash-pontos').textContent = Math.round(totalPts).toLocaleString('pt-BR');
+        
+        const badge = document.getElementById('dash-pendencias');
+        if(badge) badge.textContent = pendingData.length;
+
+        const ranked = [...guardians].sort((a, b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
+        if(ranked.length > 0) {
+            document.getElementById('dash-top-nome').textContent = capitalizeName(ranked[0].id);
+            document.getElementById('dash-top-pts').textContent = `${Math.round(ranked[0].rankPoints)} pts`;
         }
 
-        window.addNinja = async function() {
-            if (!isMasterAdminMode) return;
-            const ninjaId = document.getElementById('new-ninja-id').value.trim();
-            const m1 = document.getElementById('new-ninja-mastery-1').value;
-            const m2 = document.getElementById('new-ninja-mastery-2').value;
-            const normalizedId = normalizeId(ninjaId);
-            if (!ninjaId) { alert("O ID não pode ser vazio."); return; }
-            if (ninjasData[normalizedId]) { alert(`Membro '${normalizedId}' já existe!`); return; }
-            let finalElement = m1; if (m2 && m2 !== m1) finalElement += ` / ${m2}`;
-            try {
-                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), { id: normalizedId, element: finalElement, isActive: true, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 });
-                document.getElementById('new-ninja-id').value = '';
-                alert("Cadastrado com sucesso!");
-            } catch (e) { alert("Erro ao cadastrar: " + e.message); }
-        }
-
-        window.deleteNinja = async function(id) {
-            if (!isMasterAdminMode) return;
-            window.openCustomModal('Excluir Membro', `Deseja realmente apagar os dados de ${id}?`, 'confirm').then(async (c) => {
-                if (c) { try { await deleteDoc(doc(db, COLLECTIONS.NINJAS, id)); } catch(e) {} }
-            });
-        }
-
-        window.editNinja = function(id) {
-            if (!isMasterAdminMode) return;
-            const ninja = ninjasData[id];
-            window.openCustomModal('Alternar Status', null, 'ninjaEdit', { id: ninja.id, isActive: ninja.isActive }).then(async (c) => {
-                if (c) { try { await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { isActive: !ninja.isActive }); } catch (e) {} }
-            });
-        }
-
-        window.editNinjaMastery = function(id) {
-            if (!isMasterAdminMode) return;
-            const ninja = ninjasData[id];
-            let currentM1 = "Fogo", currentM2 = "";
-            if (ninja.element) { const parts = ninja.element.split(' / '); currentM1 = parts[0]; if (parts.length > 1) currentM2 = parts[1]; }
-            window.openCustomModal('Editar Maestrias', `Alterar as maestrias de ${id}:`, 'masteryEdit', { m1: currentM1, m2: currentM2 }).then(async (res) => {
-                if (res) {
-                    try { let finalElement = res.m1; if (res.m2 && res.m2 !== res.m1) finalElement += ` / ${res.m2}`; await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { element: finalElement }); } catch (e) {}
-                }
-            });
-        }
-
-        window.editNinjaAvatar = function(id) {
-            if (!isMasterAdminMode) return;
-            const ninja = ninjasData[id];
-            window.openCustomModal('Foto de Perfil', `Cole o link (URL) da imagem para o membro ${id}.`, 'photoEdit', { url: ninja.avatarUrl || '' }).then(async (res) => {
-                if (res !== false) { try { await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { avatarUrl: res.url }); } catch (e) {} }
-            });
-        }
-
-        window.editNinjaDiscordId = function(id) {
-            if (!isMasterAdminMode) return;
-            const ninja = ninjasData[id];
-            window.openCustomModal('ID do Discord', `Vincule o ID numérico do Discord ao membro ${id}.<br><span class="text-xs text-gray-400">Ative o Modo Desenvolvedor no Discord e copie o ID do usuário.</span>`, 'discordIdEdit', { discordId: ninja.discordId || '' }).then(async (res) => {
-                if (res !== false && res !== null) {
-                    try {
-                        await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { discordId: res.discordId || '' });
-                        alert(res.discordId ? `✅ Discord ID de ${id} atualizado!` : `⚠️ Discord ID de ${id} removido.`);
-                    } catch (e) { alert("Erro: " + e.message); }
-                }
-            });
-        }
-
-        // ==========================================
-        // RENDERIZAÇÃO: SCOREBOARD
-        // ==========================================
-        window.renderScoreboard = function(isEvent = false) {
-            const scoreboardBody = document.getElementById(isEvent ? 'event-scoreboard' : 'ninjas-scoreboard');
-            if (!scoreboardBody) return;
-            const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id);
-            const pointProperty = isEvent ? 'eventPoints' : 'rankPoints';
-            const missionProperty = isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
-            guardians.sort((a, b) => Number(b[pointProperty] || 0) - Number(a[pointProperty] || 0));
-            scoreboardBody.innerHTML = '';
-            guardians.forEach((ninja, index) => {
-                const pts = Number(ninja[pointProperty] || 0);
-                if (isEvent && pts === 0) return;
-                scoreboardBody.innerHTML += `
-                    <tr class="hover:bg-gray-700/50">
-                        <td class="px-6 py-3 font-bold text-center">${getRankIcon(index + 1)}</td>
-                        <td class="px-6 py-3 font-medium text-white cursor-pointer text-blue-300 hover:underline" onclick="window.renderPage('ninja_panel'); setTimeout(()=>{const s=document.getElementById('ninja-filter-select');if(s){s.value='${ninja.id}';window.renderNinjaProfile('${ninja.id}',1);}},100)">${ninja.id}</td>
-                        <td class="px-6 py-3 font-bold text-green-400">${Math.round(pts)} Pts</td>
-                        <td class="px-6 py-3 text-gray-300">${ninja[missionProperty] || 0}</td>
-                    </tr>`;
-            });
-
-            // Totais
-            const totalsEl = document.getElementById('scoreboard-totals');
-            if (totalsEl) {
-                const totalMembros = guardians.filter(n => !isEvent || Number(n[pointProperty]||0) > 0).length;
-                const totalMissoes = (isEvent ? eventReportsData : reportsData).length;
-                const totalPts = guardians.reduce((s, n) => s + Number(n[pointProperty]||0), 0);
-                totalsEl.innerHTML = `
-                    <div class="stat-card"><div class="stat-card-val text-blue-400">${totalMembros}</div><div class="stat-card-lbl">Membros Ativos</div></div>
-                    <div class="stat-card"><div class="stat-card-val text-red-400">${totalMissoes}</div><div class="stat-card-lbl">Missões</div></div>
-                    <div class="stat-card"><div class="stat-card-val text-green-400">${Math.round(totalPts).toLocaleString('pt-BR')}</div><div class="stat-card-lbl">Pts Distribuídos</div></div>`;
-            }
-        }
-
-        // ==========================================
-        // RENDERIZAÇÃO: TABELA DE NINJAS (ADMIN)
-        // ==========================================
-        window.renderNinjasTable = function() {
-            const tbody = document.getElementById('ninjas-cadastro');
-            if (!tbody) return;
-            const adminHeaders = tbody.closest('table').querySelectorAll('th.admin-only');
-            adminHeaders.forEach(th => { isMasterAdminMode ? th.classList.remove('hidden') : th.classList.add('hidden'); });
-            tbody.innerHTML = '';
-            Object.values(ninjasData).sort((a,b) => String(a.id||'').localeCompare(String(b.id||''))).forEach(data => {
-                if (!data.id) return;
-                const statusColor = data.isActive ? 'text-green-400' : 'text-red-400';
-                const statusTxt = data.isActive ? 'Ativo' : 'Inativo';
-                const discordLinked = data.discordId
-                    ? `<span title="Discord vinculado: ${data.discordId}" class="text-xs text-indigo-400">🔗</span>`
-                    : `<span title="Sem Discord vinculado" class="text-xs text-gray-600">⚫</span>`;
-                const actionCell = `<td class="p-3 text-right admin-only ${isMasterAdminMode ? '' : 'hidden'}"><div class="flex justify-end gap-1 flex-wrap">
-                    <button onclick="window.editNinjaAvatar('${data.id}')" class="text-purple-400 bg-gray-900 px-2 py-1 rounded text-xs">📷</button>
-                    <button onclick="window.editNinjaDiscordId('${data.id}')" class="text-indigo-400 bg-gray-900 px-2 py-1 rounded text-xs">Discord</button>
-                    <button onclick="window.editNinja('${data.id}')" class="text-blue-400 bg-gray-900 px-2 py-1 rounded text-xs">Status</button>
-                    <button onclick="window.editNinjaMastery('${data.id}')" class="text-yellow-400 bg-gray-900 px-2 py-1 rounded text-xs">Mst</button>
-                    <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 bg-gray-900 px-2 py-1 rounded text-xs">Excluir</button>
-                    </div></td>`;
-                tbody.innerHTML += `<tr class="hover:bg-gray-700/50">
-                    <td class="p-3 font-bold text-white">${data.id} ${discordLinked}</td>
-                    <td class="p-3 text-gray-300">${data.element||''}</td>
-                    <td class="p-3 text-xs text-indigo-300 font-mono">${data.discordId ? data.discordId.slice(0,6)+'...' : '<span class="text-gray-600">—</span>'}</td>
-                    <td class="p-3 font-bold ${statusColor}">${statusTxt}</td>
-                    ${actionCell}</tr>`;
-            });
-        }
-
-        // ==========================================
-        // RENDERIZAÇÃO: ALVOS
-        // ==========================================
-        window.renderTargetsTable = function(page = 1) {
-            const tbody = document.getElementById('targets-scoreboard');
-            if (!tbody) return;
-            const targetsMap = {};
-            [...reportsData, ...eventReportsData].forEach(report => {
-                if (Array.isArray(report.targets) && report.targets.length > 0) {
-                    report.targets.forEach(t => { if (t && t.name) { const n = t.name.trim().toLowerCase(); if (!targetsMap[n]) targetsMap[n] = { name: t.name.trim(), count: 0, totalBT: 0 }; targetsMap[n].count += 1; targetsMap[n].totalBT += (t.btBase || 0); } });
-                } else if (report.targetName) {
-                    const n = report.targetName.trim().toLowerCase(); if (!targetsMap[n]) targetsMap[n] = { name: report.targetName, count: 0, totalBT: 0 }; targetsMap[n].count += 1; targetsMap[n].totalBT += (report.btBase || report.totalPointsRaw || 0);
-                }
-            });
-            const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
-            const totalPages = Math.ceil(sortedTargets.length / 10);
-            if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
-            tbody.innerHTML = '';
-            if (sortedTargets.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">Nenhum alvo.</td></tr>`; const p = document.querySelector('.t-pag'); if(p) p.remove(); return; }
-            sortedTargets.slice((page - 1) * 10, page * 10).forEach((t, i) => {
-                tbody.innerHTML += `<tr class="hover:bg-gray-700/50"><td class="p-2 text-center">${getRankIcon((page-1)*10+i+1)}</td><td class="p-2 text-orange-300 capitalize">${t.name}</td><td class="p-2 text-red-400 font-bold">${t.count}x</td><td class="p-2 text-gray-300">${t.totalBT} BT Base</td></tr>`;
-            });
-            const cont = tbody.closest('.overflow-x-auto');
-            if (cont && cont.parentElement) {
-                let old = cont.parentElement.querySelector('.t-pag'); if (old) old.remove();
-                if (totalPages > 1) {
-                    const div = document.createElement('div'); div.className = 'flex justify-center gap-4 mt-4 p-2 t-pag';
-                    div.innerHTML = `<button onclick="window.renderTargetsTable(${page-1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded text-white font-bold" ${page===1?'disabled':''}>Anterior</button><span class="px-4 py-2 text-gray-300 font-bold bg-gray-800 rounded">Pág ${page}/${totalPages}</span><button onclick="window.renderTargetsTable(${page+1})" class="px-4 py-2 bg-gray-700 hover:bg-orange-600 rounded text-white font-bold" ${page===totalPages?'disabled':''}>Próxima</button>`;
-                    cont.parentElement.appendChild(div);
-                }
-            }
-        }
-
-        // ==========================================
-        // RENDERIZAÇÃO: HISTÓRICO COM FILTROS
-        // ==========================================
-        window.renderReportsLogFiltered = function(isEvent = false, page = 1) {
-            historyIsEvent = isEvent;
-            const tbody = document.getElementById('reports-log');
-            if (!tbody) return;
-            const listToUse = isEvent ? eventReportsData : reportsData;
-
-            // Lê valores dos filtros
-            const searchEl = document.getElementById('history-search');
-            const dateEl = document.getElementById('history-date-filter');
-            const searchTerm = (searchEl ? searchEl.value : historySearchTerm).trim().toLowerCase();
-            const dateFilter = dateEl ? dateEl.value : historyDateFilter;
-            historySearchTerm = searchTerm;
-            historyDateFilter = dateFilter;
-
-            // Calcula corte de data
-            let dateCut = null;
-            const now = new Date();
-            if (dateFilter === 'today') { dateCut = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
-            else if (dateFilter === 'week') { dateCut = new Date(now - 7*24*60*60*1000); }
-            else if (dateFilter === 'month') { dateCut = new Date(now.getFullYear(), now.getMonth(), 1); }
-
-            let filtered = [...listToUse];
-            if (searchTerm) {
-                filtered = filtered.filter(d => {
-                    const allMembers = [...(d.killerIds||[]), ...(d.assistIds||[]), ...(d.healerIds||[]), ...(d.executorIds||[])].join(' ').toLowerCase();
-                    const allTargets = (d.targets ? d.targets.map(t=>t.name).join(' ') : (d.targetName||'')).toLowerCase();
-                    return allMembers.includes(searchTerm) || allTargets.includes(searchTerm) || (d.reportId||'').toLowerCase().includes(searchTerm);
-                });
-            }
-            if (dateCut) { filtered = filtered.filter(d => d.timestamp && new Date(d.timestamp) >= dateCut); }
-
-            const sorted = filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-            const totalPages = Math.ceil(sorted.length / 10);
-            if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
-
-            tbody.innerHTML = '';
-            if (sorted.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>`; const old = document.querySelector('.r-pag'); if(old) old.remove(); return; }
-
-            sorted.slice((page-1)*10, page*10).forEach(d => {
-                let formattedDate = d.timestamp ? new Date(d.timestamp).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-                let mTxt = '';
-                if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block">Killer: ${d.killerIds.join(', ')}</span>`;
-                if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block">Assist: ${d.assistIds.join(', ')}</span>`;
-                if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
-                if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block">Heal: ${d.healerIds.join(', ')}</span>`;
-                const tTxt = d.targets ? d.targets.map(t=>t.name).join(', ') : (d.targetName||'N/A');
-                const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-2"><button onclick="window.editReport('${d.reportId}',${isEvent})" class="text-blue-400 bg-gray-900 py-1 px-2 rounded text-xs">✏️</button><button onclick="window.deleteReport('${d.reportId}',${isEvent})" class="text-red-500 bg-gray-900 py-1 px-2 rounded text-xs">🗑️</button></div>` : '';
-                tbody.innerHTML += `<tr class="hover:bg-gray-700/50"><td class="p-3 text-xs font-mono align-top">${formattedDate}<br>${d.reportId}${btns}</td><td class="p-3 text-sm align-top">${mTxt}</td><td class="p-3 text-sm text-orange-300 capitalize align-top">${tTxt}</td><td class="p-3 text-sm text-white font-bold align-top">${d.totalPointsRaw||0} Pts</td></tr>`;
-            });
-
-            const cont = tbody.closest('.overflow-x-auto');
-            if (cont && cont.parentElement) {
-                let old = cont.parentElement.querySelector('.r-pag'); if (old) old.remove();
-                if (totalPages > 1) {
-                    const div = document.createElement('div'); div.className = 'flex justify-center gap-4 mt-4 r-pag';
-                    div.innerHTML = `<button onclick="window.renderReportsLogFiltered(${isEvent},${page-1})" class="px-4 py-2 bg-gray-700 text-white rounded" ${page===1?'disabled':''}>Anterior</button><span class="p-2 text-gray-300 bg-gray-800 rounded">Pág ${page}/${totalPages}</span><button onclick="window.renderReportsLogFiltered(${isEvent},${page+1})" class="px-4 py-2 bg-gray-700 text-white rounded" ${page===totalPages?'disabled':''}>Próxima</button>`;
-                    cont.parentElement.appendChild(div);
-                }
-            }
-        }
-
-        // ==========================================
-        // RENDERIZAÇÃO: PERFIL DO NINJA (NOVO)
-        // ==========================================
-        window.renderNinjaProfile = function(filterId, page = 1) {
-            const sumDiv = document.getElementById('guardian-summary');
-            const histDiv = document.getElementById('profile-history-container');
-            if (!filterId) { if(sumDiv) sumDiv.classList.add('hidden'); if(histDiv) histDiv.classList.add('hidden'); return; }
-            const nData = ninjasData[filterId];
-            if (!nData || !sumDiv) return;
-
-            const all = [...reportsData, ...eventReportsData];
-            let kC=0, aC=0, hC=0, mHist=[];
-            const targetsCounter = {};
-
-            all.forEach(r => {
-                let part = false;
-                const trg = r.targets?.length || 1;
-                if (r.killerIds?.includes(filterId)) { kC += trg; part = true; }
-                if (r.assistIds?.includes(filterId)) { aC += trg; part = true; }
-                if (r.healerIds?.includes(filterId)) { hC += trg; part = true; }
-                if (r.executorIds?.includes(filterId) && (!r.killerIds || !r.killerIds.includes(filterId))) { kC += trg; part = true; }
-                if (part) {
-                    mHist.push(r);
-                    // Conta alvos mais eliminados
-                    if (Array.isArray(r.targets)) {
-                        r.targets.forEach(t => {
-                            if (t.name) { const k = t.name.trim().toLowerCase(); targetsCounter[k] = (targetsCounter[k] || { name: t.name.trim(), count: 0 }); targetsCounter[k].count++; }
-                        });
-                    }
-                }
-            });
-
-            // Alvo mais eliminado
-            const topTargets = Object.values(targetsCounter).sort((a,b) => b.count - a.count);
-            const topAlvo = topTargets[0];
-
-            // Rank no scoreboard geral
-            const ranked = Object.values(ninjasData).filter(n => n.isActive && n.id).sort((a,b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
-            const rankPos = ranked.findIndex(n => n.id === filterId) + 1;
-
-            // Barra de combate
-            const total = kC + aC + hC || 1;
-            const pctK = Math.round((kC / total) * 100);
-            const pctA = Math.round((aC / total) * 100);
-            const pctH = Math.round((hC / total) * 100);
-
-            // Parceiros mais frequentes
-            const parceiroMap = {};
-            mHist.forEach(r => {
-                const todos = [...(r.killerIds||[]), ...(r.assistIds||[]), ...(r.healerIds||[])];
-                todos.forEach(id => {
-                    if (id !== filterId) { parceiroMap[id] = (parceiroMap[id]||0) + 1; }
-                });
-            });
-            const topParceiros = Object.entries(parceiroMap).sort((a,b) => b[1]-a[1]).slice(0,3);
-
-            const avatar = nData.avatarUrl
-                ? nData.avatarUrl
-                : `https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true`;
-
-            const discordBadge = nData.discordId
-                ? `<span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded-full text-xs">🔗 Discord</span>`
-                : '';
-
-            sumDiv.innerHTML = `
-            <div class="bg-gray-800 rounded-xl p-6 space-y-5">
-
-                <!-- HEADER: avatar + nome + pontos -->
-                <div class="profile-header">
-                    <img src="${avatar}" class="profile-avatar-sm" onerror="this.src='https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200'">
-                    <div class="flex-grow min-w-0">
-                        <h3 class="text-2xl font-black text-white truncate">${filterId}</h3>
-                        <div class="flex flex-wrap gap-2 mt-1 items-center">
-                            <span class="px-2 py-0.5 ${nData.isActive ? 'bg-green-900/60 text-green-400' : 'bg-red-900/60 text-red-400'} rounded-full text-xs font-bold">${nData.isActive ? '🟢 Ativo' : '🔴 Inativo'}</span>
-                            <span class="px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full text-xs">${nData.element||'N/A'}</span>
-                            ${discordBadge}
-                            ${rankPos > 0 ? `<span class="px-2 py-0.5 bg-yellow-900/50 text-yellow-400 rounded-full text-xs font-bold">${getRankIcon(rankPos)} Rank Geral</span>` : ''}
-                        </div>
+        const maxPts = ranked.length > 0 ? Number(ranked[0].rankPoints||1) : 1;
+        document.getElementById('homeRankPreview').innerHTML = ranked.slice(0,5).map((r, i) => {
+            const w = Math.min(100, Math.max(5, (Number(r.rankPoints||0)/maxPts)*100)) + '%';
+            return `<div class="flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition-transform" onclick="window.goToProfile('${r.id}')">
+                <div class="w-8 h-8 rounded-full ${i === 0 ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-xs font-bold">${i+1}</div>
+                <div class="flex-1">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-bold text-slate-200">${capitalizeName(r.id)}</span>
+                        <span class="text-xs font-mono text-slate-400">${Math.round(r.rankPoints||0)}</span>
                     </div>
-                    <div class="profile-pts-block flex-shrink-0">
-                        <div class="text-3xl font-black text-green-400">${Math.round(nData.rankPoints||0)}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">Pts Geral</div>
-                        ${Number(nData.eventPoints||0) > 0 ? `<div class="text-lg font-bold text-yellow-400 mt-1">${Math.round(nData.eventPoints)} <span class="text-xs">Evento</span></div>` : ''}
-                    </div>
+                    <div class="progress-bar"><div class="h-full ${i===0?'bg-red-500':'bg-blue-500'}" style="width: ${w}"></div></div>
                 </div>
-
-                <!-- STATS -->
-                <div>
-                    <div class="profile-section-title">Estatísticas de Combate</div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div class="stat-card">
-                            <div class="stat-card-val text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div>
-                            <div class="stat-card-lbl">Caçadas</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-card-val text-red-400">${kC}</div>
-                            <div class="stat-card-lbl">Como Killer</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-card-val text-orange-400">${aC}</div>
-                            <div class="stat-card-lbl">Assists</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-card-val text-green-400">${hC}</div>
-                            <div class="stat-card-lbl">Heals</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- BARRA DE PERFIL DE COMBATE -->
-                <div>
-                    <div class="profile-section-title">Perfil de Combate — Killer ${pctK}% · Assist ${pctA}% · Heal ${pctH}%</div>
-                    <div class="combat-bar">
-                        <div class="combat-bar-seg bg-red-600" style="width:${pctK}%"></div>
-                        <div class="combat-bar-seg bg-orange-500" style="width:${pctA}%"></div>
-                        <div class="combat-bar-seg bg-green-600" style="width:${pctH}%"></div>
-                    </div>
-                </div>
-
-                <!-- ALVO MAIS ELIMINADO + PARCEIROS -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-gray-900 rounded-lg p-4">
-                        <div class="profile-section-title">Alvos Mais Eliminados</div>
-                        ${topTargets.length === 0 ? `<p class="text-gray-500 text-sm">Nenhum dado.</p>` :
-                            topTargets.slice(0,3).map((t,i) => `
-                            <div class="flex justify-between items-center py-1 border-b border-gray-800 last:border-0">
-                                <span class="text-sm text-orange-300 capitalize">${['🥇','🥈','🥉'][i]||''} ${t.name}</span>
-                                <span class="text-xs font-bold text-red-400">${t.count}x</span>
-                            </div>`).join('')}
-                    </div>
-                    <div class="bg-gray-900 rounded-lg p-4">
-                        <div class="profile-section-title">Parceiros Frequentes</div>
-                        ${topParceiros.length === 0 ? `<p class="text-gray-500 text-sm">Nenhum dado.</p>` :
-                            topParceiros.map(([id, count]) => `
-                            <div class="flex justify-between items-center py-1 border-b border-gray-800 last:border-0">
-                                <span class="text-sm text-blue-300 cursor-pointer hover:underline" onclick="document.getElementById('ninja-filter-select').value='${id}';window.renderNinjaProfile('${id}',1)">${id}</span>
-                                <span class="text-xs text-gray-400">${count} missões juntos</span>
-                            </div>`).join('')}
-                    </div>
-                </div>
-
             </div>`;
+        }).join('');
 
-            sumDiv.classList.remove('hidden');
+        const rcp = [...reportsData].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 4);
+        document.getElementById('activityFeed').innerHTML = rcp.map(a => {
+            const members = [...(a.killerIds||[]), ...(a.assistIds||[])].slice(0,2).map(capitalizeName).join(', ') + (a.killerIds?.length > 2 ? '...' : '');
+            return `<div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition">
+                <div>
+                    <div class="text-sm font-bold text-white">${members || 'Esquadrão'}</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-wide mt-0.5">${new Date(a.timestamp).toLocaleDateString('pt-BR')} · ${capitalizeName(a.targets?.[0]?.name||'Alvo')}</div>
+                </div>
+                <div class="badge-points">+${a.totalPointsRaw||0}</div>
+            </div>`;
+        }).join('') || '<p class="text-slate-500 text-sm">Nenhuma atividade.</p>';
+    }
 
-            // Histórico
-            const tbody = document.getElementById('profile-history-log');
-            tbody.innerHTML = '';
-            mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-            const totalPages = Math.ceil(mHist.length / 10);
-            if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
-
-            if (mHist.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Nenhuma missão registrada.</td></tr>`;
-                const p = document.querySelector('.p-pag'); if(p) p.remove();
-            } else {
-                mHist.slice((page-1)*10, page*10).forEach(d => {
-                    let mTxt = '';
-                    if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block">Killer: ${d.killerIds.join(', ')}</span>`;
-                    if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block">Assist: ${d.assistIds.join(', ')}</span>`;
-                    if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
-                    if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block">Heal: ${d.healerIds.join(', ')}</span>`;
-                    const tag = d.isEvent ? '<span class="bg-yellow-900 text-yellow-400 text-[10px] px-1 rounded block w-max mt-1">EVENTO</span>' : '';
-                    const roleTag = d.killerIds?.includes(filterId) ? '<span class="text-red-400 text-[10px] font-bold">[K]</span>'
-                        : d.assistIds?.includes(filterId) ? '<span class="text-orange-400 text-[10px] font-bold">[A]</span>'
-                        : d.healerIds?.includes(filterId) ? '<span class="text-green-400 text-[10px] font-bold">[H]</span>' : '';
-                    tbody.innerHTML += `<tr class="hover:bg-gray-700/50">
-                        <td class="p-2 text-xs font-mono align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br>${d.reportId}${tag}</td>
-                        <td class="p-2 text-sm align-top">${mTxt}</td>
-                        <td class="p-2 text-sm text-orange-300 capitalize align-top">${d.targets ? d.targets.map(t=>t.name).join(', ') : (d.targetName||'N/A')}</td>
-                        <td class="p-2 text-sm text-white font-bold align-top">${d.totalPointsRaw||0} Pts ${roleTag}</td>
-                    </tr>`;
-                });
-                const cont = tbody.closest('.overflow-x-auto');
-                if (cont && cont.parentElement) {
-                    let old = cont.parentElement.querySelector('.p-pag'); if (old) old.remove();
-                    if (totalPages > 1) {
-                        const div = document.createElement('div'); div.className = 'flex justify-center gap-4 mt-4 p-pag';
-                        div.innerHTML = `<button onclick="window.renderNinjaProfile('${filterId}',${page-1})" class="px-4 py-2 bg-gray-700 text-white rounded" ${page===1?'disabled':''}>Anterior</button><span class="p-2 text-gray-300 bg-gray-800 rounded">Pág ${page}/${totalPages}</span><button onclick="window.renderNinjaProfile('${filterId}',${page+1})" class="px-4 py-2 bg-gray-700 text-white rounded" ${page===totalPages?'disabled':''}>Próxima</button>`;
-                        cont.parentElement.appendChild(div);
-                    }
-                }
-            }
-            histDiv.classList.remove('hidden');
+    // SCOREBOARD (RANK GERAL E EVENTO)
+    window.renderScoreboard = function(isEvent = false) {
+        const tbody = document.getElementById(isEvent ? 'eventRankTable' : 'fullRankTable');
+        if (!tbody) return;
+        
+        const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id);
+        const pointProp = isEvent ? 'eventPoints' : 'rankPoints';
+        
+        guardians.sort((a, b) => Number(b[pointProp] || 0) - Number(a[pointProp] || 0));
+        
+        if(guardians.length === 0 || (isEvent && guardians[0][pointProp] == 0)) {
+            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum dado computado.</td></tr>`;
+            return;
         }
 
-        // ==========================================
-        // RENDERIZAÇÃO DE PÁGINAS
-        // ==========================================
-        window.renderPage = function(pageName) {
-            if (pageName !== 'report_form' && pageName !== 'audit_panel') {
-                window.isEditingMode = false;
-                processingPendingId = null;
-            }
-            currentPage = pageName;
-            const contentDiv = document.getElementById('content');
-            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            if (document.getElementById(`nav-${pageName}`)) document.getElementById(`nav-${pageName}`).classList.add('active');
-            contentDiv.innerHTML = '';
-
-            switch (pageName) {
-                case 'home':
-                    contentDiv.innerHTML = `<section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-4">
-                        <h2 class="text-3xl font-bold text-red-400">QG Forças Especiais da Leaf</h2>
-                        <p class="text-gray-400 max-w-md mx-auto text-sm">Sistema de rastreamento de missões ANBU. Acompanhe rankings, perfis e histórico de caçadas.</p>
-                        <div class="flex justify-center gap-3 pt-2 flex-wrap">
-                            <button onclick="window.renderPage('scoreboard')" class="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg font-bold text-sm">Ver Ranking</button>
-                            <button onclick="window.renderPage('ninja_panel')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm">Ver Perfis</button>
+        tbody.innerHTML = guardians.filter(n => !isEvent || n[pointProp] > 0).map((r, i) => {
+            const pts = Math.round(r[pointProp] || 0);
+            const imgInitials = capitalizeName(r.id).substring(0,2);
+            
+            // Calculando Kills, Assists e Heals no momento da renderização
+            const stats = getNinjaStats(r.id, isEvent);
+            
+            return `
+            <tr class="group hover:bg-white/[0.04] transition-colors cursor-pointer" onclick="window.goToProfile('${r.id}')">
+                <td class="py-4 pl-2">
+                    <span class="${i === 0 ? (isEvent?'text-yellow-500':'text-red-500') + ' font-black' : 'text-slate-500 font-bold'} group-hover:text-white transition-colors">#${i+1}</span>
+                </td>
+                <td class="py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full ${i === 0 ? (isEvent?'bg-yellow-600 shadow-yellow-600/30':'bg-red-600 shadow-red-600/30') : 'bg-slate-700'} flex items-center justify-center text-xs font-bold text-white relative overflow-hidden shadow-lg group-hover:scale-110 transition-transform">
+                            ${r.avatarUrl ? `<img src="${r.avatarUrl}" class="w-full h-full object-cover absolute">` : imgInitials}
                         </div>
-                    </section>`;
-                    break;
-
-                case 'scoreboard':
-                    contentDiv.innerHTML = `<section class="space-y-4 pt-8">
-                        <h2 class="text-3xl font-bold text-red-400 text-center">Rank Geral (Dia-a-Dia)</h2>
-                        <div id="scoreboard-totals" class="grid grid-cols-3 gap-3 max-w-md mx-auto"></div>
-                        <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-700"><tr>
-                                <th class="p-3 text-left text-xs text-gray-300">Rank</th>
-                                <th class="p-3 text-left text-xs text-gray-300">Membro</th>
-                                <th class="p-3 text-left text-xs text-gray-300">Pontos</th>
-                                <th class="p-3 text-left text-xs text-gray-300">Missões</th>
-                            </tr></thead><tbody id="ninjas-scoreboard" class="divide-y divide-gray-700"></tbody></table>
+                        <div>
+                            <div class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${capitalizeName(r.id)}</div>
+                            <div class="text-[9px] uppercase tracking-widest font-bold ${isEvent ? 'text-yellow-600':'text-slate-500'} mt-0.5">${r.org || 'ANBU'}</div>
                         </div>
-                    </section>`;
-                    window.renderScoreboard(false);
-                    break;
-
-                case 'event_panel':
-                    contentDiv.innerHTML = `<section class="space-y-4 pt-8">
-                        <h2 class="text-3xl font-black text-yellow-400 text-center uppercase">🌟 RANK DO EVENTO 🌟</h2>
-                        <div id="scoreboard-totals" class="grid grid-cols-3 gap-3 max-w-md mx-auto"></div>
-                        <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-900 border-b border-yellow-600/50"><tr>
-                                <th class="p-3 text-left text-xs text-yellow-400">Rank</th>
-                                <th class="p-3 text-left text-xs text-yellow-400">Membro</th>
-                                <th class="p-3 text-left text-xs text-yellow-400">Pts Evento</th>
-                                <th class="p-3 text-left text-xs text-yellow-400">Missões</th>
-                            </tr></thead><tbody id="event-scoreboard" class="divide-y divide-gray-700"></tbody></table>
-                        </div>
-                    </section>`;
-                    window.renderScoreboard(true);
-                    break;
-
-                case 'targets_log':
-                    contentDiv.innerHTML = `<section class="space-y-4 pt-8">
-                        <h2 class="text-3xl font-bold text-orange-400 text-center">Lista de Procurados</h2>
-                        <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-700"><tr>
-                                <th class="p-3 text-left text-xs">Posição</th>
-                                <th class="p-3 text-left text-xs">Nick do Alvo</th>
-                                <th class="p-3 text-left text-xs">Vezes Finalizado</th>
-                                <th class="p-3 text-left text-xs">Total BT Base</th>
-                            </tr></thead><tbody id="targets-scoreboard" class="divide-y divide-gray-700"></tbody></table>
-                        </div>
-                    </section>`;
-                    window.renderTargetsTable(1);
-                    break;
-
-                case 'reports_log':
-                    contentDiv.innerHTML = `<section class="space-y-4 pt-8">
-                        <h2 class="text-3xl font-bold text-red-400 text-center">Histórico de Missões</h2>
-                        <div class="flex justify-center gap-4 mb-2">
-                            <button onclick="window.renderReportsLogFiltered(false,1)" class="px-4 py-2 bg-gray-700 rounded text-white font-bold">Geral</button>
-                            <button onclick="window.renderReportsLogFiltered(true,1)" class="px-4 py-2 bg-yellow-900/50 rounded text-yellow-400 font-bold border border-yellow-600/50">Eventos 🌟</button>
-                        </div>
-                        <div class="filter-bar">
-                            <input id="history-search" type="text" placeholder="Buscar por nick, alvo ou ID..." value="${historySearchTerm}"
-                                oninput="window.renderReportsLogFiltered(${historyIsEvent},1)"
-                                class="flex-grow">
-                            <select id="history-date-filter" onchange="window.renderReportsLogFiltered(${historyIsEvent},1)">
-                                <option value="all" ${historyDateFilter==='all'?'selected':''}>Todos os períodos</option>
-                                <option value="today" ${historyDateFilter==='today'?'selected':''}>Hoje</option>
-                                <option value="week" ${historyDateFilter==='week'?'selected':''}>Últimos 7 dias</option>
-                                <option value="month" ${historyDateFilter==='month'?'selected':''}>Este mês</option>
-                            </select>
-                        </div>
-                        <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-700"><tr>
-                                <th class="p-3 text-left text-xs">Data / ID</th>
-                                <th class="p-3 text-left text-xs">Membros</th>
-                                <th class="p-3 text-left text-xs">Alvos</th>
-                                <th class="p-3 text-left text-xs">Pontos</th>
-                            </tr></thead><tbody id="reports-log" class="divide-y divide-gray-700"></tbody></table>
-                        </div>
-                    </section>`;
-                    window.renderReportsLogFiltered(historyIsEvent, 1);
-                    break;
-
-                case 'ninja_panel':
-                    const opt = Object.values(ninjasData).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).filter(n=>n.id).map(n=>`<option value="${n.id}">${n.id}</option>`).join('');
-                    contentDiv.innerHTML = `<section class="space-y-6 pt-4">
-                        <h2 class="text-3xl font-bold text-red-400 text-center">Dossiê Militar</h2>
-                        <div class="max-w-md mx-auto">
-                            <select id="ninja-filter-select" onchange="window.renderNinjaProfile(this.value,1)" class="w-full p-2.5 rounded-lg bg-gray-700 text-white font-bold">
-                                <option value="">-- Escolha um Membro --</option>${opt}
-                            </select>
-                        </div>
-                        <div id="guardian-summary" class="w-full max-w-5xl mx-auto hidden"></div>
-                        <div id="profile-history-container" class="bg-gray-800 p-4 rounded-xl mt-4 hidden">
-                            <h3 class="text-xl text-gray-300 font-bold mb-4">Histórico de Participações</h3>
-                            <div class="overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-700"><tr>
-                                <th class="p-3 text-left text-xs">Data/ID</th>
-                                <th class="p-3 text-left text-xs">Membros</th>
-                                <th class="p-3 text-left text-xs">Alvos</th>
-                                <th class="p-3 text-left text-xs">Pontos</th>
-                            </tr></thead><tbody id="profile-history-log" class="divide-y divide-gray-700"></tbody></table>
-                            </div>
-                        </div>
-                    </section>`;
-                    break;
-
-                case 'audit_panel':
-                    contentDiv.innerHTML = window.renderAuditPanel();
-                    break;
-
-                case 'report_form':
-                    contentDiv.innerHTML = `<section class="bg-gray-800 p-6 rounded-xl space-y-6">
-                        <h2 class="text-3xl font-semibold border-b pb-3 border-gray-700 text-red-400 text-center">Registro de Missão</h2>
-                        <div class="bg-gray-900 p-4 rounded-lg">
-                            <label class="block text-sm text-gray-300 mb-2">Destino:</label>
-                            <div class="flex gap-6">
-                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="daily" checked class="h-5 w-5"><span class="text-white font-bold">Geral</span></label>
-                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="event" class="h-5 w-5"><span class="text-yellow-400 font-bold">Evento 🌟</span></label>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm text-gray-300">Killer</label>
-                                <div class="flex gap-2"><select id="new-killer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('killer')" class="px-4 bg-red-600 text-white rounded font-bold">Add</button></div>
-                                <div id="killers-tag-container" class="executor-list-container mt-2"></div>
-                            </div>
-                            <div>
-                                <label class="block text-sm text-gray-300">Assist</label>
-                                <div class="flex gap-2"><select id="new-assist-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('assist')" class="px-4 bg-orange-600 text-white rounded font-bold">Add</button></div>
-                                <div id="assists-tag-container" class="executor-list-container mt-2"></div>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm text-gray-300">Healer</label>
-                                <div class="flex gap-2"><select id="new-healer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('healer')" class="px-4 bg-green-600 text-white rounded font-bold">Add</button></div>
-                                <div id="healers-tag-container" class="executor-list-container mt-2"></div>
-                            </div>
-                        </div>
-                        <div class="space-y-4 border-t border-gray-700 pt-4">
-                            <div class="flex justify-between">
-                                <h3 class="text-xl font-bold text-red-400">Alvos</h3>
-                                <button onclick="window.addTargetEntry()" class="py-1 px-3 bg-blue-600 text-white rounded font-bold">➕ Add Alvo</button>
-                            </div>
-                            <div id="targets-container" class="space-y-4"></div>
-                        </div>
-                        <div class="space-y-2 border-t border-gray-700 pt-4">
-                            <input id="report-id-display" type="text" readonly class="w-full p-2 bg-gray-600 text-red-300 font-mono cursor-not-allowed">
-                        </div>
-                        <div class="space-y-2 pt-4">
-                            <input id="total-points" type="text" readonly class="w-full p-2 bg-gray-600 text-green-400 font-bold cursor-not-allowed">
-                        </div>
-                        <button id="submit-report" class="w-full py-3 mt-4 bg-red-600/50 text-white font-bold rounded cursor-not-allowed" disabled onclick="window.submitReport()">Salvar Caçada</button>
-                    </section>`;
-
-                    if (!isWriterMode) { contentDiv.innerHTML = '<p class="text-center text-red-500 pt-8 font-bold text-xl">Faça Login na aba Acesso Restrito.</p>'; break; }
-                    if (!window.isEditingMode && !processingPendingId) {
-                        selectedKillers = []; selectedAssists = []; selectedHealers = []; targetEntryCount = 0;
-                        window.addTargetEntry(); window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); window.updateDescriptionPreview();
-                    }
-                    break;
-
-                case 'admin_panel':
-                    const accessStatus = isMasterAdminMode
-                        ? `<div class="text-center text-green-400 font-bold text-lg p-2">✅ MASTER ADMIN ATIVO</div>`
-                        : (isWriterMode
-                            ? `<div class="text-yellow-400 font-bold text-lg p-2">✅ ANBU ESCRITOR ATIVO</div>`
-                            : `<div class="text-center text-red-400 font-bold text-lg p-2">❌ ACESSO INATIVO</div>`);
-
-                    contentDiv.innerHTML = `
-                    <section class="space-y-4 pt-4 pb-4 bg-gray-900 p-6 rounded-xl border border-red-500/50">
-                        <h2 class="text-2xl font-bold text-red-400 text-center">Login Restrito</h2>
-                        <div id="admin-status-display">${accessStatus}</div>
-                        <div class="flex flex-col md:flex-row gap-4 max-w-lg mx-auto">
-                            <input id="access-id-input" type="text" placeholder="Seu ID" class="flex-grow p-2.5 rounded-lg bg-gray-700 text-white">
-                            <input id="access-key-input" type="password" placeholder="Sua Senha" class="flex-grow p-2.5 rounded-lg bg-gray-700 text-white">
-                            <button class="w-full md:w-auto py-2 px-4 bg-red-600 text-white font-bold rounded-lg" onclick="window.checkAccessKey()">Logar</button>
-                        </div>
-                    </section>
-
-                    <section class="space-y-4 pt-8 pb-16 admin-only hidden">
-                        <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs</h2>
-                        <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row gap-4 flex-wrap">
-                            <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2.5 rounded-lg bg-gray-800 text-white">
-                            <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
-                                ${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}
-                            </select>
-                            <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
-                                <option value="">2ª (Opcional)</option>
-                                ${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}
-                            </select>
-                            <button class="py-2.5 px-4 bg-yellow-600 text-white font-bold rounded-lg" onclick="window.addNinja()">Cadastrar</button>
-                        </div>
-                        <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
-                            <table class="min-w-full"><thead class="bg-gray-700"><tr>
-                                <th class="p-3 text-left text-xs">Membro</th>
-                                <th class="p-3 text-left text-xs">Maestria</th>
-                                <th class="p-3 text-left text-xs">Discord ID</th>
-                                <th class="p-3 text-left text-xs">Status</th>
-                                <th class="p-3 text-right text-xs admin-only hidden">Ações</th>
-                            </tr></thead><tbody id="ninjas-cadastro" class="divide-y divide-gray-700"></tbody></table>
-                        </div>
-                    </section>
-
-                    <div id="writer-tools" class="pt-8 space-y-4 writer-only hidden">
-                        <h3 class="text-xl font-bold text-red-400 border-b border-red-400/50 pb-2">Manutenção</h3>
-                        <button onclick="window.recalculateAllRanks()" class="w-full py-2 px-4 bg-red-600 text-white font-bold rounded-lg text-lg">🔄 Recalcular Todos os Ranks</button>
                     </div>
-                    <div id="admin-tools" class="pt-4 space-y-4 admin-only hidden">
-                        <h3 class="text-xl font-bold text-red-500 border-b border-red-500/50 pb-2">Exclusão</h3>
-                        <button onclick="window.clearReportsLog()" class="w-full py-2 px-4 bg-red-700 text-white font-bold rounded-lg">⚔️ Excluir Histórico de Registros (ZERA Ranks)</button>
-                    </div>`;
+                </td>
+                <td class="py-4">
+                    <div class="flex items-center gap-4 justify-center md:justify-start">
+                        <div class="text-center"><div class="text-sm font-bold text-red-400">${stats.k}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Kills</div></div>
+                        <div class="text-center"><div class="text-sm font-bold text-orange-400">${stats.a}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Assists</div></div>
+                        <div class="text-center"><div class="text-sm font-bold text-green-400">${stats.h}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Heals</div></div>
+                    </div>
+                </td>
+                <td class="py-4 text-right pr-2">
+                    <div class="text-lg font-mono font-bold text-white group-hover:text-blue-400 transition-colors">${pts}</div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
 
-                    window.renderNinjasTable();
-                    break;
+    // HISTORICO
+    window.setHistoryMode = function(isEvent) {
+        historyIsEvent = isEvent;
+        document.getElementById('btn-hist-geral').className = isEvent ? 'px-4 py-2 bg-gray-800 text-red-500 border border-red-900/50 rounded-lg font-bold text-sm transition' : 'px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm transition shadow-lg shadow-red-600/20';
+        document.getElementById('btn-hist-evento').className = isEvent ? 'px-4 py-2 bg-yellow-600 text-white rounded-lg font-bold text-sm transition shadow-lg shadow-yellow-600/20' : 'px-4 py-2 bg-gray-800 text-yellow-500 border border-yellow-600/50 rounded-lg font-bold text-sm transition';
+        window.renderReportsLogFiltered();
+    }
+
+    window.renderReportsLogFiltered = function(page = 1) {
+        const tbody = document.getElementById('reports-log');
+        if (!tbody) return;
+        const listToUse = historyIsEvent ? eventReportsData : reportsData;
+
+        const searchTerm = document.getElementById('history-search').value.trim().toLowerCase();
+        const dateFilter = document.getElementById('history-date-filter').value;
+
+        let dateCut = null; const now = new Date();
+        if (dateFilter === 'today') dateCut = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        else if (dateFilter === 'week') dateCut = new Date(now - 7*24*60*60*1000);
+        else if (dateFilter === 'month') dateCut = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        let filtered = listToUse.filter(d => {
+            const allMembers = [...(d.killerIds||[]), ...(d.assistIds||[]), ...(d.healerIds||[])].join(' ').toLowerCase();
+            const allTargets = (d.targets ? d.targets.map(t=>t.name).join(' ') : '').toLowerCase();
+            const matchSearch = !searchTerm || allMembers.includes(searchTerm) || allTargets.includes(searchTerm) || (d.reportId||'').toLowerCase().includes(searchTerm);
+            const matchDate = !dateCut || (d.timestamp && new Date(d.timestamp) >= dateCut);
+            return matchSearch && matchDate;
+        });
+
+        const sorted = filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const totalPages = Math.ceil(sorted.length / 10);
+        if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
+
+        tbody.innerHTML = '';
+        if (sorted.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum registro encontrado.</td></tr>`; const old = document.querySelector('.r-pag'); if(old) old.remove(); return; }
+
+        sorted.slice((page-1)*10, page*10).forEach(d => {
+            const dateStr = d.timestamp ? new Date(d.timestamp).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+            const tag = historyIsEvent ? '<span class="bg-yellow-900/50 text-yellow-500 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-2">Evento</span>' : '';
+            
+            let mTxt = '<div class="flex flex-wrap gap-1">';
+            if(d.killerIds?.length) d.killerIds.forEach(id => mTxt += `<span class="executor-tag killer-tag text-[10px] py-0.5">${capitalizeName(id)}</span>`);
+            if(d.assistIds?.length) d.assistIds.forEach(id => mTxt += `<span class="executor-tag assist-tag text-[10px] py-0.5">${capitalizeName(id)}</span>`);
+            if(d.healerIds?.length) d.healerIds.forEach(id => mTxt += `<span class="executor-tag healer-tag text-[10px] py-0.5">${capitalizeName(id)}</span>`);
+            mTxt += '</div>';
+
+            const tTxt = d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A';
+            const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-2"><button onclick="window.editReport('${d.reportId}',${historyIsEvent})" class="text-blue-400 hover:text-white bg-white/5 px-2 py-1 rounded text-[10px] uppercase font-bold transition">Editar</button><button onclick="window.deleteReport('${d.reportId}',${historyIsEvent})" class="text-red-500 hover:text-white bg-white/5 px-2 py-1 rounded text-[10px] uppercase font-bold transition">Del</button></div>` : '';
+            
+            tbody.innerHTML += `
+            <tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="py-4 align-top text-xs font-mono text-slate-400">${dateStr}<br><span class="text-[9px] text-slate-600">${d.reportId}</span>${tag}${btns}</td>
+                <td class="py-4 align-top">${mTxt}</td>
+                <td class="py-4 align-top text-sm text-orange-300 font-medium">${tTxt}</td>
+                <td class="py-4 align-top font-bold text-white">${d.totalPointsRaw||0} pts</td>
+            </tr>`;
+        });
+
+        const cont = tbody.closest('.overflow-x-auto');
+        if (cont && cont.parentElement) {
+            let old = cont.parentElement.querySelector('.r-pag'); if (old) old.remove();
+            if (totalPages > 1) {
+                const div = document.createElement('div'); div.className = 'flex justify-center gap-2 mt-4 r-pag';
+                div.innerHTML = `<button onclick="window.renderReportsLogFiltered(${page-1})" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs font-bold text-white transition" ${page===1?'disabled':''}>◀</button><span class="px-3 py-1.5 text-xs font-bold text-slate-400">Pág ${page}/${totalPages}</span><button onclick="window.renderReportsLogFiltered(${page+1})" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs font-bold text-white transition" ${page===totalPages?'disabled':''}>▶</button>`;
+                cont.parentElement.appendChild(div);
             }
-
-            document.querySelectorAll('.writer-only').forEach(el => isWriterMode ? el.classList.remove('hidden') : el.classList.add('hidden'));
-            document.querySelectorAll('.admin-only').forEach(el => isMasterAdminMode ? el.classList.remove('hidden') : el.classList.add('hidden'));
         }
+    }
 
-        // ==========================================
-        // FIREBASE INIT
-        // ==========================================
-        async function initializeFirebase() {
+    // ALVOS
+    window.renderTargetsTable = function(page = 1) {
+        const tbody = document.getElementById('targets-scoreboard');
+        if (!tbody) return;
+        const targetsMap = {};
+        [...reportsData, ...eventReportsData].forEach(r => {
+            if (Array.isArray(r.targets)) {
+                r.targets.forEach(t => { if (t && t.name) { const n = t.name.trim().toLowerCase(); if (!targetsMap[n]) targetsMap[n] = { name: t.name.trim(), count: 0, totalBT: 0 }; targetsMap[n].count += 1; targetsMap[n].totalBT += (t.btBase || 0); } });
+            }
+        });
+        const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
+        const totalPages = Math.ceil(sortedTargets.length / 10);
+        if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
+        
+        tbody.innerHTML = '';
+        if (sortedTargets.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum alvo abatido ainda.</td></tr>`; return; }
+        
+        sortedTargets.slice((page - 1) * 10, page * 10).forEach((t, i) => {
+            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="py-3 text-center text-slate-400 font-bold">${getRankIcon((page-1)*10+i+1)}</td>
+                <td class="py-3 text-orange-300 font-bold">${capitalizeName(t.name)}</td>
+                <td class="py-3 text-red-400 font-bold">${t.count}x</td>
+                <td class="py-3 text-slate-300 font-mono">${t.totalBT}</td>
+            </tr>`;
+        });
+    }
+
+    // PERFIL
+    window.renderNinjaProfile = function(filterId, page = 1) {
+        const sumDiv = document.getElementById('guardian-summary');
+        const histDiv = document.getElementById('profile-history-container');
+        if (!filterId) { if(sumDiv) sumDiv.classList.add('hidden'); if(histDiv) histDiv.classList.add('hidden'); return; }
+        const nData = ninjasData[filterId];
+        if (!nData || !sumDiv) return;
+
+        const all = [...reportsData, ...eventReportsData];
+        let kC=0, aC=0, hC=0, mHist=[];
+
+        all.forEach(r => {
+            let part = false; const trg = r.targets?.length || 1;
+            if (r.killerIds?.includes(filterId)) { kC += trg; part = true; }
+            if (r.assistIds?.includes(filterId)) { aC += trg; part = true; }
+            if (r.healerIds?.includes(filterId)) { hC += trg; part = true; }
+            if (part) mHist.push(r);
+        });
+
+        const ranked = Object.values(ninjasData).filter(n => n.isActive && n.id).sort((a,b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
+        const rankPos = ranked.findIndex(n => n.id === filterId) + 1;
+
+        const total = kC + aC + hC || 1;
+        const pctK = Math.round((kC / total) * 100); const pctA = Math.round((aC / total) * 100); const pctH = Math.round((hC / total) * 100);
+
+        const avatar = nData.avatarUrl ? nData.avatarUrl : `https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true`;
+
+        sumDiv.innerHTML = `
+        <div class="panel p-8 space-y-6">
+            <div class="flex items-center gap-6 border-b border-white/5 pb-6">
+                <img src="${avatar}" class="w-24 h-24 rounded-full border-4 border-slate-800 object-cover shadow-xl">
+                <div class="flex-1">
+                    <h3 class="text-3xl font-black text-white tracking-tight">${capitalizeName(filterId)}</h3>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <span class="px-2 py-0.5 ${nData.isActive ? 'bg-green-900/30 text-green-400 border-green-500/30' : 'bg-red-900/30 text-red-400 border-red-500/30'} rounded border text-[10px] font-bold uppercase">${nData.isActive ? 'Ativo' : 'Inativo'}</span>
+                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-white/5 text-[10px] uppercase font-bold">${nData.org || 'ANBU'}</span>
+                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-white/5 text-[10px] uppercase font-bold">${nData.element||'S/ Maestria'}</span>
+                        ${nData.discordId ? `<span class="px-2 py-0.5 bg-indigo-900/30 text-indigo-300 rounded border border-indigo-500/30 text-[10px] font-bold uppercase flex items-center gap-1"><span>🔗</span> Discord</span>` : ''}
+                        ${rankPos > 0 ? `<span class="px-2 py-0.5 bg-red-900/30 text-red-400 rounded border border-red-500/30 text-[10px] font-bold uppercase">Rank #${rankPos}</span>` : ''}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-4xl font-black text-green-400 drop-shadow-md">${Math.round(nData.rankPoints||0)}</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Pontos Geral</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Caçadas</div></div>
+                <div class="bg-red-900/10 border border-red-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-red-400">${kC}</div><div class="text-[10px] text-red-500 uppercase tracking-widest mt-1 font-bold">Killers</div></div>
+                <div class="bg-orange-900/10 border border-orange-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-orange-400">${aC}</div><div class="text-[10px] text-orange-500 uppercase tracking-widest mt-1 font-bold">Assists</div></div>
+                <div class="bg-green-900/10 border border-green-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-green-400">${hC}</div><div class="text-[10px] text-green-500 uppercase tracking-widest mt-1 font-bold">Heals</div></div>
+            </div>
+
+            <div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 flex justify-between">
+                    <span>Estilo de Combate</span>
+                    <span>K ${pctK}% · A ${pctA}% · H ${pctH}%</span>
+                </div>
+                <div class="combat-bar">
+                    <div class="combat-bar-seg bg-red-500" style="width:${pctK}%"></div>
+                    <div class="combat-bar-seg bg-orange-400" style="width:${pctA}%"></div>
+                    <div class="combat-bar-seg bg-green-500" style="width:${pctH}%"></div>
+                </div>
+            </div>
+        </div>`;
+        sumDiv.classList.remove('hidden');
+
+        // Historico do Perfil
+        const tbody = document.getElementById('profile-history-log');
+        tbody.innerHTML = '';
+        mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const totalPages = Math.ceil(mHist.length / 10);
+        if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
+
+        if (mHist.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">Nenhuma missão.</td></tr>`; } 
+        else {
+            mHist.slice((page-1)*10, page*10).forEach(d => {
+                let mTxt = '<div class="flex flex-col gap-0.5">';
+                if(d.killerIds?.length) mTxt += `<span class="text-[10px] text-red-400 font-bold uppercase">K: ${d.killerIds.map(capitalizeName).join(', ')}</span>`;
+                if(d.assistIds?.length) mTxt += `<span class="text-[10px] text-orange-400 font-bold uppercase">A: ${d.assistIds.map(capitalizeName).join(', ')}</span>`;
+                if(d.healerIds?.length) mTxt += `<span class="text-[10px] text-green-400 font-bold uppercase">H: ${d.healerIds.map(capitalizeName).join(', ')}</span>`;
+                mTxt += '</div>';
+
+                const role = d.killerIds?.includes(filterId) ? '<span class="text-red-400 text-[10px] font-black">[K]</span>' : d.assistIds?.includes(filterId) ? '<span class="text-orange-400 text-[10px] font-black">[A]</span>' : '<span class="text-green-400 text-[10px] font-black">[H]</span>';
+                
+                tbody.innerHTML += `
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="py-3 text-xs font-mono text-slate-400 align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-slate-600">${d.reportId}</span></td>
+                    <td class="py-3 align-top">${mTxt}</td>
+                    <td class="py-3 text-sm text-orange-300 font-medium align-top">${d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A'}</td>
+                    <td class="py-3 text-sm font-bold text-white align-top">${d.totalPointsRaw||0} pts ${role}</td>
+                </tr>`;
+            });
+        }
+        histDiv.classList.remove('hidden');
+    }
+
+    // AUDITORIA
+    window.renderAuditPanel = function() {
+        const tbody = document.getElementById('audit-table-body');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        if (pendingData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">Tudo limpo! Nenhum relatório pendente.</td></tr>`;
+        } else {
+            pendingData.forEach(p => {
+                const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
+                const badge = vinculado ? `<span class="bg-green-900/50 text-green-400 text-[10px] px-2 py-1 rounded border border-green-500/30 font-bold">🔗 ${capitalizeName(vinculado.id)}</span>` : `<span class="bg-yellow-900/50 text-yellow-500 text-[10px] px-2 py-1 rounded border border-yellow-500/30 font-bold">⚠️ Sem Vínculo</span>`;
+                tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="py-3 pl-2 text-sm text-blue-400 font-bold">${p.authorTag}</td>
+                    <td class="py-3 text-sm">${badge}</td>
+                    <td class="py-3 text-xs text-slate-300 font-mono bg-black/30 p-2 rounded">${p.rawText}</td>
+                    <td class="py-3 text-xs text-slate-500">${new Date(p.timestamp).toLocaleString('pt-BR')}</td>
+                    <td class="py-3 text-center whitespace-nowrap">
+                        <button onclick="window.avaliarPending('${p.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase mr-2 transition shadow-lg">Revisar</button>
+                        <button onclick="window.recusarPending('${p.id}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase transition shadow-lg">Del</button>
+                    </td>
+                </tr>`;
+            });
+        }
+    }
+
+    // ADMIN NINJAS
+    window.renderNinjasTable = function() {
+        const tbody = document.getElementById('ninjas-cadastro');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        Object.values(ninjasData).sort((a,b) => String(a.id||'').localeCompare(String(b.id||''))).forEach(data => {
+            if (!data.id) return;
+            const noPhotoBadge = !data.avatarUrl ? `<span class="bg-red-900/50 text-red-400 text-[9px] px-1.5 py-0.5 rounded border border-red-500/30 font-bold ml-2">S/ FOTO</span>` : '';
+            const dateStr = data.entranceDate ? new Date(data.entranceDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '--/--/----';
+            
+            const actionCell = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode ? '' : 'hidden'}">
+                <div class="flex justify-end gap-2">
+                <button onclick="window.editNinjaFull('${data.id}')" class="text-blue-400 hover:text-white bg-blue-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Editar</button>
+                <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-white bg-red-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Excluir</button>
+                </div></td>`;
+                
+            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="py-3 pl-2 font-bold text-white flex items-center gap-1">${capitalizeName(data.id)} ${data.discordId ? '🟣' : ''} ${noPhotoBadge}</td>
+                <td class="py-3 text-[10px] uppercase font-bold text-slate-300">${data.org || 'ANBU'}<br><span class="text-slate-500 font-medium">Entrada: ${dateStr}</span></td>
+                <td class="py-3 text-[10px] uppercase font-bold text-slate-500">${data.element||'--'}</td>
+                <td class="py-3 text-xs font-mono text-slate-500">${data.discordId ? data.discordId.slice(0,6)+'...' : '--'}</td>
+                <td class="py-3 text-xs font-bold ${data.isActive ? 'text-green-400':'text-red-400'}">${data.isActive ? 'Ativo':'Inativo'}</td>
+                ${actionCell}</tr>`;
+        });
+
+        document.getElementById('new-ninja-mastery-1').innerHTML = MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('');
+        document.getElementById('new-ninja-mastery-2').innerHTML = '<option value="">2ª (Opcional)</option>' + MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('');
+        document.getElementById('new-ninja-date').value = new Date().toISOString().split('T')[0]; // Preenche date padrão com hj
+    }
+
+    // Lógicas Unificadas de Edição
+    window.editNinjaFull = async function(id) {
+        const data = ninjasData[id];
+        let cM1="Fogo", cM2=""; 
+        if(data.element) { const p = data.element.split(' / '); cM1=p[0]; if(p.length>1) cM2=p[1]; }
+        
+        const res = await window.openCustomModal('Editar Operador', `Modifique os dados de ${capitalizeName(id)}`, 'ninjaFullEdit', {
+            isActive: data.isActive,
+            org: data.org,
+            entranceDate: data.entranceDate,
+            m1: cM1, m2: cM2,
+            discordId: data.discordId,
+            avatarUrl: data.avatarUrl
+        });
+        
+        if(res) {
             try {
-                app = initializeApp(CUSTOM_FIREBASE_CONFIG);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                await signInAnonymously(auth);
-                document.getElementById('auth-info').textContent = 'Conexão Segura Estabelecida';
-
-                onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (s) => {
-                    accessKeysData = {}; s.forEach(d => accessKeysData[d.id] = d.data());
-                    if (currentPage === 'admin_panel') window.renderPage(currentPage);
+                await updateDoc(doc(db, COLLECTIONS.NINJAS, id), {
+                    isActive: res.isActive,
+                    org: res.org,
+                    entranceDate: res.entranceDate,
+                    element: res.m1 + (res.m2 && res.m2!==res.m1 ? ` / ${res.m2}` : ''),
+                    discordId: res.discordId,
+                    avatarUrl: res.avatarUrl
                 });
+                showStatus('Perfil atualizado!', 'success');
+            } catch(e){ showStatus(e.message, 'error'); }
+        }
+    }
 
-                onSnapshot(collection(db, COLLECTIONS.NINJAS), (s) => {
-                    ninjasData = {}; s.forEach(d => ninjasData[d.id] = d.data());
-                    if (currentPage === 'scoreboard' || currentPage === 'event_panel') window.renderScoreboard(currentPage === 'event_panel');
-                    if (currentPage === 'admin_panel') window.renderNinjasTable();
-                    if (currentPage === 'report_form') window.updateExecutorSelect();
-                    if (currentPage === 'audit_panel') window.renderPage('audit_panel');
-                    if (currentPage === 'ninja_panel') {
-                        const sel = document.getElementById('ninja-filter-select');
-                        const v = sel ? sel.value : '';
-                        window.renderPage('ninja_panel');
-                        if(v) setTimeout(() => { document.getElementById('ninja-filter-select').value = v; window.renderNinjaProfile(v, 1); }, 50);
-                    }
-                });
+    // FORM LÓGICAS
+    window.generateReportId = function() {
+        currentReportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0, 8)}`;
+        const el = document.getElementById('report-id-display'); if(el) el.value = currentReportId;
+    }
 
-                onSnapshot(collection(db, COLLECTIONS.REPORTS), (s) => {
-                    reportsData = []; s.forEach(d => reportsData.push(d.data()));
-                    window.updateTargetSuggestions();
-                    if (currentPage === 'reports_log') window.renderReportsLogFiltered(false, 1);
-                    if (currentPage === 'targets_log') window.renderTargetsTable(1);
-                    if (currentPage === 'scoreboard') window.renderScoreboard(false);
-                    if (currentPage === 'ninja_panel') { const sel = document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value, 1); }
-                });
+    window.updateTargetSuggestions = function() {
+        const dl = document.getElementById('known-targets'); if (!dl) return;
+        const names = new Set();
+        [...reportsData, ...eventReportsData].forEach(r => { if (Array.isArray(r.targets)) r.targets.forEach(t => { if(t.name) names.add(t.name.trim()); }); });
+        dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join('');
+    }
 
-                onSnapshot(collection(db, COLLECTIONS.EVENT_REPORTS), (s) => {
-                    eventReportsData = []; s.forEach(d => eventReportsData.push(d.data()));
-                    window.updateTargetSuggestions();
-                    if (currentPage === 'reports_log') window.renderReportsLogFiltered(true, 1);
-                    if (currentPage === 'targets_log') window.renderTargetsTable(1);
-                    if (currentPage === 'event_panel') window.renderScoreboard(true);
-                    if (currentPage === 'ninja_panel') { const sel = document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value, 1); }
-                });
+    window.addTargetEntry = function() {
+        const container = document.getElementById('targets-container'); if (!container) return;
+        targetEntryCount++; const targetId = `target-${targetEntryCount}`;
+        container.insertAdjacentHTML('beforeend', `
+            <div id="${targetId}" class="target-entry bg-gray-900/50 p-4 rounded-xl border border-white/5 relative">
+                <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-500 hover:text-red-400 text-lg">✖</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div><label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Nick do Alvo Morto</label><input type="text" list="known-targets" class="target-name w-full p-2.5 rounded-lg bg-gray-800 border border-white/10 text-white outline-none focus:border-red-500" oninput="window.updateDescriptionPreview()"></div>
+                    <div><label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">BT Base</label><input type="number" min="0" class="target-bt w-full p-2.5 rounded-lg bg-gray-800 border border-white/10 text-white font-bold outline-none focus:border-red-500" oninput="window.updateDescriptionPreview()"></div>
+                </div>
+                <div class="flex flex-wrap gap-4 mt-3 pt-3 border-t border-white/5">
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" class="target-chk-special w-4 h-4 rounded text-red-500 bg-gray-800 border-gray-600"><span class="text-slate-300 text-sm font-medium">Kage (x3)</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" class="target-chk-org w-4 h-4 rounded text-red-500 bg-gray-800 border-gray-600"><span class="text-slate-300 text-sm font-medium">ORG (+100)</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" class="target-chk-trashtalk w-4 h-4 rounded text-red-500 bg-gray-800 border-gray-600"><span class="text-slate-300 text-sm font-medium">Trash Talk (+20)</span></label>
+                </div>
+            </div>`);
+        
+        document.querySelectorAll(`#${targetId} input[type="checkbox"]`).forEach(c => c.addEventListener('change', window.updateDescriptionPreview));
+        window.updateDescriptionPreview();
+    }
+    window.removeTargetEntry = function(id) { const el = document.getElementById(id); if (el) { el.remove(); window.updateDescriptionPreview(); } }
 
-                onSnapshot(collection(db, COLLECTIONS.PENDING_REPORTS), (s) => {
-                    pendingData = []; s.forEach(d => pendingData.push({ id: d.id, ...d.data() }));
-                    const badge = document.getElementById('audit-badge');
-                    if (badge) {
-                        badge.textContent = pendingData.length;
-                        pendingData.length > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
-                    }
-                    if (currentPage === 'audit_panel') window.renderPage('audit_panel');
-                });
+    function _gatherReportData() {
+        let totalPointsRaw = 0; const targetsData = [];
+        document.querySelectorAll('.target-entry').forEach((entry, idx) => {
+            const name = entry.querySelector('.target-name').value.trim() || `Alvo ${idx + 1}`;
+            let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10); if (isNaN(btBase)) btBase = 0;
+            const isSpecial = entry.querySelector('.target-chk-special').checked, isOrg = entry.querySelector('.target-chk-org').checked, isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
+            let targetTotal = btBase; if (isSpecial) targetTotal *= 3; if (isOrg) targetTotal += 100; if (isTrashTalk) targetTotal += 20;
+            totalPointsRaw += targetTotal;
+            targetsData.push({ name, btBase, isSpecial, isOrg, isTrashTalk, total: targetTotal });
+        });
+        if (!currentReportId) window.generateReportId();
+        const reportTypeRadio = document.querySelector('input[name="report_type"]:checked');
+        const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
+        
+        let timestamp = new Date().toISOString();
+        const customDateVal = document.getElementById('report-date-input').value;
+        if(customDateVal) timestamp = new Date(customDateVal).toISOString();
 
-                window.renderPage(currentPage);
-            } catch (error) {
-                document.getElementById('status').textContent = `❌ Erro: ${error.message}`;
-                document.getElementById('status').classList.remove('hidden');
+        return { reportId: currentReportId, isEvent, targets: targetsData, killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers, totalPointsRaw, pointsPerKiller: totalPointsRaw, pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalPointsRaw / 3) : 0, pointsPerHealer: totalPointsRaw, timestamp };
+    }
+
+    window.updateDescriptionPreview = function() {
+        const data = _gatherReportData(); const btn = document.getElementById('submit-report'); const input = document.getElementById('total-points');
+        if (!btn || !input) return;
+        input.value = `Geração: ${data.totalPointsRaw} Pts (Assists recebem: ${data.pointsPerAssist})`;
+        const isReady = isWriterMode && (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0 && data.targets.length > 0 && data.totalPointsRaw > 0;
+        btn.disabled = !isReady;
+        btn.className = isReady ? 'w-full py-4 mt-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-900/50 transition cursor-pointer' : 'w-full py-4 mt-4 bg-gray-700 text-white/50 font-bold rounded-xl cursor-not-allowed transition';
+        if (window.isEditingMode && isReady && !processingPendingId) btn.innerHTML = '💾 Salvar Alterações (Força Recálculo)';
+        else btn.innerHTML = 'Registrar Missão no Banco de Dados';
+    }
+
+    window.submitReport = async function() {
+        if (!isWriterMode) return;
+        const data = _gatherReportData();
+        if (!data.reportId) { window.openCustomModal('Erro', 'ID Inválido.', 'info'); return; }
+        
+        showStatus('Salvando dados...', 'info');
+
+        const batch = writeBatch(db);
+        try {
+            const collectionToUse = data.isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS;
+            batch.set(doc(db, collectionToUse, data.reportId), data);
+            if (processingPendingId) batch.delete(doc(db, COLLECTIONS.PENDING_REPORTS, processingPendingId));
+
+            if (!window.isEditingMode) {
+                const pointField = data.isEvent ? 'eventPoints' : 'rankPoints'; const missionField = data.isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
+                data.killerIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerKiller, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
+                data.assistIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerAssist, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
+                data.healerIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerHealer, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
+                await batch.commit();
+            } else {
+                await batch.commit(); await window.recalculateAllRanks(true); window.isEditingMode = false;
             }
+
+            showStatus('Operação salva com sucesso!', 'success');
+            selectedKillers = []; selectedAssists = []; selectedHealers = []; processingPendingId = null;
+            window.updateExecutorTags(); window.updateExecutorSelect(); window.generateReportId();
+            document.getElementById('targets-container').innerHTML = ''; window.addTargetEntry(); window.updateDescriptionPreview();
+        } catch (e) { showStatus(`Erro: ${e.message}`, 'error'); }
+    }
+
+    // Handlers Arrays
+    window.updateExecutorSelect = function() {
+        const sK = document.getElementById('new-killer-id-select'), sA = document.getElementById('new-assist-id-select'), sH = document.getElementById('new-healer-id-select');
+        if (!sK) return;
+        const active = Object.values(ninjasData).filter(n => n.isActive).sort((a,b) => String(a.id||'').localeCompare(String(b.id||'')));
+        let optStr = '<option value="" disabled selected>Selecionar Membro</option>';
+        active.forEach(n => { if (!selectedKillers.includes(n.id) && !selectedAssists.includes(n.id) && !selectedHealers.includes(n.id)) optStr += `<option value="${n.id}">${capitalizeName(n.id)}</option>`; });
+        sK.innerHTML = optStr; sA.innerHTML = optStr; sH.innerHTML = optStr;
+    }
+    window.addExecutor = function(type) {
+        let selectId = '', targetArray = null;
+        if (type === 'killer') { selectId = 'new-killer-id-select'; targetArray = selectedKillers; }
+        if (type === 'assist') { selectId = 'new-assist-id-select'; targetArray = selectedAssists; }
+        if (type === 'healer') { selectId = 'new-healer-id-select'; targetArray = selectedHealers; }
+        const select = document.getElementById(selectId); if (!select || !select.value) return;
+        targetArray.push(select.value); select.value = ''; window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
+    }
+    window.removeExecutor = function(id, type) {
+        if (type === 'killer') selectedKillers = selectedKillers.filter(x => x !== id);
+        if (type === 'assist') selectedAssists = selectedAssists.filter(x => x !== id);
+        if (type === 'healer') selectedHealers = selectedHealers.filter(x => x !== id);
+        window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
+    }
+    window.updateExecutorTags = function() {
+        document.getElementById('killers-tag-container').innerHTML = selectedKillers.map(id => `<span class="executor-tag killer-tag shadow-lg">${capitalizeName(id)}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','killer')">✖</span></span>`).join('');
+        document.getElementById('assists-tag-container').innerHTML = selectedAssists.map(id => `<span class="executor-tag assist-tag shadow-lg">${capitalizeName(id)}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','assist')">✖</span></span>`).join('');
+        document.getElementById('healers-tag-container').innerHTML = selectedHealers.map(id => `<span class="executor-tag healer-tag shadow-lg">${capitalizeName(id)}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','healer')">✖</span></span>`).join('');
+    }
+
+    // CRUD Administração / Ninja
+    window.deleteNinja = async function(id) { if(await window.openCustomModal('Apagar?', `Apagar ${capitalizeName(id)} permanentemente?`, 'confirm')) try { await deleteDoc(doc(db, COLLECTIONS.NINJAS, id)); } catch(e){} }
+    window.addNinja = async function() {
+        if (!isMasterAdminMode) return;
+        const id = document.getElementById('new-ninja-id').value.trim(); const normalizedId = normalizeId(id);
+        if (!id) return; if (ninjasData[normalizedId]) { showStatus('Membro já existe.', 'error'); return; }
+        const m1 = document.getElementById('new-ninja-mastery-1').value; const m2 = document.getElementById('new-ninja-mastery-2').value;
+        const org = document.getElementById('new-ninja-org').value;
+        const entranceDate = document.getElementById('new-ninja-date').value || new Date().toISOString().split('T')[0];
+        let finalEl = m1; if (m2 && m2 !== m1) finalEl += ` / ${m2}`;
+        try { await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), { id: normalizedId, element: finalEl, org: org, entranceDate: entranceDate, isActive: true, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); document.getElementById('new-ninja-id').value = ''; showStatus('Cadastrado!', 'success'); } catch (e) {}
+    }
+
+    window.deleteReport = function(reportId, isEvent = false) {
+        if (!isWriterMode && !isMasterAdminMode) return;
+        window.openCustomModal('Excluir Operação', `Deletar registro ${reportId}? Os ranks serão recalculados.`, 'confirm').then(async (c) => {
+            if (c) { showStatus('Excluindo...', 'info'); try { await deleteDoc(doc(db, isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS, reportId)); await window.recalculateAllRanks(true); showStatus('Registro removido.', 'success'); } catch(e) { showStatus(`Erro: ${e.message}`, 'error'); } }
+        });
+    }
+    window.editReport = function(reportId, isEvent = false) {
+        if (!isWriterMode && !isMasterAdminMode) return;
+        const report = (isEvent ? eventReportsData : reportsData).find(r => r.reportId === reportId); if (!report) return;
+        window.renderPage('report_form'); currentReportId = report.reportId; window.isEditingMode = true; processingPendingId = null;
+        selectedKillers = report.killerIds || []; selectedAssists = report.assistIds || []; selectedHealers = report.healerIds || [];
+        document.getElementById('targets-container').innerHTML = ''; targetEntryCount = 0;
+        
+        if(report.timestamp) {
+            const dt = new Date(report.timestamp); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+            document.getElementById('report-date-input').value = dt.toISOString().slice(0,16);
         }
 
-        window.checkAccessKey = function() {
-            const id = document.getElementById('access-id-input').value.trim();
-            const key = document.getElementById('access-key-input').value.trim();
-            if (accessKeysData[id] && accessKeysData[id].key === key) {
-                currentAccessId = id;
-                isMasterAdminMode = accessKeysData[id].level === 'master_admin';
-                isWriterMode = true;
-                window.renderPage('admin_panel');
-            } else { alert("Senha incorreta"); }
-        }
+        if (Array.isArray(report.targets) && report.targets.length > 0) { report.targets.forEach(t => { window.addTargetEntry(); const entry = document.getElementById(`target-${targetEntryCount}`); entry.querySelector('.target-name').value = t.name; entry.querySelector('.target-bt').value = t.btBase; entry.querySelector('.target-chk-special').checked = t.isSpecial; entry.querySelector('.target-chk-org').checked = t.isOrg; entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk; }); } else { window.addTargetEntry(); }
+        const r = document.querySelector(`input[name="report_type"][value="${isEvent ? 'event' : 'daily'}"]`); if (r) r.checked = true;
+        window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview(); document.getElementById('report-id-display').value = currentReportId; window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-        window.logout = function() {
-            currentAccessId = 'ANONYMOUS'; isMasterAdminMode = false; isWriterMode = false;
-            window.renderPage('home');
+    window.clearReportsLog = async function() {
+        if (!isMasterAdminMode) return;
+        if (await window.openCustomModal('DELETAR TUDO', 'Zerar TODOS OS LOGS e RANKS?', 'confirm')) {
+            showStatus('Apagando...', 'info');
+            try {
+                const rSnap = await getDocs(collection(db, COLLECTIONS.REPORTS)); const eSnap = await getDocs(collection(db, COLLECTIONS.EVENT_REPORTS)); const nSnap = await getDocs(collection(db, COLLECTIONS.NINJAS));
+                let batch = writeBatch(db); rSnap.forEach(d => batch.delete(d.ref)); eSnap.forEach(d => batch.delete(d.ref)); nSnap.forEach(d => { if(d.id) batch.update(d.ref, { rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); });
+                await batch.commit(); showStatus('Tudo zerado!', 'success');
+            } catch(e) { showStatus(e.message, 'error'); }
         }
+    }
 
-        initializeFirebase();
-    </script>
+    window.recalculateAllRanks = async function(calledInternally = false) {
+        if (!isWriterMode && !isMasterAdminMode) return;
+        if (!calledInternally && !(await window.openCustomModal('Recalcular', 'Forçar recálculo total?', 'confirm'))) return;
+        try {
+            showStatus('Calculando Ranks...', 'info');
+            const temp = {}; Object.values(ninjasData).forEach(n => { if(n.id) temp[n.id] = { ...n, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }; });
+            const pR = (report, isEvent) => {
+                const pF = isEvent ? 'eventPoints' : 'rankPoints'; const mF = isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
+                if (report.killerIds) report.killerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerKiller || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
+                if (report.assistIds) report.assistIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerAssist || 0); temp[id][mF] += 1; } });
+                if (report.executorIds && (!report.killerIds || report.killerIds.length === 0)) report.executorIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerAttacker || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
+                if (report.healerIds) report.healerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerHealer || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
+            };
+            reportsData.forEach(r => pR(r, false)); eventReportsData.forEach(r => pR(r, true));
+            let b = writeBatch(db);
+            Object.values(temp).forEach(n => { if(n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), { rankPoints: n.rankPoints||0, missionsCompleted: n.missionsCompleted||0, eventPoints: n.eventPoints||0, eventMissionsCompleted: n.eventMissionsCompleted||0 }); });
+            await b.commit(); showStatus('Ranks atualizados!', 'success');
+        } catch(e) { showStatus(e.message, 'error'); }
+    }
+
+    // Login Admin
+    window.checkAccessKey = function() {
+        const id = document.getElementById('access-id-input').value.trim(); const key = document.getElementById('access-key-input').value.trim();
+        if (accessKeysData[id] && accessKeysData[id].key === key) {
+            currentAccessId = id; isMasterAdminMode = accessKeysData[id].level === 'master_admin'; isWriterMode = true;
+            
+            document.getElementById('auth-info').classList.add('hidden');
+            document.getElementById('auth-status-badge').classList.remove('hidden');
+            document.getElementById('auth-status-badge').classList.add('flex');
+            document.getElementById('logout-btn').classList.remove('hidden');
+
+            document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-xl font-bold flex justify-center items-center gap-2">✅ Sistema Liberado (${id})</div>`;
+            window.renderPage('admin_panel');
+        } else { showStatus("ID ou Senha incorretos", "error"); }
+    }
+    window.logout = function() {
+        currentAccessId = 'ANONYMOUS'; isMasterAdminMode = false; isWriterMode = false;
+        
+        document.getElementById('auth-info').classList.remove('hidden');
+        document.getElementById('auth-status-badge').classList.add('hidden');
+        document.getElementById('auth-status-badge').classList.remove('flex');
+        document.getElementById('logout-btn').classList.add('hidden');
+
+        document.getElementById('admin-status-display').innerHTML = '';
+        document.getElementById('access-id-input').value = ''; document.getElementById('access-key-input').value = '';
+        window.renderPage('dashboard');
+    }
+
+    // Inicialização DB
+    async function initializeFirebase() {
+        try {
+            app = initializeApp(CUSTOM_FIREBASE_CONFIG); db = getFirestore(app); auth = getAuth(app);
+            await signInAnonymously(auth);
+            const authPill = document.getElementById('auth-info'); authPill.textContent = 'Conectado'; authPill.className = 'border border-blue-500 text-blue-500 px-3 py-1.5 rounded-full text-[10px] uppercase font-black tracking-wider shadow-lg shadow-blue-500/10';
+
+            onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (s) => { accessKeysData = {}; s.forEach(d => accessKeysData[d.id] = d.data()); });
+            onSnapshot(collection(db, COLLECTIONS.NINJAS), (s) => { ninjasData = {}; s.forEach(d => ninjasData[d.id] = d.data()); if(currentPage==='dashboard') updateDashboard(); if(currentPage==='rank') window.renderScoreboard(false); if(currentPage==='evento') window.renderScoreboard(true); if(currentPage==='admin_panel') window.renderNinjasTable(); if(currentPage==='report_form') window.updateExecutorSelect(); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
+            onSnapshot(collection(db, COLLECTIONS.REPORTS), (s) => { reportsData = []; s.forEach(d => reportsData.push(d.data())); window.updateTargetSuggestions(); if(currentPage==='dashboard') updateDashboard(); if(currentPage==='historico') window.renderReportsLogFiltered(); if(currentPage==='alvos') window.renderTargetsTable(1); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
+            onSnapshot(collection(db, COLLECTIONS.EVENT_REPORTS), (s) => { eventReportsData = []; s.forEach(d => eventReportsData.push(d.data())); window.updateTargetSuggestions(); if(currentPage==='evento') window.renderScoreboard(true); if(currentPage==='historico') window.renderReportsLogFiltered(); if(currentPage==='alvos') window.renderTargetsTable(1); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
+            onSnapshot(collection(db, COLLECTIONS.PENDING_REPORTS), (s) => { pendingData = []; s.forEach(d => pendingData.push({ id: d.id, ...d.data() })); const b = document.getElementById('audit-badge'); if(b) { b.textContent = pendingData.length; pendingData.length>0 ? b.classList.remove('hidden') : b.classList.add('hidden'); } if(currentPage==='dashboard') updateDashboard(); if(currentPage==='audit_panel') window.renderAuditPanel(); });
+
+            window.renderPage(currentPage);
+        } catch (e) { showStatus(e.message, 'error'); }
+    }
+    initializeFirebase();
+</script>
+
 </body>
 </html>

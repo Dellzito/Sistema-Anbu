@@ -42,7 +42,7 @@
         .executor-remove-btn:hover { opacity: 1; }
         .filter-bar input, .filter-bar select { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; outline: none; }
         .filter-bar input:focus, .filter-bar select:focus { border-color: var(--accent-red); }
-        .combat-bar { height: 8px; border-radius: 4px; background: #1e293b; overflow: hidden; display: flex; gap: 1px; margin-top: 6px; }
+        .combat-bar { height: 6px; border-radius: 4px; background: #1e293b; overflow: hidden; display: flex; margin-top: 4px; }
         .combat-bar-seg { height: 100%; transition: width 0.5s ease; }
         
         input[type="datetime-local"]::-webkit-calendar-picker-indicator,
@@ -252,9 +252,11 @@
                     <option value="">-- Selecione um Operador --</option>
                 </select>
             </div>
+            
             <div id="guardian-summary" class="w-full max-w-5xl mx-auto hidden"></div>
+            
             <div id="profile-history-container" class="panel p-6 mt-4 hidden">
-                <h3 class="text-lg text-white font-bold mb-4">Histórico Individual</h3>
+                <h3 class="text-sm text-slate-500 font-bold tracking-[0.15em] uppercase mb-4">Histórico Individual</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead>
@@ -279,8 +281,8 @@
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tipo de Operação</label>
                         <div class="flex gap-6">
-                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="daily" checked class="h-4 w-4 text-red-600"><span class="text-white font-bold text-sm">Geral</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="event" class="h-4 w-4 text-yellow-500"><span class="text-yellow-400 font-bold text-sm">Evento 🌟</span></label>
+                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="daily" checked class="h-4 w-4 text-red-600" onchange="window.updateDescriptionPreview()"><span class="text-white font-bold text-sm">Geral</span></label>
+                            <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="report_type" value="event" class="h-4 w-4 text-yellow-500" onchange="window.updateDescriptionPreview()"><span class="text-yellow-400 font-bold text-sm">Evento 🌟</span></label>
                         </div>
                     </div>
                     <div class="w-full md:w-64">
@@ -397,7 +399,6 @@
                 <button onclick="window.clearReportsLog()" class="w-full py-3 px-4 bg-red-900/50 hover:bg-red-800 border border-red-500/50 text-red-200 font-bold rounded-xl transition">⚠️ APAGAR TODO O HISTÓRICO (Zerar Ranks)</button>
             </div>
         </section>
-
     </main>
 </div>
 
@@ -738,61 +739,142 @@
         });
     }
 
+    // ==========================================
+    // RENDERIZAÇÃO: PERFIL DO NINJA (NOVO LAYOUT)
+    // ==========================================
     window.renderNinjaProfile = function(filterId, page = 1) {
-        const sumDiv = document.getElementById('guardian-summary'); const histDiv = document.getElementById('profile-history-container');
+        const sumDiv = document.getElementById('guardian-summary');
+        const histDiv = document.getElementById('profile-history-container');
         if (!filterId) { if(sumDiv) sumDiv.classList.add('hidden'); if(histDiv) histDiv.classList.add('hidden'); return; }
-        const nData = ninjasData[filterId]; if (!nData || !sumDiv) return;
+        const nData = ninjasData[filterId];
+        if (!nData || !sumDiv) return;
 
         const all = [...reportsData, ...eventReportsData];
         let kC=0, aC=0, hC=0, mHist=[];
+        const targetsCounter = {};
+        const parceiroMap = {};
 
         all.forEach(r => {
-            let part = false; const trg = r.targets?.length || 1;
+            let part = false;
+            const trg = r.targets?.length || 1;
             if (r.killerIds?.includes(filterId)) { kC += trg; part = true; }
             if (r.assistIds?.includes(filterId)) { aC += trg; part = true; }
             if (r.healerIds?.includes(filterId)) { hC += trg; part = true; }
-            if (part) mHist.push(r);
+            if (r.executorIds?.includes(filterId) && (!r.killerIds || !r.killerIds.includes(filterId))) { kC += trg; part = true; }
+            
+            if (part) {
+                mHist.push(r);
+                if (Array.isArray(r.targets)) {
+                    r.targets.forEach(t => {
+                        if (t.name) {
+                            const k = t.name.trim().toLowerCase();
+                            targetsCounter[k] = (targetsCounter[k] || { name: t.name.trim(), count: 0 });
+                            targetsCounter[k].count++;
+                        }
+                    });
+                }
+                const todos = [...(r.killerIds||[]), ...(r.assistIds||[]), ...(r.healerIds||[]), ...(r.executorIds||[])];
+                const unicos = [...new Set(todos)];
+                unicos.forEach(id => {
+                    if (id.toLowerCase() !== filterId.toLowerCase()) {
+                        parceiroMap[id] = (parceiroMap[id] || 0) + 1;
+                    }
+                });
+            }
         });
+
+        const topTargets = Object.values(targetsCounter).sort((a,b) => b.count - a.count);
+        const topParceiros = Object.entries(parceiroMap).sort((a,b) => b[1]-a[1]).slice(0,3);
 
         const ranked = Object.values(ninjasData).filter(n => n.isActive && n.id).sort((a,b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
         const rankPos = ranked.findIndex(n => n.id === filterId) + 1;
-        const total = kC + aC + hC || 1; const pctK = Math.round((kC / total) * 100); const pctA = Math.round((aC / total) * 100); const pctH = Math.round((hC / total) * 100);
+
+        const total = kC + aC + hC || 1;
+        const pctK = Math.round((kC / total) * 100);
+        const pctA = Math.round((aC / total) * 100);
+        const pctH = Math.round((hC / total) * 100);
+        const totalMissions = (nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0);
 
         const avatar = nData.avatarUrl ? nData.avatarUrl : `https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true`;
+        
+        // Pega a data de entrada se existir
+        const dateStr = nData.entranceDate ? new Date(nData.entranceDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '--/--/----';
 
         sumDiv.innerHTML = `
-        <div class="panel p-8 space-y-6">
+        <div class="panel p-8 space-y-6 bg-[#12151e]">
             <div class="flex items-center gap-6 border-b border-white/5 pb-6">
-                <img src="${avatar}" class="w-24 h-24 rounded-full border-4 border-slate-800 object-cover shadow-xl">
+                <img src="${avatar}" class="w-20 h-20 rounded-full border-4 border-slate-800 object-cover shadow-xl">
                 <div class="flex-1">
                     <h3 class="text-3xl font-black text-white tracking-tight">${capitalizeName(filterId)}</h3>
-                    <div class="flex flex-wrap gap-2 mt-2">
-                        <span class="px-2 py-0.5 ${nData.isActive ? 'bg-green-900/30 text-green-400 border-green-500/30' : 'bg-red-900/30 text-red-400 border-red-500/30'} rounded border text-[10px] font-bold uppercase">${nData.isActive ? 'Ativo' : 'Inativo'}</span>
-                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-white/5 text-[10px] uppercase font-bold">${nData.org || 'ANBU'}</span>
-                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-white/5 text-[10px] uppercase font-bold">${nData.element||'S/ Maestria'}</span>
-                        ${nData.discordId ? `<span class="px-2 py-0.5 bg-indigo-900/30 text-indigo-300 rounded border border-indigo-500/30 text-[10px] font-bold uppercase flex items-center gap-1"><span>🔗</span> Discord</span>` : ''}
-                        ${rankPos > 0 ? `<span class="px-2 py-0.5 bg-red-900/30 text-red-400 rounded border border-red-500/30 text-[10px] font-bold uppercase">Rank #${rankPos}</span>` : ''}
+                    <div class="flex flex-wrap gap-2 mt-2 items-center">
+                        <span class="px-2 py-0.5 ${nData.isActive ? 'bg-green-900/30 text-green-400 border-green-500/30' : 'bg-red-900/30 text-red-400 border-red-500/30'} rounded-full border text-[10px] font-bold uppercase flex items-center gap-1"><span class="w-2 h-2 rounded-full ${nData.isActive ? 'bg-green-500' : 'bg-red-500'}"></span> ${nData.isActive ? 'Ativo' : 'Inativo'}</span>
+                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-white/5 text-[10px] uppercase font-bold flex items-center gap-1">🏢 ${nData.org || 'ANBU'}</span>
+                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-white/5 text-[10px] uppercase font-bold flex items-center gap-1">📅 Entrada: ${dateStr}</span>
+                        <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-white/5 text-[10px] uppercase font-bold">${nData.element||'S/ Maestria'}</span>
+                        ${nData.discordId ? `<span class="px-2 py-0.5 bg-indigo-900/30 text-indigo-300 rounded-full border border-indigo-500/30 text-[10px] font-bold uppercase flex items-center gap-1">🔗 Discord</span>` : ''}
+                        ${rankPos > 0 ? `<span class="px-2 py-0.5 bg-yellow-900/30 text-yellow-500 rounded-full border border-yellow-500/30 text-[10px] font-bold uppercase flex items-center gap-1">🥇 Rank Geral</span>` : ''}
                     </div>
                 </div>
                 <div class="text-right">
                     <div class="text-4xl font-black text-green-400 drop-shadow-md">${Math.round(nData.rankPoints||0)}</div>
-                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Pontos Geral</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Pts Geral</div>
                 </div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Caçadas</div></div>
-                <div class="bg-red-900/10 border border-red-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-red-400">${kC}</div><div class="text-[10px] text-red-500 uppercase tracking-widest mt-1 font-bold">Killers</div></div>
-                <div class="bg-orange-900/10 border border-orange-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-orange-400">${aC}</div><div class="text-[10px] text-orange-500 uppercase tracking-widest mt-1 font-bold">Assists</div></div>
-                <div class="bg-green-900/10 border border-green-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-green-400">${hC}</div><div class="text-[10px] text-green-500 uppercase tracking-widest mt-1 font-bold">Heals</div></div>
-            </div>
+
             <div>
-                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 flex justify-between"><span>Estilo de Combate</span><span>K ${pctK}% · A ${pctA}% · H ${pctH}%</span></div>
-                <div class="combat-bar"><div class="combat-bar-seg bg-red-500" style="width:${pctK}%"></div><div class="combat-bar-seg bg-orange-400" style="width:${pctA}%"></div><div class="combat-bar-seg bg-green-500" style="width:${pctH}%"></div></div>
+                <h4 class="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-bold mb-3">Estatísticas de Combate</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-[#0a0c12] border border-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-white">${totalMissions}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Caçadas</div></div>
+                    <div class="bg-[#0a0c12] border border-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-red-400">${kC}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Como Killer</div></div>
+                    <div class="bg-[#0a0c12] border border-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-orange-400">${aC}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Assists</div></div>
+                    <div class="bg-[#0a0c12] border border-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-green-400">${hC}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Heals</div></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-bold mb-2 flex justify-between">
+                    <span>Perfil de Combate — Killer ${pctK}% · Assist ${pctA}% · Heal ${pctH}%</span>
+                </div>
+                <div class="combat-bar h-1.5 mt-1">
+                    <div class="combat-bar-seg bg-red-600" style="width:${pctK}%"></div>
+                    <div class="combat-bar-seg bg-orange-500" style="width:${pctA}%"></div>
+                    <div class="combat-bar-seg bg-green-600" style="width:${pctH}%"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div class="bg-[#0a0c12] border border-white/5 rounded-xl p-5">
+                    <h4 class="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-bold mb-4">Alvos Mais Eliminados</h4>
+                    <div class="space-y-3">
+                        ${topTargets.length === 0 ? `<p class="text-slate-600 text-xs">Nenhum alvo abatido.</p>` :
+                            topTargets.slice(0,3).map((t,i) => `
+                            <div class="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                                <span class="text-sm font-semibold text-orange-300 capitalize flex items-center gap-2">
+                                    <span class="text-xs">${['🥇','🥈','🥉'][i]||'🎯'}</span> ${capitalizeName(t.name)}
+                                </span>
+                                <span class="text-xs font-bold text-red-400">${t.count}x</span>
+                            </div>`).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-[#0a0c12] border border-white/5 rounded-xl p-5">
+                    <h4 class="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-bold mb-4">Parceiros Frequentes</h4>
+                    <div class="space-y-3">
+                        ${topParceiros.length === 0 ? `<p class="text-slate-600 text-xs">Sem parceiros frequentes.</p>` :
+                            topParceiros.map(([id, count]) => `
+                            <div class="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                                <span class="text-sm font-semibold text-blue-400 cursor-pointer hover:underline" onclick="document.getElementById('ninja-filter-select').value='${id}';window.renderNinjaProfile('${id}',1)">${capitalizeName(id)}</span>
+                                <span class="text-xs text-slate-500">${count} missões juntos</span>
+                            </div>`).join('')}
+                    </div>
+                </div>
             </div>
         </div>`;
         sumDiv.classList.remove('hidden');
 
-        const tbody = document.getElementById('profile-history-log'); tbody.innerHTML = '';
+        // Historico do Perfil
+        const tbody = document.getElementById('profile-history-log');
+        tbody.innerHTML = '';
         mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         const totalPages = Math.ceil(mHist.length / 10);
         if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
@@ -808,13 +890,18 @@
 
                 const role = d.killerIds?.includes(filterId) ? '<span class="text-red-400 text-[10px] font-black">[K]</span>' : d.assistIds?.includes(filterId) ? '<span class="text-orange-400 text-[10px] font-black">[A]</span>' : '<span class="text-green-400 text-[10px] font-black">[H]</span>';
                 
-                tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors"><td class="py-3 text-xs font-mono text-slate-400 align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-slate-600">${d.reportId}</span></td><td class="py-3 align-top">${mTxt}</td><td class="py-3 text-sm text-orange-300 font-medium align-top">${d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A'}</td><td class="py-3 text-sm font-bold text-white align-top">${d.totalPointsRaw||0} pts ${role}</td></tr>`;
+                tbody.innerHTML += `
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="py-3 text-xs font-mono text-slate-400 align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-slate-600">${d.reportId}</span></td>
+                    <td class="py-3 align-top">${mTxt}</td>
+                    <td class="py-3 text-sm text-orange-300 font-medium align-top">${d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A'}</td>
+                    <td class="py-3 text-sm font-bold text-white align-top">${d.totalPointsRaw||0} pts ${role}</td>
+                </tr>`;
             });
         }
         histDiv.classList.remove('hidden');
     }
 
-    // AUDITORIA - ATUALIZADA E SEGURA CONTRA CARACTERES INVISÍVEIS DO DISCORD
     window.renderAuditPanel = function() {
         const tbody = document.getElementById('audit-table-body'); if(!tbody) return;
         tbody.innerHTML = '';
@@ -825,7 +912,6 @@
                 const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
                 const badge = vinculado ? `<span class="bg-green-900/50 text-green-400 text-[10px] px-2 py-1 rounded border border-green-500/30 font-bold">🔗 ${capitalizeName(vinculado.id)}</span>` : `<span class="bg-yellow-900/50 text-yellow-500 text-[10px] px-2 py-1 rounded border border-yellow-500/30 font-bold">⚠️ Sem Vínculo</span>`;
                 
-                // ESCAPANDO O TEXTO PARA NÃO QUEBRAR O HTML DO SITE (ex: <@123>)
                 const safeText = escapeHTML(p.rawText || '');
 
                 tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
@@ -861,7 +947,6 @@
             
             window.addTargetEntry(); const entry = document.getElementById(`target-${targetEntryCount}`);
             
-            // TRATAMENTO MELHORADO PARA LIMPAR O SINAL DE "+" DO NOME DO ALVO
             let alvoNome = data.parsedTarget || '';
             let btNumber = data.parsedBt || 0;
 
@@ -870,7 +955,7 @@
                 if (match) { 
                     btNumber = match[1]; 
                     let rawTarget = match[2];
-                    if (rawTarget.includes('+')) rawTarget = rawTarget.split('+')[0]; // Corta tudo depois do +
+                    if (rawTarget.includes('+')) rawTarget = rawTarget.split('+')[0];
                     alvoNome = rawTarget.trim();
                 } else { 
                     let rawTarget = data.rawText;
@@ -954,13 +1039,33 @@
         const reportTypeRadio = document.querySelector('input[name="report_type"]:checked'); const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
         let timestamp = new Date().toISOString(); const customDateVal = document.getElementById('report-date-input').value; if(customDateVal) timestamp = new Date(customDateVal).toISOString();
 
-        return { reportId: currentReportId, isEvent, targets: targetsData, killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers, totalPointsRaw, pointsPerKiller: totalPointsRaw, pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalPointsRaw / 3) : 0, pointsPerHealer: totalPointsRaw, timestamp };
+        // LOGICA DE PONTUAÇÃO ALTERADA: Se não for evento, apenas killer ganha pontos. Se for evento, todos pontuam.
+        return { 
+            reportId: currentReportId, 
+            isEvent, 
+            targets: targetsData, 
+            killerIds: selectedKillers, 
+            assistIds: selectedAssists, 
+            healerIds: selectedHealers, 
+            totalPointsRaw, 
+            pointsPerKiller: totalPointsRaw, 
+            pointsPerAssist: (isEvent && selectedAssists.length > 0) ? Math.floor(totalPointsRaw / 3) : 0, 
+            pointsPerHealer: isEvent ? totalPointsRaw : 0, 
+            timestamp 
+        };
     }
 
     window.updateDescriptionPreview = function() {
         const data = _gatherReportData(); const btn = document.getElementById('submit-report'); const input = document.getElementById('total-points');
         if (!btn || !input) return;
-        input.value = `Geração: ${data.totalPointsRaw} Pts (Assists recebem: ${data.pointsPerAssist})`;
+        
+        // Texto de ajuda na caixa de Geração de Pontos
+        if (data.isEvent) {
+            input.value = `Geração: ${data.totalPointsRaw} Pts (Assist: ${data.pointsPerAssist} | Healer: ${data.pointsPerHealer})`;
+        } else {
+            input.value = `Geração: ${data.totalPointsRaw} Pts (Somente Killers pontuam no modo Geral)`;
+        }
+
         const isReady = isWriterMode && (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0 && data.targets.length > 0 && data.totalPointsRaw > 0;
         btn.disabled = !isReady;
         btn.className = isReady ? 'w-full py-4 mt-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-900/50 transition cursor-pointer' : 'w-full py-4 mt-4 bg-gray-700 text-white/50 font-bold rounded-xl cursor-not-allowed transition';
@@ -1060,10 +1165,22 @@
             const temp = {}; Object.values(ninjasData).forEach(n => { if(n.id) temp[n.id] = { ...n, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }; });
             const pR = (report, isEvent) => {
                 const pF = isEvent ? 'eventPoints' : 'rankPoints'; const mF = isEvent ? 'eventMissionsCompleted' : 'missionsCompleted';
-                if (report.killerIds) report.killerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerKiller || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
-                if (report.assistIds) report.assistIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerAssist || 0); temp[id][mF] += 1; } });
-                if (report.executorIds && (!report.killerIds || report.killerIds.length === 0)) report.executorIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerAttacker || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
-                if (report.healerIds) report.healerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerHealer || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
+                
+                // Recalcula respeitando as mesmas regras de agora
+                if (report.killerIds) report.killerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.totalPointsRaw || 0); temp[id][mF] += 1; } });
+                
+                if (report.assistIds) report.assistIds.forEach(id => { if (temp[id]) { 
+                    const pts = isEvent ? Math.floor((report.totalPointsRaw||0)/3) : 0;
+                    temp[id][pF] += pts; temp[id][mF] += 1; 
+                } });
+                
+                if (report.healerIds) report.healerIds.forEach(id => { if (temp[id]) { 
+                    const pts = isEvent ? Number(report.totalPointsRaw||0) : 0;
+                    temp[id][pF] += pts; temp[id][mF] += 1; 
+                } });
+
+                // Legacy fallback if executorIds exist
+                if (report.executorIds && (!report.killerIds || report.killerIds.length === 0)) report.executorIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.totalPointsRaw || 0); temp[id][mF] += 1; } });
             };
             reportsData.forEach(r => pR(r, false)); eventReportsData.forEach(r => pR(r, true)); let b = writeBatch(db); Object.values(temp).forEach(n => { if(n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), { rankPoints: n.rankPoints||0, missionsCompleted: n.missionsCompleted||0, eventPoints: n.eventPoints||0, eventMissionsCompleted: n.eventMissionsCompleted||0 }); }); await b.commit(); showStatus('Ranks atualizados!', 'success');
         } catch(e) { showStatus(e.message, 'error'); }

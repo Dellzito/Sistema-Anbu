@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forças Especiais da Leaf</title>
+    <title>QG Forças Especiais da Leaf</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -13,7 +13,7 @@
         ::-webkit-scrollbar-track { background: #1e293b; }
         .remove-btn, .edit-btn, .admin-only, .writer-only { transition: all 0.1s ease-in-out; }
         .executor-list-container { min-height: 50px; padding: 8px; border: 1px solid #4b5563; border-radius: 8px; background-color: #374151; display: flex; flex-wrap: wrap; gap: 6px; }
-        .executor-tag { display: flex; align-items: center; padding: 4px 8px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #fff; text-transform: capitalize; }
+        .executor-tag { display: flex; align-items: center; padding: 4px 8px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #fff; }
         .killer-tag { background-color: #dc2626; }
         .assist-tag { background-color: #d97706; }
         .healer-tag { background-color: #059669; }
@@ -22,7 +22,6 @@
         .nav-link { cursor: pointer; padding: 10px 15px; font-weight: 600; transition: all 0.2s; text-align: center; position: relative; }
         .nav-link:hover:not(.active) { background-color: #1e293b; }
         .nav-link.active { color: #f87171; border-bottom: 2px solid #f87171; }
-        .capitalize-name { text-transform: capitalize; }
 
         /* === PERFIL === */
         .profile-header { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #374151; margin-bottom: 16px; flex-wrap: wrap; }
@@ -52,7 +51,7 @@
                 <a class="nav-link text-yellow-400 font-black" onclick="window.renderPage('event_panel')" id="nav-event_panel">🌟 EVENTO</a>
                 <a class="nav-link" onclick="window.renderPage('reports_log')" id="nav-reports_log">Histórico</a>
                 <a class="nav-link" onclick="window.renderPage('targets_log')" id="nav-targets_log">Alvos Eliminados</a>
-                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Membros</a>
+                <a class="nav-link" onclick="window.renderPage('ninja_panel')" id="nav-ninja_panel">Perfil do Membro</a>
                 <a class="nav-link writer-only hidden" onclick="window.renderPage('report_form')" id="nav-report_form">Registrar Missão</a>
                 <a class="nav-link writer-only hidden text-blue-400 font-bold" onclick="window.renderPage('audit_panel')" id="nav-audit_panel">
                     Auditoria (Bot)
@@ -68,6 +67,7 @@
         <datalist id="known-targets"></datalist>
     </div>
 
+    <!-- MODAL -->
     <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-lg space-y-4 transform scale-95 transition-all">
             <h3 id="modal-title" class="text-xl font-bold text-red-400">Título</h3>
@@ -76,19 +76,8 @@
                 <label id="input-label-1" class="block text-sm font-medium text-gray-300 hidden">Input 1</label>
                 <input type="text" id="modal-input-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
                 <select id="modal-select-1" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-                
                 <label id="input-label-2" class="block text-sm font-medium text-gray-300 hidden">Input 2</label>
                 <select id="modal-select-2" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden"></select>
-
-                <label id="input-label-3" class="block text-sm font-medium text-gray-300 hidden">Input 3</label>
-                <select id="modal-select-3" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden">
-                    <option value="">-- Nenhuma --</option>
-                    <option value="ANBU">ANBU</option>
-                    <option value="12G">12 Guardiões</option>
-                </select>
-
-                <label id="input-label-4" class="block text-sm font-medium text-gray-300 hidden">Input 4</label>
-                <input type="date" id="modal-input-4" class="w-full p-2.5 rounded-lg bg-gray-700 border border-gray-600 text-white hidden" />
             </div>
             <div id="modal-actions" class="flex justify-end gap-3 pt-2">
                 <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-150">Cancelar</button>
@@ -136,6 +125,7 @@
         let pendingData = [];
         let accessKeysData = {};
 
+        // Guarda o filtro de busca atual do histórico
         let historySearchTerm = '';
         let historyDateFilter = 'all';
         let historyIsEvent = false;
@@ -156,12 +146,7 @@
             if (rank === 3) return '🥉';
             return `#${rank}`;
         }
-        
-        function normalizeId(id) { 
-            const trimmed = id.trim();
-            if(!trimmed) return '';
-            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase(); 
-        }
+        function normalizeId(id) { return id.trim().toLowerCase(); }
 
         // ==========================================
         // MODAL
@@ -178,15 +163,9 @@
                 const cancelBtn = document.getElementById('modal-cancel-btn');
                 const inputContainer = document.getElementById('modal-input-container');
                 const input1 = document.getElementById('modal-input-1'), select1 = document.getElementById('modal-select-1'), select2 = document.getElementById('modal-select-2');
-                const select3 = document.getElementById('modal-select-3'), input4 = document.getElementById('modal-input-4');
                 const label1 = document.getElementById('input-label-1'), label2 = document.getElementById('input-label-2');
-                const label3 = document.getElementById('input-label-3'), label4 = document.getElementById('input-label-4');
 
-                inputContainer.classList.add('hidden'); 
-                input1.classList.add('hidden'); select1.classList.add('hidden'); select2.classList.add('hidden'); 
-                select3.classList.add('hidden'); input4.classList.add('hidden');
-                label1.classList.add('hidden'); label2.classList.add('hidden'); label3.classList.add('hidden'); label4.classList.add('hidden');
-
+                inputContainer.classList.add('hidden'); input1.classList.add('hidden'); select1.classList.add('hidden'); select2.classList.add('hidden'); label1.classList.add('hidden'); label2.classList.add('hidden');
                 confirmBtn.className = 'px-4 py-2 text-white font-semibold rounded-lg transition duration-150 bg-blue-600 hover:bg-blue-700';
                 confirmBtn.onclick = null; cancelBtn.onclick = null;
 
@@ -207,25 +186,16 @@
                     input1.placeholder = 'Ex: 123456789012345678';
                     confirmBtn.textContent = 'Salvar ID Discord';
                     confirmBtn.onclick = () => closeCustomModal({ discordId: input1.value.trim() });
-                } else if (type === 'detailsEdit') {
+                } else if (type === 'masteryEdit') {
                     inputContainer.classList.remove('hidden');
-                    
                     label1.textContent = '1ª Maestria:'; label1.classList.remove('hidden'); select1.classList.remove('hidden');
                     select1.innerHTML = MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
                     if (data.m1) select1.value = data.m1;
-                    
                     label2.textContent = '2ª Maestria (Opcional):'; label2.classList.remove('hidden'); select2.classList.remove('hidden');
                     select2.innerHTML = '<option value="">-- Nenhuma --</option>' + MAESTRIAS_OPCOES.map(m => `<option value="${m}">${m}</option>`).join('');
                     if (data.m2) select2.value = data.m2;
-
-                    label3.textContent = 'Organização:'; label3.classList.remove('hidden'); select3.classList.remove('hidden');
-                    if (data.org) select3.value = data.org;
-
-                    label4.textContent = 'Data de Entrada:'; label4.classList.remove('hidden'); input4.classList.remove('hidden');
-                    if (data.joinDate) input4.value = data.joinDate;
-
-                    confirmBtn.textContent = 'Salvar Detalhes';
-                    confirmBtn.onclick = () => closeCustomModal({ m1: select1.value, m2: select2.value, org: select3.value, joinDate: input4.value });
+                    confirmBtn.textContent = 'Salvar Maestrias';
+                    confirmBtn.onclick = () => closeCustomModal({ m1: select1.value, m2: select2.value });
                 }
 
                 cancelBtn.onclick = () => closeCustomModal(false);
@@ -261,9 +231,10 @@
             } else {
                 pendingData.forEach(p => {
                     const date = new Date(p.timestamp).toLocaleString('pt-BR');
+                    // Verifica vínculo por discordId
                     const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
                     const vinculoBadge = vinculado
-                        ? `<span class="bg-green-900/60 text-green-400 text-xs px-2 py-1 rounded font-bold capitalize-name">🔗 ${vinculado.id}</span>`
+                        ? `<span class="bg-green-900/60 text-green-400 text-xs px-2 py-1 rounded font-bold">🔗 ${vinculado.id}</span>`
                         : `<span class="bg-yellow-900/60 text-yellow-400 text-xs px-2 py-1 rounded font-bold">⚠️ Não vinculado</span>`;
                     html += `<tr class="hover:bg-gray-700/50">
                         <td class="p-3 text-sm text-blue-400 font-bold">${p.authorTag}</td>
@@ -289,10 +260,12 @@
             window.isEditingMode = false;
             window.renderPage('report_form');
 
+            // 1º: busca por discordId (vínculo preciso)
             let ninjaEncontrado = Object.values(ninjasData).find(n => n.discordId && n.discordId === data.authorId);
             if (ninjaEncontrado) {
                 selectedKillers.push(ninjaEncontrado.id);
             } else {
+                // 2º: fallback por nick no authorTag
                 let possivelKiller = Object.keys(ninjasData).find(nick => data.authorTag.toLowerCase().includes(nick.toLowerCase()));
                 if (possivelKiller) selectedKillers.push(possivelKiller);
             }
@@ -300,6 +273,7 @@
             window.addTargetEntry();
             const entry = document.getElementById(`target-${targetEntryCount}`);
 
+            // Regex flexível: aceita "bt 150, alvo", "bt150,alvo", "bt 150 - alvo"
             const match = data.rawText.match(/bt\s*(\d+)[,\-\s]+(.+)/i);
             if (match) {
                 entry.querySelector('.target-bt').value = match[1];
@@ -317,7 +291,7 @@
             statusEl.classList.remove('hidden');
             statusEl.className = 'text-blue-400 p-4 bg-blue-900/50 rounded-lg block font-bold border border-blue-500/50';
             const metodo = ninjaEncontrado
-                ? `✅ Killer vinculado por ID do Discord: <b class="capitalize-name">${ninjaEncontrado.id}</b>`
+                ? `✅ Killer vinculado por ID do Discord: <b>${ninjaEncontrado.id}</b>`
                 : `⚠️ Killer não encontrado por ID — verifique e ajuste manualmente.`;
             statusEl.innerHTML = `Modo de Auditoria Ativo — ${metodo}<br><span class="text-gray-300 font-normal text-sm">Revise os dados e clique em Salvar para oficializar.</span>`;
         }
@@ -337,20 +311,9 @@
             el.value = currentReportId;
         }
 
-        window.toggleEventOptions = function() {
-            const isEvent = document.querySelector('input[name="report_type"]:checked')?.value === 'event';
-            document.querySelectorAll('.event-modifiers').forEach(el => {
-                if (isEvent) { el.classList.remove('hidden'); el.classList.add('flex'); }
-                else { el.classList.remove('flex'); el.classList.add('hidden'); }
-            });
-        }
-
         window.addTargetEntry = function() {
             const container = document.getElementById('targets-container'); if (!container) return;
             targetEntryCount++; const targetId = `target-${targetEntryCount}`;
-            const isEvent = document.querySelector('input[name="report_type"]:checked')?.value === 'event';
-            const displayEventOpts = isEvent ? 'flex' : 'hidden';
-
             container.insertAdjacentHTML('beforeend', `
                 <div id="${targetId}" class="target-entry bg-gray-700 p-4 rounded-lg border border-gray-600 space-y-3 relative mb-4">
                     <button type="button" onclick="window.removeTargetEntry('${targetId}')" class="absolute top-2 right-2 text-red-400 font-bold">✖</button>
@@ -358,7 +321,7 @@
                         <div><label class="block text-sm text-gray-300">Alvo Morto (Nick)</label><input type="text" list="known-targets" class="target-name w-full p-2 rounded bg-gray-800 text-white" oninput="window.updateDescriptionPreview()"></div>
                         <div><label class="block text-sm text-gray-300">BT Base</label><input type="number" min="0" class="target-bt w-full p-2 rounded bg-gray-800 text-white font-bold" oninput="window.updateDescriptionPreview()"></div>
                     </div>
-                    <div class="${displayEventOpts} event-modifiers gap-4 mt-2 pt-2 border-t border-gray-600">
+                    <div class="flex gap-4 mt-2 pt-2 border-t border-gray-600">
                         <label><input type="checkbox" class="target-chk-special" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">Kage (x3)</span></label>
                         <label><input type="checkbox" class="target-chk-org" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">ORG (+100)</span></label>
                         <label><input type="checkbox" class="target-chk-trashtalk" onchange="window.updateDescriptionPreview()"><span class="text-gray-200 text-sm ml-2">Trash Talk (+20)</span></label>
@@ -371,36 +334,24 @@
 
         function _gatherReportData() {
             let totalPointsRaw = 0; const targetsData = [];
-            const reportTypeRadio = document.querySelector('input[name="report_type"]:checked');
-            const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
-
             document.querySelectorAll('.target-entry').forEach((entry, idx) => {
                 const name = entry.querySelector('.target-name').value.trim() || `Alvo ${idx + 1}`;
                 let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10); if (isNaN(btBase)) btBase = 0;
-                
-                let targetTotal = btBase;
-                const isSpecial = entry.querySelector('.target-chk-special').checked, 
-                      isOrg = entry.querySelector('.target-chk-org').checked, 
-                      isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
-                
-                if (isEvent) {
-                    if (isSpecial) targetTotal *= 3; 
-                    if (isOrg) targetTotal += 100; 
-                    if (isTrashTalk) targetTotal += 20;
-                }
-
+                const isSpecial = entry.querySelector('.target-chk-special').checked, isOrg = entry.querySelector('.target-chk-org').checked, isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
+                let targetTotal = btBase; if (isSpecial) targetTotal *= 3; if (isOrg) targetTotal += 100; if (isTrashTalk) targetTotal += 20;
                 totalPointsRaw += targetTotal;
                 targetsData.push({ name, btBase, isSpecial, isOrg, isTrashTalk, total: targetTotal });
             });
 
             if (!currentReportId) window.generateReportId();
+            const reportTypeRadio = document.querySelector('input[name="report_type"]:checked');
+            const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
 
             return {
                 reportId: currentReportId, isEvent,
                 targets: targetsData, killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers,
-                totalPointsRaw, 
-                pointsPerKiller: totalPointsRaw,
-                pointsPerAssist: selectedAssists.length > 0 ? (isEvent ? Math.floor(totalPointsRaw / 3) : 0) : 0,
+                totalPointsRaw, pointsPerKiller: totalPointsRaw,
+                pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalPointsRaw / 3) : 0,
                 pointsPerHealer: totalPointsRaw,
                 timestamp: new Date().toISOString()
             };
@@ -468,6 +419,7 @@
             } catch (e) { statusEl.textContent = `❌ Erro: ${e.message}`; statusEl.className = 'text-red-400 p-4 bg-red-900/50 rounded block'; }
         }
 
+        // Confirmação ao sair do formulário com dados preenchidos
         window.safeNavigate = function(page) {
             if (currentPage === 'report_form') {
                 const data = _gatherReportData();
@@ -487,9 +439,9 @@
             let optK = '<option value="" disabled selected>Selecionar Killer</option>', optA = '<option value="" disabled selected>Selecionar Assist</option>', optH = '<option value="" disabled selected>Selecionar Healer</option>';
             active.forEach(n => {
                 if (!selectedKillers.includes(n.id) && !selectedAssists.includes(n.id) && !selectedHealers.includes(n.id)) {
-                    optK += `<option value="${n.id}" class="capitalize-name">${n.id}</option>`;
-                    optA += `<option value="${n.id}" class="capitalize-name">${n.id}</option>`;
-                    optH += `<option value="${n.id}" class="capitalize-name">${n.id}</option>`;
+                    optK += `<option value="${n.id}">${n.id}</option>`;
+                    optA += `<option value="${n.id}">${n.id}</option>`;
+                    optH += `<option value="${n.id}">${n.id}</option>`;
                 }
             });
             sK.innerHTML = optK; sA.innerHTML = optA; sH.innerHTML = optH;
@@ -558,12 +510,6 @@
             targetsContainer.innerHTML = '';
             targetEntryCount = 0;
 
-            const radio = document.querySelector(`input[name="report_type"][value="${isEvent ? 'event' : 'daily'}"]`);
-            if (radio) {
-                radio.checked = true;
-                window.toggleEventOptions();
-            }
-
             if (Array.isArray(report.targets) && report.targets.length > 0) {
                 report.targets.forEach(t => {
                     window.addTargetEntry();
@@ -575,6 +521,9 @@
                     entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk;
                 });
             } else { window.addTargetEntry(); }
+
+            const radio = document.querySelector(`input[name="report_type"][value="${isEvent ? 'event' : 'daily'}"]`);
+            if (radio) radio.checked = true;
 
             window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
             document.getElementById('report-id-display').value = currentReportId;
@@ -649,25 +598,16 @@
 
         window.addNinja = async function() {
             if (!isMasterAdminMode) return;
-            const ninjaId = document.getElementById('new-ninja-id').value;
+            const ninjaId = document.getElementById('new-ninja-id').value.trim();
             const m1 = document.getElementById('new-ninja-mastery-1').value;
             const m2 = document.getElementById('new-ninja-mastery-2').value;
-            const org = document.getElementById('new-ninja-org').value.trim();
-            const joinDate = document.getElementById('new-ninja-date').value;
-            
             const normalizedId = normalizeId(ninjaId);
-            if (!ninjaId.trim()) { alert("O ID não pode ser vazio."); return; }
+            if (!ninjaId) { alert("O ID não pode ser vazio."); return; }
             if (ninjasData[normalizedId]) { alert(`Membro '${normalizedId}' já existe!`); return; }
-            
             let finalElement = m1; if (m2 && m2 !== m1) finalElement += ` / ${m2}`;
             try {
-                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), { 
-                    id: normalizedId, element: finalElement, org: org, joinDate: joinDate, 
-                    isActive: true, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 
-                });
+                await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), { id: normalizedId, element: finalElement, isActive: true, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 });
                 document.getElementById('new-ninja-id').value = '';
-                document.getElementById('new-ninja-org').value = '';
-                document.getElementById('new-ninja-date').value = '';
                 alert("Cadastrado com sucesso!");
             } catch (e) { alert("Erro ao cadastrar: " + e.message); }
         }
@@ -687,18 +627,14 @@
             });
         }
 
-        window.editNinjaDetails = function(id) {
+        window.editNinjaMastery = function(id) {
             if (!isMasterAdminMode) return;
             const ninja = ninjasData[id];
             let currentM1 = "Fogo", currentM2 = "";
             if (ninja.element) { const parts = ninja.element.split(' / '); currentM1 = parts[0]; if (parts.length > 1) currentM2 = parts[1]; }
-            
-            window.openCustomModal('Editar Dados do Membro', `Altere as informações de ${id}:`, 'detailsEdit', { m1: currentM1, m2: currentM2, org: ninja.org, joinDate: ninja.joinDate }).then(async (res) => {
+            window.openCustomModal('Editar Maestrias', `Alterar as maestrias de ${id}:`, 'masteryEdit', { m1: currentM1, m2: currentM2 }).then(async (res) => {
                 if (res) {
-                    try { 
-                        let finalElement = res.m1; if (res.m2 && res.m2 !== res.m1) finalElement += ` / ${res.m2}`; 
-                        await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { element: finalElement, org: res.org, joinDate: res.joinDate }); 
-                    } catch (e) {}
+                    try { let finalElement = res.m1; if (res.m2 && res.m2 !== res.m1) finalElement += ` / ${res.m2}`; await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { element: finalElement }); } catch (e) {}
                 }
             });
         }
@@ -741,12 +677,13 @@
                 scoreboardBody.innerHTML += `
                     <tr class="hover:bg-gray-700/50">
                         <td class="px-6 py-3 font-bold text-center">${getRankIcon(index + 1)}</td>
-                        <td class="px-6 py-3 font-medium text-white cursor-pointer text-blue-300 hover:underline capitalize-name" onclick="window.renderPage('ninja_panel'); setTimeout(()=>{const s=document.getElementById('ninja-filter-select');if(s){s.value='${ninja.id}';window.renderNinjaProfile('${ninja.id}',1);}},100)">${ninja.id}</td>
+                        <td class="px-6 py-3 font-medium text-white cursor-pointer text-blue-300 hover:underline" onclick="window.renderPage('ninja_panel'); setTimeout(()=>{const s=document.getElementById('ninja-filter-select');if(s){s.value='${ninja.id}';window.renderNinjaProfile('${ninja.id}',1);}},100)">${ninja.id}</td>
                         <td class="px-6 py-3 font-bold text-green-400">${Math.round(pts)} Pts</td>
                         <td class="px-6 py-3 text-gray-300">${ninja[missionProperty] || 0}</td>
                     </tr>`;
             });
 
+            // Totais
             const totalsEl = document.getElementById('scoreboard-totals');
             if (totalsEl) {
                 const totalMembros = guardians.filter(n => !isEvent || Number(n[pointProperty]||0) > 0).length;
@@ -779,11 +716,11 @@
                     <button onclick="window.editNinjaAvatar('${data.id}')" class="text-purple-400 bg-gray-900 px-2 py-1 rounded text-xs">📷</button>
                     <button onclick="window.editNinjaDiscordId('${data.id}')" class="text-indigo-400 bg-gray-900 px-2 py-1 rounded text-xs">Discord</button>
                     <button onclick="window.editNinja('${data.id}')" class="text-blue-400 bg-gray-900 px-2 py-1 rounded text-xs">Status</button>
-                    <button onclick="window.editNinjaDetails('${data.id}')" class="text-yellow-400 bg-gray-900 px-2 py-1 rounded text-xs">Dados</button>
+                    <button onclick="window.editNinjaMastery('${data.id}')" class="text-yellow-400 bg-gray-900 px-2 py-1 rounded text-xs">Mst</button>
                     <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 bg-gray-900 px-2 py-1 rounded text-xs">Excluir</button>
                     </div></td>`;
                 tbody.innerHTML += `<tr class="hover:bg-gray-700/50">
-                    <td class="p-3 font-bold text-white capitalize-name">${data.id} ${discordLinked}</td>
+                    <td class="p-3 font-bold text-white">${data.id} ${discordLinked}</td>
                     <td class="p-3 text-gray-300">${data.element||''}</td>
                     <td class="p-3 text-xs text-indigo-300 font-mono">${data.discordId ? data.discordId.slice(0,6)+'...' : '<span class="text-gray-600">—</span>'}</td>
                     <td class="p-3 font-bold ${statusColor}">${statusTxt}</td>
@@ -833,6 +770,7 @@
             if (!tbody) return;
             const listToUse = isEvent ? eventReportsData : reportsData;
 
+            // Lê valores dos filtros
             const searchEl = document.getElementById('history-search');
             const dateEl = document.getElementById('history-date-filter');
             const searchTerm = (searchEl ? searchEl.value : historySearchTerm).trim().toLowerCase();
@@ -840,6 +778,7 @@
             historySearchTerm = searchTerm;
             historyDateFilter = dateFilter;
 
+            // Calcula corte de data
             let dateCut = null;
             const now = new Date();
             if (dateFilter === 'today') { dateCut = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
@@ -866,10 +805,10 @@
             sorted.slice((page-1)*10, page*10).forEach(d => {
                 let formattedDate = d.timestamp ? new Date(d.timestamp).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
                 let mTxt = '';
-                if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block capitalize-name">Killer: ${d.killerIds.join(', ')}</span>`;
-                if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block capitalize-name">Assist: ${d.assistIds.join(', ')}</span>`;
-                if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block capitalize-name">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
-                if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block capitalize-name">Heal: ${d.healerIds.join(', ')}</span>`;
+                if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block">Killer: ${d.killerIds.join(', ')}</span>`;
+                if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block">Assist: ${d.assistIds.join(', ')}</span>`;
+                if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
+                if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block">Heal: ${d.healerIds.join(', ')}</span>`;
                 const tTxt = d.targets ? d.targets.map(t=>t.name).join(', ') : (d.targetName||'N/A');
                 const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-2"><button onclick="window.editReport('${d.reportId}',${isEvent})" class="text-blue-400 bg-gray-900 py-1 px-2 rounded text-xs">✏️</button><button onclick="window.deleteReport('${d.reportId}',${isEvent})" class="text-red-500 bg-gray-900 py-1 px-2 rounded text-xs">🗑️</button></div>` : '';
                 tbody.innerHTML += `<tr class="hover:bg-gray-700/50"><td class="p-3 text-xs font-mono align-top">${formattedDate}<br>${d.reportId}${btns}</td><td class="p-3 text-sm align-top">${mTxt}</td><td class="p-3 text-sm text-orange-300 capitalize align-top">${tTxt}</td><td class="p-3 text-sm text-white font-bold align-top">${d.totalPointsRaw||0} Pts</td></tr>`;
@@ -909,6 +848,7 @@
                 if (r.executorIds?.includes(filterId) && (!r.killerIds || !r.killerIds.includes(filterId))) { kC += trg; part = true; }
                 if (part) {
                     mHist.push(r);
+                    // Conta alvos mais eliminados
                     if (Array.isArray(r.targets)) {
                         r.targets.forEach(t => {
                             if (t.name) { const k = t.name.trim().toLowerCase(); targetsCounter[k] = (targetsCounter[k] || { name: t.name.trim(), count: 0 }); targetsCounter[k].count++; }
@@ -917,15 +857,21 @@
                 }
             });
 
+            // Alvo mais eliminado
             const topTargets = Object.values(targetsCounter).sort((a,b) => b.count - a.count);
+            const topAlvo = topTargets[0];
+
+            // Rank no scoreboard geral
             const ranked = Object.values(ninjasData).filter(n => n.isActive && n.id).sort((a,b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
             const rankPos = ranked.findIndex(n => n.id === filterId) + 1;
 
+            // Barra de combate
             const total = kC + aC + hC || 1;
             const pctK = Math.round((kC / total) * 100);
             const pctA = Math.round((aC / total) * 100);
             const pctH = Math.round((hC / total) * 100);
 
+            // Parceiros mais frequentes
             const parceiroMap = {};
             mHist.forEach(r => {
                 const todos = [...(r.killerIds||[]), ...(r.assistIds||[]), ...(r.healerIds||[])];
@@ -942,25 +888,17 @@
             const discordBadge = nData.discordId
                 ? `<span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded-full text-xs">🔗 Discord</span>`
                 : '';
-                
-            const orgBadge = nData.org 
-                ? `<span class="px-2 py-0.5 bg-blue-900/60 text-blue-400 rounded-full text-xs">${nData.org}</span>` 
-                : '';
-                
-            const dateBadge = nData.joinDate 
-                ? `<span class="px-2 py-0.5 bg-purple-900/60 text-purple-400 rounded-full text-xs">Entrou: ${new Date(nData.joinDate).toLocaleDateString('pt-BR', {timeZone:'UTC'})}</span>` 
-                : '';
 
             sumDiv.innerHTML = `
             <div class="bg-gray-800 rounded-xl p-6 space-y-5">
+
+                <!-- HEADER: avatar + nome + pontos -->
                 <div class="profile-header">
                     <img src="${avatar}" class="profile-avatar-sm" onerror="this.src='https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200'">
                     <div class="flex-grow min-w-0">
-                        <h3 class="text-2xl font-black text-white truncate capitalize-name">${filterId}</h3>
+                        <h3 class="text-2xl font-black text-white truncate">${filterId}</h3>
                         <div class="flex flex-wrap gap-2 mt-1 items-center">
                             <span class="px-2 py-0.5 ${nData.isActive ? 'bg-green-900/60 text-green-400' : 'bg-red-900/60 text-red-400'} rounded-full text-xs font-bold">${nData.isActive ? '🟢 Ativo' : '🔴 Inativo'}</span>
-                            ${orgBadge}
-                            ${dateBadge}
                             <span class="px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full text-xs">${nData.element||'N/A'}</span>
                             ${discordBadge}
                             ${rankPos > 0 ? `<span class="px-2 py-0.5 bg-yellow-900/50 text-yellow-400 rounded-full text-xs font-bold">${getRankIcon(rankPos)} Rank Geral</span>` : ''}
@@ -973,16 +911,30 @@
                     </div>
                 </div>
 
+                <!-- STATS -->
                 <div>
                     <div class="profile-section-title">Estatísticas de Combate</div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div class="stat-card"><div class="stat-card-val text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div><div class="stat-card-lbl">Caçadas</div></div>
-                        <div class="stat-card"><div class="stat-card-val text-red-400">${kC}</div><div class="stat-card-lbl">Como Killer</div></div>
-                        <div class="stat-card"><div class="stat-card-val text-orange-400">${aC}</div><div class="stat-card-lbl">Assists</div></div>
-                        <div class="stat-card"><div class="stat-card-val text-green-400">${hC}</div><div class="stat-card-lbl">Heals</div></div>
+                        <div class="stat-card">
+                            <div class="stat-card-val text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div>
+                            <div class="stat-card-lbl">Caçadas</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-val text-red-400">${kC}</div>
+                            <div class="stat-card-lbl">Como Killer</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-val text-orange-400">${aC}</div>
+                            <div class="stat-card-lbl">Assists</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-val text-green-400">${hC}</div>
+                            <div class="stat-card-lbl">Heals</div>
+                        </div>
                     </div>
                 </div>
 
+                <!-- BARRA DE PERFIL DE COMBATE -->
                 <div>
                     <div class="profile-section-title">Perfil de Combate — Killer ${pctK}% · Assist ${pctA}% · Heal ${pctH}%</div>
                     <div class="combat-bar">
@@ -992,6 +944,7 @@
                     </div>
                 </div>
 
+                <!-- ALVO MAIS ELIMINADO + PARCEIROS -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-gray-900 rounded-lg p-4">
                         <div class="profile-section-title">Alvos Mais Eliminados</div>
@@ -1007,15 +960,17 @@
                         ${topParceiros.length === 0 ? `<p class="text-gray-500 text-sm">Nenhum dado.</p>` :
                             topParceiros.map(([id, count]) => `
                             <div class="flex justify-between items-center py-1 border-b border-gray-800 last:border-0">
-                                <span class="text-sm text-blue-300 cursor-pointer hover:underline capitalize-name" onclick="document.getElementById('ninja-filter-select').value='${id}';window.renderNinjaProfile('${id}',1)">${id}</span>
+                                <span class="text-sm text-blue-300 cursor-pointer hover:underline" onclick="document.getElementById('ninja-filter-select').value='${id}';window.renderNinjaProfile('${id}',1)">${id}</span>
                                 <span class="text-xs text-gray-400">${count} missões juntos</span>
                             </div>`).join('')}
                     </div>
                 </div>
+
             </div>`;
 
             sumDiv.classList.remove('hidden');
 
+            // Histórico
             const tbody = document.getElementById('profile-history-log');
             tbody.innerHTML = '';
             mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -1028,10 +983,10 @@
             } else {
                 mHist.slice((page-1)*10, page*10).forEach(d => {
                     let mTxt = '';
-                    if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block capitalize-name">Killer: ${d.killerIds.join(', ')}</span>`;
-                    if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block capitalize-name">Assist: ${d.assistIds.join(', ')}</span>`;
-                    if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block capitalize-name">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
-                    if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block capitalize-name">Heal: ${d.healerIds.join(', ')}</span>`;
+                    if(d.killerIds?.length) mTxt += `<span class="text-red-400 text-xs block">Killer: ${d.killerIds.join(', ')}</span>`;
+                    if(d.assistIds?.length) mTxt += `<span class="text-orange-400 text-xs block">Assist: ${d.assistIds.join(', ')}</span>`;
+                    if(d.executorIds?.length && (!d.killerIds||!d.killerIds.length)) mTxt += `<span class="text-orange-400 text-xs block">Killer(Antigo): ${d.executorIds.join(', ')}</span>`;
+                    if(d.healerIds?.length) mTxt += `<span class="text-green-400 text-xs block">Heal: ${d.healerIds.join(', ')}</span>`;
                     const tag = d.isEvent ? '<span class="bg-yellow-900 text-yellow-400 text-[10px] px-1 rounded block w-max mt-1">EVENTO</span>' : '';
                     const roleTag = d.killerIds?.includes(filterId) ? '<span class="text-red-400 text-[10px] font-bold">[K]</span>'
                         : d.assistIds?.includes(filterId) ? '<span class="text-orange-400 text-[10px] font-bold">[A]</span>'
@@ -1073,8 +1028,8 @@
             switch (pageName) {
                 case 'home':
                     contentDiv.innerHTML = `<section class="text-center py-20 bg-gray-800 rounded-xl shadow-2xl space-y-4">
-                        <h2 class="text-3xl font-bold text-red-400">Forças Especiais da Leaf</h2>
-                        <p class="text-gray-400 max-w-md mx-auto text-sm">A elite tática de Konoha. Operando nas sombras para proteger a vila, executando missões de inteligência, rastreio e neutralização silenciosa de ameaças de alto risco.</p>
+                        <h2 class="text-3xl font-bold text-red-400">QG Forças Especiais da Leaf</h2>
+                        <p class="text-gray-400 max-w-md mx-auto text-sm">Sistema de rastreamento de missões ANBU. Acompanhe rankings, perfis e histórico de caçadas.</p>
                         <div class="flex justify-center gap-3 pt-2 flex-wrap">
                             <button onclick="window.renderPage('scoreboard')" class="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg font-bold text-sm">Ver Ranking</button>
                             <button onclick="window.renderPage('ninja_panel')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm">Ver Perfis</button>
@@ -1084,7 +1039,7 @@
 
                 case 'scoreboard':
                     contentDiv.innerHTML = `<section class="space-y-4 pt-8">
-                        <h2 class="text-3xl font-bold text-red-400 text-center">Rank Geral</h2>
+                        <h2 class="text-3xl font-bold text-red-400 text-center">Rank Geral (Dia-a-Dia)</h2>
                         <div id="scoreboard-totals" class="grid grid-cols-3 gap-3 max-w-md mx-auto"></div>
                         <div class="bg-gray-800 p-4 rounded-xl overflow-x-auto">
                             <table class="min-w-full"><thead class="bg-gray-700"><tr>
@@ -1160,11 +1115,11 @@
                     break;
 
                 case 'ninja_panel':
-                    const opt = Object.values(ninjasData).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).filter(n=>n.id).map(n=>`<option value="${n.id}" class="capitalize-name">${n.id}</option>`).join('');
+                    const opt = Object.values(ninjasData).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).filter(n=>n.id).map(n=>`<option value="${n.id}">${n.id}</option>`).join('');
                     contentDiv.innerHTML = `<section class="space-y-6 pt-4">
-                        <h2 class="text-3xl font-bold text-red-400 text-center">Membros</h2>
+                        <h2 class="text-3xl font-bold text-red-400 text-center">Dossiê Militar</h2>
                         <div class="max-w-md mx-auto">
-                            <select id="ninja-filter-select" onchange="window.renderNinjaProfile(this.value,1)" class="w-full p-2.5 rounded-lg bg-gray-700 text-white font-bold capitalize-name">
+                            <select id="ninja-filter-select" onchange="window.renderNinjaProfile(this.value,1)" class="w-full p-2.5 rounded-lg bg-gray-700 text-white font-bold">
                                 <option value="">-- Escolha um Membro --</option>${opt}
                             </select>
                         </div>
@@ -1193,24 +1148,24 @@
                         <div class="bg-gray-900 p-4 rounded-lg">
                             <label class="block text-sm text-gray-300 mb-2">Destino:</label>
                             <div class="flex gap-6">
-                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="daily" checked class="h-5 w-5" onchange="window.toggleEventOptions(); window.updateDescriptionPreview()"><span class="text-white font-bold">Geral</span></label>
-                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="event" class="h-5 w-5" onchange="window.toggleEventOptions(); window.updateDescriptionPreview()"><span class="text-yellow-400 font-bold">Evento 🌟</span></label>
+                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="daily" checked class="h-5 w-5"><span class="text-white font-bold">Geral</span></label>
+                                <label class="flex items-center space-x-2"><input type="radio" name="report_type" value="event" class="h-5 w-5"><span class="text-yellow-400 font-bold">Evento 🌟</span></label>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm text-gray-300">Killer</label>
-                                <div class="flex gap-2"><select id="new-killer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white capitalize-name"></select><button onclick="window.addExecutor('killer')" class="px-4 bg-red-600 text-white rounded font-bold">Add</button></div>
+                                <div class="flex gap-2"><select id="new-killer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('killer')" class="px-4 bg-red-600 text-white rounded font-bold">Add</button></div>
                                 <div id="killers-tag-container" class="executor-list-container mt-2"></div>
                             </div>
                             <div>
                                 <label class="block text-sm text-gray-300">Assist</label>
-                                <div class="flex gap-2"><select id="new-assist-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white capitalize-name"></select><button onclick="window.addExecutor('assist')" class="px-4 bg-orange-600 text-white rounded font-bold">Add</button></div>
+                                <div class="flex gap-2"><select id="new-assist-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('assist')" class="px-4 bg-orange-600 text-white rounded font-bold">Add</button></div>
                                 <div id="assists-tag-container" class="executor-list-container mt-2"></div>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm text-gray-300">Healer</label>
-                                <div class="flex gap-2"><select id="new-healer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white capitalize-name"></select><button onclick="window.addExecutor('healer')" class="px-4 bg-green-600 text-white rounded font-bold">Add</button></div>
+                                <div class="flex gap-2"><select id="new-healer-id-select" class="flex-grow p-2 rounded bg-gray-700 text-white"></select><button onclick="window.addExecutor('healer')" class="px-4 bg-green-600 text-white rounded font-bold">Add</button></div>
                                 <div id="healers-tag-container" class="executor-list-container mt-2"></div>
                             </div>
                         </div>
@@ -1258,15 +1213,12 @@
                     <section class="space-y-4 pt-8 pb-16 admin-only hidden">
                         <h2 class="text-3xl font-bold text-yellow-400 text-center">Cadastro: ANBUs</h2>
                         <div id="add-ninja-form" class="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row gap-4 flex-wrap">
-                            <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2.5 rounded-lg bg-gray-800 text-white capitalize-name">
-                            <input id="new-ninja-org" type="text" placeholder="Organização (Ex: ANBU)" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
-                            <input id="new-ninja-date" type="date" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
-                            
-                            <select id="new-ninja-mastery-1" class="w-full sm:w-32 p-2.5 rounded-lg bg-gray-800 text-white">
+                            <input id="new-ninja-id" type="text" placeholder="ID do Novo ANBU" class="flex-grow p-2.5 rounded-lg bg-gray-800 text-white">
+                            <select id="new-ninja-mastery-1" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
                                 ${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}
                             </select>
-                            <select id="new-ninja-mastery-2" class="w-full sm:w-32 p-2.5 rounded-lg bg-gray-800 text-white">
-                                <option value="">2ª (Opc)</option>
+                            <select id="new-ninja-mastery-2" class="w-full sm:w-40 p-2.5 rounded-lg bg-gray-800 text-white">
+                                <option value="">2ª (Opcional)</option>
                                 ${MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('')}
                             </select>
                             <button class="py-2.5 px-4 bg-yellow-600 text-white font-bold rounded-lg" onclick="window.addNinja()">Cadastrar</button>

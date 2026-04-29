@@ -12,7 +12,6 @@
             --sidebar-dark: #0d0f16;
             --card-dark: #12151e;
             --accent-red: #ef4444;
-            --accent-blue: #3b82f6;
             --text-muted: #94a3b8;
         }
 
@@ -21,7 +20,6 @@
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
 
-        /* Sidebar */
         .sidebar { background-color: var(--sidebar-dark); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .sidebar.collapsed { width: 80px; }
         .sidebar.collapsed .hide { display: none; }
@@ -29,7 +27,6 @@
         .item:hover { background: rgba(255, 255, 255, 0.03); color: #fff; }
         .item.active { background: rgba(255, 255, 255, 0.05); color: #fff; box-shadow: inset 4px 0 0 var(--accent-red); }
 
-        /* Cards & UI */
         .panel { background-color: var(--card-dark); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; }
         .stat-card { padding: 24px; transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.1); }
@@ -410,9 +407,7 @@
     <div id="modal-content" class="bg-gray-800 rounded-2xl shadow-2xl border border-white/10 p-6 w-full max-w-xl space-y-5 my-8">
         <h3 id="modal-title" class="text-xl font-bold text-white">Título</h3>
         <p id="modal-message" class="text-slate-400 text-sm">Mensagem</p>
-        
         <div id="modal-dynamic-form" class="hidden"></div>
-        
         <div id="modal-actions" class="flex justify-end gap-3 pt-4 border-t border-white/5 mt-4">
             <button id="modal-cancel-btn" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition">Cancelar</button>
             <button id="modal-confirm-btn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition">Confirmar</button>
@@ -460,16 +455,17 @@
     const MAESTRIAS_OPCOES = ["Fogo", "Água", "Vento", "Terra", "Raio", "Med (Chakra)", "Med (Int)", "WM", "TAI"];
 
     // Utils
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[tag] || tag));
+    }
+    
     function getRankIcon(rank) { return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`; }
     function normalizeId(id) { return id.trim().toLowerCase(); }
-    
-    // Função para manter 1ª letra maiúscula
-    function capitalizeName(str) {
-        if (!str) return '';
-        return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-    }
+    function capitalizeName(str) { if (!str) return ''; return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '); }
 
-    // Calcula os stats em tempo real (Kills, Assists, Heals)
     function getNinjaStats(id, isEvent) {
         let k=0, a=0, h=0;
         const list = isEvent ? eventReportsData : reportsData;
@@ -491,16 +487,9 @@
         if(type==='success' || type==='error') setTimeout(() => el.classList.add('hidden'), 4000);
     }
 
-    // Navegação Perfil via Click
     window.goToProfile = function(ninjaId) {
         window.renderPage('perfil');
-        setTimeout(() => {
-            const sel = document.getElementById('ninja-filter-select');
-            if (sel) {
-                sel.value = ninjaId;
-                window.renderNinjaProfile(ninjaId, 1);
-            }
-        }, 50);
+        setTimeout(() => { const sel = document.getElementById('ninja-filter-select'); if (sel) { sel.value = ninjaId; window.renderNinjaProfile(ninjaId, 1); } }, 50);
     };
 
     // Modal
@@ -536,7 +525,6 @@
                         <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-400 mb-1">URL da Foto de Perfil (Avatar)</label><input type="text" id="edit-photo" class="w-full p-2.5 rounded-lg bg-gray-900 border border-white/10 text-white outline-none focus:border-blue-500" placeholder="Cole o link da imagem aqui"></div>
                     </div>
                 `;
-                
                 document.getElementById('edit-status').value = data.isActive ? "true" : "false";
                 document.getElementById('edit-org').value = data.org || "ANBU";
                 document.getElementById('edit-date').value = data.entranceDate || "";
@@ -563,39 +551,19 @@
     }
     function closeCustomModal(result) { document.getElementById('custom-modal').classList.add('hidden'); document.getElementById('custom-modal').classList.remove('flex'); if (resolveModalPromise) { resolveModalPromise(result); resolveModalPromise = null; } }
 
-    const pageMeta = {
-        dashboard: ['QG - Quartel General', 'Visão tática consolidada das Forças Especiais'],
-        rank: ['Rank Geral', 'Classificação completa da elite operacional'],
-        evento: ['Rank do Evento', 'Pontuações e missões em eventos ativos'],
-        historico: ['Histórico de Operações', 'Log completo de missões concluídas'],
-        alvos: ['Lista Negra', 'Ameaças neutralizadas pelo esquadrão'],
-        perfil: ['Dossiê Tático', 'Métricas individuais detalhadas'],
-        report_form: ['Registrar Missão', 'Lançamento oficial no banco de dados'],
-        admin_panel: ['Administração', 'Gestão de operadores e acesso'],
-        audit_panel: ['Auditoria Bot', 'Revisão de logs do servidor Discord']
-    };
+    const pageMeta = { dashboard: ['QG - Quartel General', 'Visão tática consolidada das Forças Especiais'], rank: ['Rank Geral', 'Classificação completa da elite operacional'], evento: ['Rank do Evento', 'Pontuações e missões em eventos ativos'], historico: ['Histórico de Operações', 'Log completo de missões concluídas'], alvos: ['Lista Negra', 'Ameaças neutralizadas pelo esquadrão'], perfil: ['Dossiê Tático', 'Métricas individuais detalhadas'], report_form: ['Registrar Missão', 'Lançamento oficial no banco de dados'], admin_panel: ['Administração', 'Gestão de operadores e acesso'], audit_panel: ['Auditoria Bot', 'Revisão de logs do servidor Discord'] };
 
     window.toggleSidebar = function() {
         document.getElementById('sidebar').classList.toggle('collapsed');
         const main = document.getElementById('main-content');
-        if (document.getElementById('sidebar').classList.contains('collapsed')) {
-            main.classList.replace('ml-64', 'ml-20');
-        } else {
-            main.classList.replace('ml-20', 'ml-64');
-        }
+        if (document.getElementById('sidebar').classList.contains('collapsed')) { main.classList.replace('ml-64', 'ml-20'); } else { main.classList.replace('ml-20', 'ml-64'); }
     }
 
     window.renderPage = function(pageName) {
         if (pageName !== 'report_form' && pageName !== 'audit_panel') { window.isEditingMode = false; processingPendingId = null; }
-        
         if (currentPage === 'report_form' && pageName !== 'report_form') {
             const btn = document.getElementById('submit-report');
-            if (btn && !btn.disabled) {
-                window.openCustomModal('Sair do formulário?', 'Você tem dados não salvos. Deseja sair?', 'confirm').then(c => {
-                    if (c) forceChangePage(pageName);
-                });
-                return;
-            }
+            if (btn && !btn.disabled) { window.openCustomModal('Sair do formulário?', 'Você tem dados não salvos. Deseja sair?', 'confirm').then(c => { if (c) forceChangePage(pageName); }); return; }
         }
         forceChangePage(pageName);
     }
@@ -610,10 +578,7 @@
         const activeLink = document.getElementById(`nav-${pageName}`);
         if(activeLink) activeLink.classList.add('active');
 
-        if(pageMeta[pageName]) {
-            document.getElementById('title').textContent = pageMeta[pageName][0];
-            document.getElementById('subtitle').textContent = pageMeta[pageName][1];
-        }
+        if(pageMeta[pageName]) { document.getElementById('title').textContent = pageMeta[pageName][0]; document.getElementById('subtitle').textContent = pageMeta[pageName][1]; }
 
         if(pageName === 'dashboard') updateDashboard();
         if(pageName === 'rank') window.renderScoreboard(false);
@@ -626,19 +591,11 @@
             if(sel.value) window.renderNinjaProfile(sel.value, 1);
         }
         if(pageName === 'report_form') {
-            if (!isWriterMode) { 
-                showStatus('Necessário Acesso Restrito para registrar missões.', 'error');
-                forceChangePage('admin_panel'); 
-                return; 
-            }
+            if (!isWriterMode) { showStatus('Necessário Acesso Restrito para registrar missões.', 'error'); forceChangePage('admin_panel'); return; }
             if (!window.isEditingMode && !processingPendingId) {
-                selectedKillers = []; selectedAssists = []; selectedHealers = []; targetEntryCount = 0;
-                document.getElementById('targets-container').innerHTML = '';
-                
-                // Configurar Data/Hora atual
+                selectedKillers = []; selectedAssists = []; selectedHealers = []; targetEntryCount = 0; document.getElementById('targets-container').innerHTML = '';
                 const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                 document.getElementById('report-date-input').value = now.toISOString().slice(0,16);
-
                 window.addTargetEntry(); window.updateExecutorSelect(); window.updateExecutorTags(); window.generateReportId(); window.updateDescriptionPreview();
             }
         }
@@ -649,24 +606,14 @@
         document.querySelectorAll('.admin-only').forEach(el => isMasterAdminMode ? el.classList.remove('hidden') : el.classList.add('hidden'));
     }
 
-    // DASHBOARD UPDATE
     function updateDashboard() {
         const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id);
         const totalPts = guardians.reduce((s, n) => s + Number(n.rankPoints||0), 0);
-        
-        document.getElementById('dash-membros').textContent = guardians.length;
-        document.getElementById('dash-membros-total').textContent = `${Object.keys(ninjasData).length} no total`;
-        document.getElementById('dash-missoes').textContent = reportsData.length;
-        document.getElementById('dash-pontos').textContent = Math.round(totalPts).toLocaleString('pt-BR');
-        
-        const badge = document.getElementById('dash-pendencias');
-        if(badge) badge.textContent = pendingData.length;
-
+        document.getElementById('dash-membros').textContent = guardians.length; document.getElementById('dash-membros-total').textContent = `${Object.keys(ninjasData).length} no total`;
+        document.getElementById('dash-missoes').textContent = reportsData.length; document.getElementById('dash-pontos').textContent = Math.round(totalPts).toLocaleString('pt-BR');
+        const badge = document.getElementById('dash-pendencias'); if(badge) badge.textContent = pendingData.length;
         const ranked = [...guardians].sort((a, b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
-        if(ranked.length > 0) {
-            document.getElementById('dash-top-nome').textContent = capitalizeName(ranked[0].id);
-            document.getElementById('dash-top-pts').textContent = `${Math.round(ranked[0].rankPoints)} pts`;
-        }
+        if(ranked.length > 0) { document.getElementById('dash-top-nome').textContent = capitalizeName(ranked[0].id); document.getElementById('dash-top-pts').textContent = `${Math.round(ranked[0].rankPoints)} pts`; }
 
         const maxPts = ranked.length > 0 ? Number(ranked[0].rankPoints||1) : 1;
         document.getElementById('homeRankPreview').innerHTML = ranked.slice(0,5).map((r, i) => {
@@ -674,81 +621,49 @@
             return `<div class="flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition-transform" onclick="window.goToProfile('${r.id}')">
                 <div class="w-8 h-8 rounded-full ${i === 0 ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-xs font-bold">${i+1}</div>
                 <div class="flex-1">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-sm font-bold text-slate-200">${capitalizeName(r.id)}</span>
-                        <span class="text-xs font-mono text-slate-400">${Math.round(r.rankPoints||0)}</span>
-                    </div>
+                    <div class="flex justify-between mb-1"><span class="text-sm font-bold text-slate-200">${capitalizeName(r.id)}</span><span class="text-xs font-mono text-slate-400">${Math.round(r.rankPoints||0)}</span></div>
                     <div class="progress-bar"><div class="h-full ${i===0?'bg-red-500':'bg-blue-500'}" style="width: ${w}"></div></div>
-                </div>
-            </div>`;
+                </div></div>`;
         }).join('');
 
         const rcp = [...reportsData].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 4);
         document.getElementById('activityFeed').innerHTML = rcp.map(a => {
             const members = [...(a.killerIds||[]), ...(a.assistIds||[])].slice(0,2).map(capitalizeName).join(', ') + (a.killerIds?.length > 2 ? '...' : '');
             return `<div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition">
-                <div>
-                    <div class="text-sm font-bold text-white">${members || 'Esquadrão'}</div>
-                    <div class="text-[10px] text-slate-500 uppercase tracking-wide mt-0.5">${new Date(a.timestamp).toLocaleDateString('pt-BR')} · ${capitalizeName(a.targets?.[0]?.name||'Alvo')}</div>
-                </div>
-                <div class="badge-points">+${a.totalPointsRaw||0}</div>
-            </div>`;
+                <div><div class="text-sm font-bold text-white">${members || 'Esquadrão'}</div><div class="text-[10px] text-slate-500 uppercase tracking-wide mt-0.5">${new Date(a.timestamp).toLocaleDateString('pt-BR')} · ${capitalizeName(a.targets?.[0]?.name||'Alvo')}</div></div>
+                <div class="badge-points">+${a.totalPointsRaw||0}</div></div>`;
         }).join('') || '<p class="text-slate-500 text-sm">Nenhuma atividade.</p>';
     }
 
-    // SCOREBOARD (RANK GERAL E EVENTO)
     window.renderScoreboard = function(isEvent = false) {
-        const tbody = document.getElementById(isEvent ? 'eventRankTable' : 'fullRankTable');
-        if (!tbody) return;
-        
+        const tbody = document.getElementById(isEvent ? 'eventRankTable' : 'fullRankTable'); if (!tbody) return;
         const guardians = Object.values(ninjasData).filter(n => n.isActive && n.id);
         const pointProp = isEvent ? 'eventPoints' : 'rankPoints';
-        
         guardians.sort((a, b) => Number(b[pointProp] || 0) - Number(a[pointProp] || 0));
-        
-        if(guardians.length === 0 || (isEvent && guardians[0][pointProp] == 0)) {
-            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum dado computado.</td></tr>`;
-            return;
-        }
+        if(guardians.length === 0 || (isEvent && guardians[0][pointProp] == 0)) { tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum dado computado.</td></tr>`; return; }
 
         tbody.innerHTML = guardians.filter(n => !isEvent || n[pointProp] > 0).map((r, i) => {
-            const pts = Math.round(r[pointProp] || 0);
-            const imgInitials = capitalizeName(r.id).substring(0,2);
-            
-            // Calculando Kills, Assists e Heals no momento da renderização
+            const pts = Math.round(r[pointProp] || 0); const imgInitials = capitalizeName(r.id).substring(0,2);
             const stats = getNinjaStats(r.id, isEvent);
-            
             return `
             <tr class="group hover:bg-white/[0.04] transition-colors cursor-pointer" onclick="window.goToProfile('${r.id}')">
-                <td class="py-4 pl-2">
-                    <span class="${i === 0 ? (isEvent?'text-yellow-500':'text-red-500') + ' font-black' : 'text-slate-500 font-bold'} group-hover:text-white transition-colors">#${i+1}</span>
-                </td>
-                <td class="py-4">
-                    <div class="flex items-center gap-3">
+                <td class="py-4 pl-2"><span class="${i === 0 ? (isEvent?'text-yellow-500':'text-red-500') + ' font-black' : 'text-slate-500 font-bold'} group-hover:text-white transition-colors">#${i+1}</span></td>
+                <td class="py-4"><div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full ${i === 0 ? (isEvent?'bg-yellow-600 shadow-yellow-600/30':'bg-red-600 shadow-red-600/30') : 'bg-slate-700'} flex items-center justify-center text-xs font-bold text-white relative overflow-hidden shadow-lg group-hover:scale-110 transition-transform">
                             ${r.avatarUrl ? `<img src="${r.avatarUrl}" class="w-full h-full object-cover absolute">` : imgInitials}
                         </div>
-                        <div>
-                            <div class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${capitalizeName(r.id)}</div>
-                            <div class="text-[9px] uppercase tracking-widest font-bold ${isEvent ? 'text-yellow-600':'text-slate-500'} mt-0.5">${r.org || 'ANBU'}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="py-4">
-                    <div class="flex items-center gap-4 justify-center md:justify-start">
+                        <div><div class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${capitalizeName(r.id)}</div><div class="text-[9px] uppercase tracking-widest font-bold ${isEvent ? 'text-yellow-600':'text-slate-500'} mt-0.5">${r.org || 'ANBU'}</div></div>
+                    </div></td>
+                <td class="py-4"><div class="flex items-center gap-4 justify-center md:justify-start">
                         <div class="text-center"><div class="text-sm font-bold text-red-400">${stats.k}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Kills</div></div>
                         <div class="text-center"><div class="text-sm font-bold text-orange-400">${stats.a}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Assists</div></div>
                         <div class="text-center"><div class="text-sm font-bold text-green-400">${stats.h}</div><div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Heals</div></div>
-                    </div>
-                </td>
-                <td class="py-4 text-right pr-2">
-                    <div class="text-lg font-mono font-bold text-white group-hover:text-blue-400 transition-colors">${pts}</div>
-                </td>
+                    </div></td>
+                <td class="py-4 text-right pr-2"><div class="text-lg font-mono font-bold text-white group-hover:text-blue-400 transition-colors">${pts}</div></td>
             </tr>`;
         }).join('');
     }
 
-    // HISTORICO
     window.setHistoryMode = function(isEvent) {
         historyIsEvent = isEvent;
         document.getElementById('btn-hist-geral').className = isEvent ? 'px-4 py-2 bg-gray-800 text-red-500 border border-red-900/50 rounded-lg font-bold text-sm transition' : 'px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm transition shadow-lg shadow-red-600/20';
@@ -757,13 +672,10 @@
     }
 
     window.renderReportsLogFiltered = function(page = 1) {
-        const tbody = document.getElementById('reports-log');
-        if (!tbody) return;
+        const tbody = document.getElementById('reports-log'); if (!tbody) return;
         const listToUse = historyIsEvent ? eventReportsData : reportsData;
-
         const searchTerm = document.getElementById('history-search').value.trim().toLowerCase();
         const dateFilter = document.getElementById('history-date-filter').value;
-
         let dateCut = null; const now = new Date();
         if (dateFilter === 'today') dateCut = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         else if (dateFilter === 'week') dateCut = new Date(now - 7*24*60*60*1000);
@@ -787,7 +699,6 @@
         sorted.slice((page-1)*10, page*10).forEach(d => {
             const dateStr = d.timestamp ? new Date(d.timestamp).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
             const tag = historyIsEvent ? '<span class="bg-yellow-900/50 text-yellow-500 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-2">Evento</span>' : '';
-            
             let mTxt = '<div class="flex flex-wrap gap-1">';
             if(d.killerIds?.length) d.killerIds.forEach(id => mTxt += `<span class="executor-tag killer-tag text-[10px] py-0.5">${capitalizeName(id)}</span>`);
             if(d.assistIds?.length) d.assistIds.forEach(id => mTxt += `<span class="executor-tag assist-tag text-[10px] py-0.5">${capitalizeName(id)}</span>`);
@@ -797,13 +708,7 @@
             const tTxt = d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A';
             const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-2"><button onclick="window.editReport('${d.reportId}',${historyIsEvent})" class="text-blue-400 hover:text-white bg-white/5 px-2 py-1 rounded text-[10px] uppercase font-bold transition">Editar</button><button onclick="window.deleteReport('${d.reportId}',${historyIsEvent})" class="text-red-500 hover:text-white bg-white/5 px-2 py-1 rounded text-[10px] uppercase font-bold transition">Del</button></div>` : '';
             
-            tbody.innerHTML += `
-            <tr class="hover:bg-white/[0.02] transition-colors">
-                <td class="py-4 align-top text-xs font-mono text-slate-400">${dateStr}<br><span class="text-[9px] text-slate-600">${d.reportId}</span>${tag}${btns}</td>
-                <td class="py-4 align-top">${mTxt}</td>
-                <td class="py-4 align-top text-sm text-orange-300 font-medium">${tTxt}</td>
-                <td class="py-4 align-top font-bold text-white">${d.totalPointsRaw||0} pts</td>
-            </tr>`;
+            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors"><td class="py-4 align-top text-xs font-mono text-slate-400">${dateStr}<br><span class="text-[9px] text-slate-600">${d.reportId}</span>${tag}${btns}</td><td class="py-4 align-top">${mTxt}</td><td class="py-4 align-top text-sm text-orange-300 font-medium">${tTxt}</td><td class="py-4 align-top font-bold text-white">${d.totalPointsRaw||0} pts</td></tr>`;
         });
 
         const cont = tbody.closest('.overflow-x-auto');
@@ -817,40 +722,26 @@
         }
     }
 
-    // ALVOS
     window.renderTargetsTable = function(page = 1) {
-        const tbody = document.getElementById('targets-scoreboard');
-        if (!tbody) return;
+        const tbody = document.getElementById('targets-scoreboard'); if (!tbody) return;
         const targetsMap = {};
         [...reportsData, ...eventReportsData].forEach(r => {
-            if (Array.isArray(r.targets)) {
-                r.targets.forEach(t => { if (t && t.name) { const n = t.name.trim().toLowerCase(); if (!targetsMap[n]) targetsMap[n] = { name: t.name.trim(), count: 0, totalBT: 0 }; targetsMap[n].count += 1; targetsMap[n].totalBT += (t.btBase || 0); } });
-            }
+            if (Array.isArray(r.targets)) { r.targets.forEach(t => { if (t && t.name) { const n = t.name.trim().toLowerCase(); if (!targetsMap[n]) targetsMap[n] = { name: t.name.trim(), count: 0, totalBT: 0 }; targetsMap[n].count += 1; targetsMap[n].totalBT += (t.btBase || 0); } }); }
         });
         const sortedTargets = Object.values(targetsMap).sort((a, b) => b.count - a.count || b.totalBT - a.totalBT);
         const totalPages = Math.ceil(sortedTargets.length / 10);
         if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
-        
         tbody.innerHTML = '';
         if (sortedTargets.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Nenhum alvo abatido ainda.</td></tr>`; return; }
-        
         sortedTargets.slice((page - 1) * 10, page * 10).forEach((t, i) => {
-            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
-                <td class="py-3 text-center text-slate-400 font-bold">${getRankIcon((page-1)*10+i+1)}</td>
-                <td class="py-3 text-orange-300 font-bold">${capitalizeName(t.name)}</td>
-                <td class="py-3 text-red-400 font-bold">${t.count}x</td>
-                <td class="py-3 text-slate-300 font-mono">${t.totalBT}</td>
-            </tr>`;
+            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors"><td class="py-3 text-center text-slate-400 font-bold">${getRankIcon((page-1)*10+i+1)}</td><td class="py-3 text-orange-300 font-bold">${capitalizeName(t.name)}</td><td class="py-3 text-red-400 font-bold">${t.count}x</td><td class="py-3 text-slate-300 font-mono">${t.totalBT}</td></tr>`;
         });
     }
 
-    // PERFIL
     window.renderNinjaProfile = function(filterId, page = 1) {
-        const sumDiv = document.getElementById('guardian-summary');
-        const histDiv = document.getElementById('profile-history-container');
+        const sumDiv = document.getElementById('guardian-summary'); const histDiv = document.getElementById('profile-history-container');
         if (!filterId) { if(sumDiv) sumDiv.classList.add('hidden'); if(histDiv) histDiv.classList.add('hidden'); return; }
-        const nData = ninjasData[filterId];
-        if (!nData || !sumDiv) return;
+        const nData = ninjasData[filterId]; if (!nData || !sumDiv) return;
 
         const all = [...reportsData, ...eventReportsData];
         let kC=0, aC=0, hC=0, mHist=[];
@@ -865,9 +756,7 @@
 
         const ranked = Object.values(ninjasData).filter(n => n.isActive && n.id).sort((a,b) => Number(b.rankPoints||0) - Number(a.rankPoints||0));
         const rankPos = ranked.findIndex(n => n.id === filterId) + 1;
-
-        const total = kC + aC + hC || 1;
-        const pctK = Math.round((kC / total) * 100); const pctA = Math.round((aC / total) * 100); const pctH = Math.round((hC / total) * 100);
+        const total = kC + aC + hC || 1; const pctK = Math.round((kC / total) * 100); const pctA = Math.round((aC / total) * 100); const pctH = Math.round((hC / total) * 100);
 
         const avatar = nData.avatarUrl ? nData.avatarUrl : `https://ui-avatars.com/api/?name=${filterId}&background=1f2937&color=f87171&size=200&font-size=0.33&bold=true`;
 
@@ -890,31 +779,20 @@
                     <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Pontos Geral</div>
                 </div>
             </div>
-
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white/5 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-white">${(nData.missionsCompleted||0)+(nData.eventMissionsCompleted||0)}</div><div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold">Caçadas</div></div>
                 <div class="bg-red-900/10 border border-red-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-red-400">${kC}</div><div class="text-[10px] text-red-500 uppercase tracking-widest mt-1 font-bold">Killers</div></div>
                 <div class="bg-orange-900/10 border border-orange-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-orange-400">${aC}</div><div class="text-[10px] text-orange-500 uppercase tracking-widest mt-1 font-bold">Assists</div></div>
                 <div class="bg-green-900/10 border border-green-500/10 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-green-400">${hC}</div><div class="text-[10px] text-green-500 uppercase tracking-widest mt-1 font-bold">Heals</div></div>
             </div>
-
             <div>
-                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 flex justify-between">
-                    <span>Estilo de Combate</span>
-                    <span>K ${pctK}% · A ${pctA}% · H ${pctH}%</span>
-                </div>
-                <div class="combat-bar">
-                    <div class="combat-bar-seg bg-red-500" style="width:${pctK}%"></div>
-                    <div class="combat-bar-seg bg-orange-400" style="width:${pctA}%"></div>
-                    <div class="combat-bar-seg bg-green-500" style="width:${pctH}%"></div>
-                </div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 flex justify-between"><span>Estilo de Combate</span><span>K ${pctK}% · A ${pctA}% · H ${pctH}%</span></div>
+                <div class="combat-bar"><div class="combat-bar-seg bg-red-500" style="width:${pctK}%"></div><div class="combat-bar-seg bg-orange-400" style="width:${pctA}%"></div><div class="combat-bar-seg bg-green-500" style="width:${pctH}%"></div></div>
             </div>
         </div>`;
         sumDiv.classList.remove('hidden');
 
-        // Historico do Perfil
-        const tbody = document.getElementById('profile-history-log');
-        tbody.innerHTML = '';
+        const tbody = document.getElementById('profile-history-log'); tbody.innerHTML = '';
         mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         const totalPages = Math.ceil(mHist.length / 10);
         if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
@@ -930,22 +808,15 @@
 
                 const role = d.killerIds?.includes(filterId) ? '<span class="text-red-400 text-[10px] font-black">[K]</span>' : d.assistIds?.includes(filterId) ? '<span class="text-orange-400 text-[10px] font-black">[A]</span>' : '<span class="text-green-400 text-[10px] font-black">[H]</span>';
                 
-                tbody.innerHTML += `
-                <tr class="hover:bg-white/[0.02] transition-colors">
-                    <td class="py-3 text-xs font-mono text-slate-400 align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-slate-600">${d.reportId}</span></td>
-                    <td class="py-3 align-top">${mTxt}</td>
-                    <td class="py-3 text-sm text-orange-300 font-medium align-top">${d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A'}</td>
-                    <td class="py-3 text-sm font-bold text-white align-top">${d.totalPointsRaw||0} pts ${role}</td>
-                </tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors"><td class="py-3 text-xs font-mono text-slate-400 align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-slate-600">${d.reportId}</span></td><td class="py-3 align-top">${mTxt}</td><td class="py-3 text-sm text-orange-300 font-medium align-top">${d.targets ? d.targets.map(t=>capitalizeName(t.name)).join(', ') : 'N/A'}</td><td class="py-3 text-sm font-bold text-white align-top">${d.totalPointsRaw||0} pts ${role}</td></tr>`;
             });
         }
         histDiv.classList.remove('hidden');
     }
 
-    // AUDITORIA
+    // AUDITORIA - ATUALIZADA E SEGURA CONTRA CARACTERES INVISÍVEIS DO DISCORD
     window.renderAuditPanel = function() {
-        const tbody = document.getElementById('audit-table-body');
-        if(!tbody) return;
+        const tbody = document.getElementById('audit-table-body'); if(!tbody) return;
         tbody.innerHTML = '';
         if (pendingData.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">Tudo limpo! Nenhum relatório pendente.</td></tr>`;
@@ -953,10 +824,14 @@
             pendingData.forEach(p => {
                 const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
                 const badge = vinculado ? `<span class="bg-green-900/50 text-green-400 text-[10px] px-2 py-1 rounded border border-green-500/30 font-bold">🔗 ${capitalizeName(vinculado.id)}</span>` : `<span class="bg-yellow-900/50 text-yellow-500 text-[10px] px-2 py-1 rounded border border-yellow-500/30 font-bold">⚠️ Sem Vínculo</span>`;
+                
+                // ESCAPANDO O TEXTO PARA NÃO QUEBRAR O HTML DO SITE (ex: <@123>)
+                const safeText = escapeHTML(p.rawText || '');
+
                 tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
-                    <td class="py-3 pl-2 text-sm text-blue-400 font-bold">${p.authorTag}</td>
+                    <td class="py-3 pl-2 text-sm text-blue-400 font-bold">${escapeHTML(p.authorTag)}</td>
                     <td class="py-3 text-sm">${badge}</td>
-                    <td class="py-3 text-xs text-slate-300 font-mono bg-black/30 p-2 rounded">${p.rawText}</td>
+                    <td class="py-3 text-xs text-slate-300 font-mono bg-black/30 p-2 rounded">${safeText}</td>
                     <td class="py-3 text-xs text-slate-500">${new Date(p.timestamp).toLocaleString('pt-BR')}</td>
                     <td class="py-3 text-center whitespace-nowrap">
                         <button onclick="window.avaliarPending('${p.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase mr-2 transition shadow-lg">Revisar</button>
@@ -967,78 +842,84 @@
         }
     }
 
-    // ADMIN NINJAS
+    window.avaliarPending = function(pendingId) {
+        try {
+            const data = pendingData.find(d => d.id === pendingId); if (!data) return;
+            processingPendingId = pendingId; window.isEditingMode = false; 
+            
+            selectedKillers = []; selectedAssists = Array.isArray(data.parsedAssists) ? [...data.parsedAssists] : []; selectedHealers = [];
+            targetEntryCount = 0; document.getElementById('targets-container').innerHTML = '';
+            
+            window.renderPage('report_form');
+            
+            let ninjaEncontrado = Object.values(ninjasData).find(n => n.discordId && n.discordId === data.authorId);
+            if (ninjaEncontrado) { if (!selectedKillers.includes(ninjaEncontrado.id) && !selectedAssists.includes(ninjaEncontrado.id)) { selectedKillers.push(ninjaEncontrado.id); }
+            } else if (data.authorTag) { 
+                let possivelKiller = Object.keys(ninjasData).find(nick => data.authorTag.toLowerCase().includes(nick.toLowerCase())); 
+                if (possivelKiller && !selectedKillers.includes(possivelKiller) && !selectedAssists.includes(possivelKiller)) { selectedKillers.push(possivelKiller); }
+            }
+            
+            window.addTargetEntry(); const entry = document.getElementById(`target-${targetEntryCount}`);
+            
+            // TRATAMENTO MELHORADO PARA LIMPAR O SINAL DE "+" DO NOME DO ALVO
+            let alvoNome = data.parsedTarget || '';
+            let btNumber = data.parsedBt || 0;
+
+            if (!alvoNome && data.rawText) {
+                const match = data.rawText.match(/bt\s*(\d+)[,\-\s]+(.+)/i);
+                if (match) { 
+                    btNumber = match[1]; 
+                    let rawTarget = match[2];
+                    if (rawTarget.includes('+')) rawTarget = rawTarget.split('+')[0]; // Corta tudo depois do +
+                    alvoNome = rawTarget.trim();
+                } else { 
+                    let rawTarget = data.rawText;
+                    if (rawTarget.includes('+')) rawTarget = rawTarget.split('+')[0];
+                    alvoNome = rawTarget.trim(); 
+                }
+            }
+
+            entry.querySelector('.target-bt').value = btNumber;
+            entry.querySelector('.target-name').value = alvoNome;
+            
+            if(data.timestamp) { const dt = new Date(data.timestamp); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset()); document.getElementById('report-date-input').value = dt.toISOString().slice(0,16); }
+
+            window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
+            document.getElementById('submit-report').innerHTML = '✅ Aprovar Auditoria e Lançar Caçada';
+            showStatus(ninjaEncontrado ? `Auditoria: Vinculado via Discord (${capitalizeName(ninjaEncontrado.id)})` : `Auditoria: Vínculo manual necessário.`, 'info');
+        } catch (err) { console.error(err); showStatus('Erro ao avaliar auditoria.', 'error'); }
+    }
+
+    window.recusarPending = async function(pendingId) {
+        try { const conf = await window.openCustomModal('Apagar Registro', 'Deseja excluir permanentemente este envio do bot?', 'confirm');
+            if(conf) { await deleteDoc(doc(db, COLLECTIONS.PENDING_REPORTS, pendingId)); showStatus('Registro removido com sucesso.', 'success'); }
+        } catch(e) { console.error(e); showStatus('Erro ao apagar o registro.', 'error'); }
+    }
+
     window.renderNinjasTable = function() {
-        const tbody = document.getElementById('ninjas-cadastro');
-        if (!tbody) return;
+        const tbody = document.getElementById('ninjas-cadastro'); if (!tbody) return;
         tbody.innerHTML = '';
         Object.values(ninjasData).sort((a,b) => String(a.id||'').localeCompare(String(b.id||''))).forEach(data => {
             if (!data.id) return;
             const noPhotoBadge = !data.avatarUrl ? `<span class="bg-red-900/50 text-red-400 text-[9px] px-1.5 py-0.5 rounded border border-red-500/30 font-bold ml-2">S/ FOTO</span>` : '';
             const dateStr = data.entranceDate ? new Date(data.entranceDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '--/--/----';
-            
-            const actionCell = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode ? '' : 'hidden'}">
-                <div class="flex justify-end gap-2">
-                <button onclick="window.editNinjaFull('${data.id}')" class="text-blue-400 hover:text-white bg-blue-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Editar</button>
-                <button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-white bg-red-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Excluir</button>
-                </div></td>`;
-                
-            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors">
-                <td class="py-3 pl-2 font-bold text-white flex items-center gap-1">${capitalizeName(data.id)} ${data.discordId ? '🟣' : ''} ${noPhotoBadge}</td>
-                <td class="py-3 text-[10px] uppercase font-bold text-slate-300">${data.org || 'ANBU'}<br><span class="text-slate-500 font-medium">Entrada: ${dateStr}</span></td>
-                <td class="py-3 text-[10px] uppercase font-bold text-slate-500">${data.element||'--'}</td>
-                <td class="py-3 text-xs font-mono text-slate-500">${data.discordId ? data.discordId.slice(0,6)+'...' : '--'}</td>
-                <td class="py-3 text-xs font-bold ${data.isActive ? 'text-green-400':'text-red-400'}">${data.isActive ? 'Ativo':'Inativo'}</td>
-                ${actionCell}</tr>`;
+            const actionCell = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode ? '' : 'hidden'}"><div class="flex justify-end gap-2"><button onclick="window.editNinjaFull('${data.id}')" class="text-blue-400 hover:text-white bg-blue-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Editar</button><button onclick="window.deleteNinja('${data.id}')" class="text-red-500 hover:text-white bg-red-900/20 px-3 py-1.5 rounded text-[10px] uppercase font-bold transition">Excluir</button></div></td>`;
+            tbody.innerHTML += `<tr class="hover:bg-white/[0.02] transition-colors"><td class="py-3 pl-2 font-bold text-white flex items-center gap-1">${capitalizeName(data.id)} ${data.discordId ? '🟣' : ''} ${noPhotoBadge}</td><td class="py-3 text-[10px] uppercase font-bold text-slate-300">${data.org || 'ANBU'}<br><span class="text-slate-500 font-medium">Entrada: ${dateStr}</span></td><td class="py-3 text-[10px] uppercase font-bold text-slate-500">${data.element||'--'}</td><td class="py-3 text-xs font-mono text-slate-500">${data.discordId ? data.discordId.slice(0,6)+'...' : '--'}</td><td class="py-3 text-xs font-bold ${data.isActive ? 'text-green-400':'text-red-400'}">${data.isActive ? 'Ativo':'Inativo'}</td>${actionCell}</tr>`;
         });
-
         document.getElementById('new-ninja-mastery-1').innerHTML = MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('');
         document.getElementById('new-ninja-mastery-2').innerHTML = '<option value="">2ª (Opcional)</option>' + MAESTRIAS_OPCOES.map(m=>`<option value="${m}">${m}</option>`).join('');
-        document.getElementById('new-ninja-date').value = new Date().toISOString().split('T')[0]; // Preenche date padrão com hj
+        document.getElementById('new-ninja-date').value = new Date().toISOString().split('T')[0]; 
     }
 
-    // Lógicas Unificadas de Edição
     window.editNinjaFull = async function(id) {
-        const data = ninjasData[id];
-        let cM1="Fogo", cM2=""; 
+        const data = ninjasData[id]; let cM1="Fogo", cM2=""; 
         if(data.element) { const p = data.element.split(' / '); cM1=p[0]; if(p.length>1) cM2=p[1]; }
-        
-        const res = await window.openCustomModal('Editar Operador', `Modifique os dados de ${capitalizeName(id)}`, 'ninjaFullEdit', {
-            isActive: data.isActive,
-            org: data.org,
-            entranceDate: data.entranceDate,
-            m1: cM1, m2: cM2,
-            discordId: data.discordId,
-            avatarUrl: data.avatarUrl
-        });
-        
-        if(res) {
-            try {
-                await updateDoc(doc(db, COLLECTIONS.NINJAS, id), {
-                    isActive: res.isActive,
-                    org: res.org,
-                    entranceDate: res.entranceDate,
-                    element: res.m1 + (res.m2 && res.m2!==res.m1 ? ` / ${res.m2}` : ''),
-                    discordId: res.discordId,
-                    avatarUrl: res.avatarUrl
-                });
-                showStatus('Perfil atualizado!', 'success');
-            } catch(e){ showStatus(e.message, 'error'); }
-        }
+        const res = await window.openCustomModal('Editar Operador', `Modifique os dados de ${capitalizeName(id)}`, 'ninjaFullEdit', { isActive: data.isActive, org: data.org, entranceDate: data.entranceDate, m1: cM1, m2: cM2, discordId: data.discordId, avatarUrl: data.avatarUrl });
+        if(res) { try { await updateDoc(doc(db, COLLECTIONS.NINJAS, id), { isActive: res.isActive, org: res.org, entranceDate: res.entranceDate, element: res.m1 + (res.m2 && res.m2!==res.m1 ? ` / ${res.m2}` : ''), discordId: res.discordId, avatarUrl: res.avatarUrl }); showStatus('Perfil atualizado!', 'success'); } catch(e){ showStatus(e.message, 'error'); } }
     }
 
-    // FORM LÓGICAS
-    window.generateReportId = function() {
-        currentReportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0, 8)}`;
-        const el = document.getElementById('report-id-display'); if(el) el.value = currentReportId;
-    }
-
-    window.updateTargetSuggestions = function() {
-        const dl = document.getElementById('known-targets'); if (!dl) return;
-        const names = new Set();
-        [...reportsData, ...eventReportsData].forEach(r => { if (Array.isArray(r.targets)) r.targets.forEach(t => { if(t.name) names.add(t.name.trim()); }); });
-        dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join('');
-    }
+    window.generateReportId = function() { currentReportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0, 8)}`; const el = document.getElementById('report-id-display'); if(el) el.value = currentReportId; }
+    window.updateTargetSuggestions = function() { const dl = document.getElementById('known-targets'); if (!dl) return; const names = new Set(); [...reportsData, ...eventReportsData].forEach(r => { if (Array.isArray(r.targets)) r.targets.forEach(t => { if(t.name) names.add(t.name.trim()); }); }); dl.innerHTML = [...names].sort().map(n => `<option value="${n}">`).join(''); }
 
     window.addTargetEntry = function() {
         const container = document.getElementById('targets-container'); if (!container) return;
@@ -1056,9 +937,7 @@
                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" class="target-chk-trashtalk w-4 h-4 rounded text-red-500 bg-gray-800 border-gray-600"><span class="text-slate-300 text-sm font-medium">Trash Talk (+20)</span></label>
                 </div>
             </div>`);
-        
-        document.querySelectorAll(`#${targetId} input[type="checkbox"]`).forEach(c => c.addEventListener('change', window.updateDescriptionPreview));
-        window.updateDescriptionPreview();
+        document.querySelectorAll(`#${targetId} input[type="checkbox"]`).forEach(c => c.addEventListener('change', window.updateDescriptionPreview)); window.updateDescriptionPreview();
     }
     window.removeTargetEntry = function(id) { const el = document.getElementById(id); if (el) { el.remove(); window.updateDescriptionPreview(); } }
 
@@ -1069,16 +948,11 @@
             let btBase = parseInt(entry.querySelector('.target-bt').value || '0', 10); if (isNaN(btBase)) btBase = 0;
             const isSpecial = entry.querySelector('.target-chk-special').checked, isOrg = entry.querySelector('.target-chk-org').checked, isTrashTalk = entry.querySelector('.target-chk-trashtalk').checked;
             let targetTotal = btBase; if (isSpecial) targetTotal *= 3; if (isOrg) targetTotal += 100; if (isTrashTalk) targetTotal += 20;
-            totalPointsRaw += targetTotal;
-            targetsData.push({ name, btBase, isSpecial, isOrg, isTrashTalk, total: targetTotal });
+            totalPointsRaw += targetTotal; targetsData.push({ name, btBase, isSpecial, isOrg, isTrashTalk, total: targetTotal });
         });
         if (!currentReportId) window.generateReportId();
-        const reportTypeRadio = document.querySelector('input[name="report_type"]:checked');
-        const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
-        
-        let timestamp = new Date().toISOString();
-        const customDateVal = document.getElementById('report-date-input').value;
-        if(customDateVal) timestamp = new Date(customDateVal).toISOString();
+        const reportTypeRadio = document.querySelector('input[name="report_type"]:checked'); const isEvent = reportTypeRadio ? reportTypeRadio.value === 'event' : false;
+        let timestamp = new Date().toISOString(); const customDateVal = document.getElementById('report-date-input').value; if(customDateVal) timestamp = new Date(customDateVal).toISOString();
 
         return { reportId: currentReportId, isEvent, targets: targetsData, killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers, totalPointsRaw, pointsPerKiller: totalPointsRaw, pointsPerAssist: selectedAssists.length > 0 ? Math.floor(totalPointsRaw / 3) : 0, pointsPerHealer: totalPointsRaw, timestamp };
     }
@@ -1090,18 +964,13 @@
         const isReady = isWriterMode && (data.killerIds.length + data.assistIds.length + data.healerIds.length) > 0 && data.targets.length > 0 && data.totalPointsRaw > 0;
         btn.disabled = !isReady;
         btn.className = isReady ? 'w-full py-4 mt-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-900/50 transition cursor-pointer' : 'w-full py-4 mt-4 bg-gray-700 text-white/50 font-bold rounded-xl cursor-not-allowed transition';
-        if (window.isEditingMode && isReady && !processingPendingId) btn.innerHTML = '💾 Salvar Alterações (Força Recálculo)';
-        else btn.innerHTML = 'Registrar Missão no Banco de Dados';
+        if (window.isEditingMode && isReady && !processingPendingId) btn.innerHTML = '💾 Salvar Alterações (Força Recálculo)'; else btn.innerHTML = 'Registrar Missão no Banco de Dados';
     }
 
     window.submitReport = async function() {
         if (!isWriterMode) return;
-        const data = _gatherReportData();
-        if (!data.reportId) { window.openCustomModal('Erro', 'ID Inválido.', 'info'); return; }
-        
-        showStatus('Salvando dados...', 'info');
-
-        const batch = writeBatch(db);
+        const data = _gatherReportData(); if (!data.reportId) { window.openCustomModal('Erro', 'ID Inválido.', 'info'); return; }
+        showStatus('Salvando dados...', 'info'); const batch = writeBatch(db);
         try {
             const collectionToUse = data.isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS;
             batch.set(doc(db, collectionToUse, data.reportId), data);
@@ -1113,21 +982,16 @@
                 data.assistIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerAssist, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
                 data.healerIds.forEach(id => batch.set(doc(db, COLLECTIONS.NINJAS, id), { [pointField]: Number(ninjasData[id]?.[pointField] || 0) + data.pointsPerHealer, [missionField]: Number(ninjasData[id]?.[missionField] || 0) + 1 }, { merge: true }));
                 await batch.commit();
-            } else {
-                await batch.commit(); await window.recalculateAllRanks(true); window.isEditingMode = false;
-            }
+            } else { await batch.commit(); await window.recalculateAllRanks(true); window.isEditingMode = false; }
 
             showStatus('Operação salva com sucesso!', 'success');
             selectedKillers = []; selectedAssists = []; selectedHealers = []; processingPendingId = null;
-            window.updateExecutorTags(); window.updateExecutorSelect(); window.generateReportId();
-            document.getElementById('targets-container').innerHTML = ''; window.addTargetEntry(); window.updateDescriptionPreview();
+            window.updateExecutorTags(); window.updateExecutorSelect(); window.generateReportId(); document.getElementById('targets-container').innerHTML = ''; window.addTargetEntry(); window.updateDescriptionPreview();
         } catch (e) { showStatus(`Erro: ${e.message}`, 'error'); }
     }
 
-    // Handlers Arrays
     window.updateExecutorSelect = function() {
-        const sK = document.getElementById('new-killer-id-select'), sA = document.getElementById('new-assist-id-select'), sH = document.getElementById('new-healer-id-select');
-        if (!sK) return;
+        const sK = document.getElementById('new-killer-id-select'), sA = document.getElementById('new-assist-id-select'), sH = document.getElementById('new-healer-id-select'); if (!sK) return;
         const active = Object.values(ninjasData).filter(n => n.isActive).sort((a,b) => String(a.id||'').localeCompare(String(b.id||'')));
         let optStr = '<option value="" disabled selected>Selecionar Membro</option>';
         active.forEach(n => { if (!selectedKillers.includes(n.id) && !selectedAssists.includes(n.id) && !selectedHealers.includes(n.id)) optStr += `<option value="${n.id}">${capitalizeName(n.id)}</option>`; });
@@ -1138,8 +1002,7 @@
         if (type === 'killer') { selectId = 'new-killer-id-select'; targetArray = selectedKillers; }
         if (type === 'assist') { selectId = 'new-assist-id-select'; targetArray = selectedAssists; }
         if (type === 'healer') { selectId = 'new-healer-id-select'; targetArray = selectedHealers; }
-        const select = document.getElementById(selectId); if (!select || !select.value) return;
-        targetArray.push(select.value); select.value = ''; window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
+        const select = document.getElementById(selectId); if (!select || !select.value) return; targetArray.push(select.value); select.value = ''; window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview();
     }
     window.removeExecutor = function(id, type) {
         if (type === 'killer') selectedKillers = selectedKillers.filter(x => x !== id);
@@ -1153,24 +1016,19 @@
         document.getElementById('healers-tag-container').innerHTML = selectedHealers.map(id => `<span class="executor-tag healer-tag shadow-lg">${capitalizeName(id)}<span class="executor-remove-btn" onclick="window.removeExecutor('${id}','healer')">✖</span></span>`).join('');
     }
 
-    // CRUD Administração / Ninja
     window.deleteNinja = async function(id) { if(await window.openCustomModal('Apagar?', `Apagar ${capitalizeName(id)} permanentemente?`, 'confirm')) try { await deleteDoc(doc(db, COLLECTIONS.NINJAS, id)); } catch(e){} }
     window.addNinja = async function() {
         if (!isMasterAdminMode) return;
         const id = document.getElementById('new-ninja-id').value.trim(); const normalizedId = normalizeId(id);
         if (!id) return; if (ninjasData[normalizedId]) { showStatus('Membro já existe.', 'error'); return; }
-        const m1 = document.getElementById('new-ninja-mastery-1').value; const m2 = document.getElementById('new-ninja-mastery-2').value;
-        const org = document.getElementById('new-ninja-org').value;
-        const entranceDate = document.getElementById('new-ninja-date').value || new Date().toISOString().split('T')[0];
+        const m1 = document.getElementById('new-ninja-mastery-1').value; const m2 = document.getElementById('new-ninja-mastery-2').value; const org = document.getElementById('new-ninja-org').value; const entranceDate = document.getElementById('new-ninja-date').value || new Date().toISOString().split('T')[0];
         let finalEl = m1; if (m2 && m2 !== m1) finalEl += ` / ${m2}`;
         try { await setDoc(doc(db, COLLECTIONS.NINJAS, normalizedId), { id: normalizedId, element: finalEl, org: org, entranceDate: entranceDate, isActive: true, rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); document.getElementById('new-ninja-id').value = ''; showStatus('Cadastrado!', 'success'); } catch (e) {}
     }
 
     window.deleteReport = function(reportId, isEvent = false) {
         if (!isWriterMode && !isMasterAdminMode) return;
-        window.openCustomModal('Excluir Operação', `Deletar registro ${reportId}? Os ranks serão recalculados.`, 'confirm').then(async (c) => {
-            if (c) { showStatus('Excluindo...', 'info'); try { await deleteDoc(doc(db, isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS, reportId)); await window.recalculateAllRanks(true); showStatus('Registro removido.', 'success'); } catch(e) { showStatus(`Erro: ${e.message}`, 'error'); } }
-        });
+        window.openCustomModal('Excluir Operação', `Deletar registro ${reportId}? Os ranks serão recalculados.`, 'confirm').then(async (c) => { if (c) { showStatus('Excluindo...', 'info'); try { await deleteDoc(doc(db, isEvent ? COLLECTIONS.EVENT_REPORTS : COLLECTIONS.REPORTS, reportId)); await window.recalculateAllRanks(true); showStatus('Registro removido.', 'success'); } catch(e) { showStatus(`Erro: ${e.message}`, 'error'); } } });
     }
     window.editReport = function(reportId, isEvent = false) {
         if (!isWriterMode && !isMasterAdminMode) return;
@@ -1178,12 +1036,7 @@
         window.renderPage('report_form'); currentReportId = report.reportId; window.isEditingMode = true; processingPendingId = null;
         selectedKillers = report.killerIds || []; selectedAssists = report.assistIds || []; selectedHealers = report.healerIds || [];
         document.getElementById('targets-container').innerHTML = ''; targetEntryCount = 0;
-        
-        if(report.timestamp) {
-            const dt = new Date(report.timestamp); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
-            document.getElementById('report-date-input').value = dt.toISOString().slice(0,16);
-        }
-
+        if(report.timestamp) { const dt = new Date(report.timestamp); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset()); document.getElementById('report-date-input').value = dt.toISOString().slice(0,16); }
         if (Array.isArray(report.targets) && report.targets.length > 0) { report.targets.forEach(t => { window.addTargetEntry(); const entry = document.getElementById(`target-${targetEntryCount}`); entry.querySelector('.target-name').value = t.name; entry.querySelector('.target-bt').value = t.btBase; entry.querySelector('.target-chk-special').checked = t.isSpecial; entry.querySelector('.target-chk-org').checked = t.isOrg; entry.querySelector('.target-chk-trashtalk').checked = t.isTrashTalk; }); } else { window.addTargetEntry(); }
         const r = document.querySelector(`input[name="report_type"][value="${isEvent ? 'event' : 'daily'}"]`); if (r) r.checked = true;
         window.updateExecutorTags(); window.updateExecutorSelect(); window.updateDescriptionPreview(); document.getElementById('report-id-display').value = currentReportId; window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1194,9 +1047,7 @@
         if (await window.openCustomModal('DELETAR TUDO', 'Zerar TODOS OS LOGS e RANKS?', 'confirm')) {
             showStatus('Apagando...', 'info');
             try {
-                const rSnap = await getDocs(collection(db, COLLECTIONS.REPORTS)); const eSnap = await getDocs(collection(db, COLLECTIONS.EVENT_REPORTS)); const nSnap = await getDocs(collection(db, COLLECTIONS.NINJAS));
-                let batch = writeBatch(db); rSnap.forEach(d => batch.delete(d.ref)); eSnap.forEach(d => batch.delete(d.ref)); nSnap.forEach(d => { if(d.id) batch.update(d.ref, { rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); });
-                await batch.commit(); showStatus('Tudo zerado!', 'success');
+                const rSnap = await getDocs(collection(db, COLLECTIONS.REPORTS)); const eSnap = await getDocs(collection(db, COLLECTIONS.EVENT_REPORTS)); const nSnap = await getDocs(collection(db, COLLECTIONS.NINJAS)); let batch = writeBatch(db); rSnap.forEach(d => batch.delete(d.ref)); eSnap.forEach(d => batch.delete(d.ref)); nSnap.forEach(d => { if(d.id) batch.update(d.ref, { rankPoints: 0, missionsCompleted: 0, eventPoints: 0, eventMissionsCompleted: 0 }); }); await batch.commit(); showStatus('Tudo zerado!', 'success');
             } catch(e) { showStatus(e.message, 'error'); }
         }
     }
@@ -1214,59 +1065,35 @@
                 if (report.executorIds && (!report.killerIds || report.killerIds.length === 0)) report.executorIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerAttacker || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
                 if (report.healerIds) report.healerIds.forEach(id => { if (temp[id]) { temp[id][pF] += Number(report.pointsPerHealer || report.totalPointsRaw || 0); temp[id][mF] += 1; } });
             };
-            reportsData.forEach(r => pR(r, false)); eventReportsData.forEach(r => pR(r, true));
-            let b = writeBatch(db);
-            Object.values(temp).forEach(n => { if(n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), { rankPoints: n.rankPoints||0, missionsCompleted: n.missionsCompleted||0, eventPoints: n.eventPoints||0, eventMissionsCompleted: n.eventMissionsCompleted||0 }); });
-            await b.commit(); showStatus('Ranks atualizados!', 'success');
+            reportsData.forEach(r => pR(r, false)); eventReportsData.forEach(r => pR(r, true)); let b = writeBatch(db); Object.values(temp).forEach(n => { if(n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), { rankPoints: n.rankPoints||0, missionsCompleted: n.missionsCompleted||0, eventPoints: n.eventPoints||0, eventMissionsCompleted: n.eventMissionsCompleted||0 }); }); await b.commit(); showStatus('Ranks atualizados!', 'success');
         } catch(e) { showStatus(e.message, 'error'); }
     }
 
-    // Login Admin
     window.checkAccessKey = function() {
         const id = document.getElementById('access-id-input').value.trim(); const key = document.getElementById('access-key-input').value.trim();
         if (accessKeysData[id] && accessKeysData[id].key === key) {
             currentAccessId = id; isMasterAdminMode = accessKeysData[id].level === 'master_admin'; isWriterMode = true;
-            
-            document.getElementById('auth-info').classList.add('hidden');
-            document.getElementById('auth-status-badge').classList.remove('hidden');
-            document.getElementById('auth-status-badge').classList.add('flex');
-            document.getElementById('logout-btn').classList.remove('hidden');
-
-            document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-xl font-bold flex justify-center items-center gap-2">✅ Sistema Liberado (${id})</div>`;
-            window.renderPage('admin_panel');
+            document.getElementById('auth-info').classList.add('hidden'); document.getElementById('auth-status-badge').classList.remove('hidden'); document.getElementById('auth-status-badge').classList.add('flex'); document.getElementById('logout-btn').classList.remove('hidden'); document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-green-400 border border-green-500/30 rounded-xl font-bold flex justify-center items-center gap-2">✅ Sistema Liberado (${id})</div>`; window.renderPage('admin_panel');
         } else { showStatus("ID ou Senha incorretos", "error"); }
     }
     window.logout = function() {
         currentAccessId = 'ANONYMOUS'; isMasterAdminMode = false; isWriterMode = false;
-        
-        document.getElementById('auth-info').classList.remove('hidden');
-        document.getElementById('auth-status-badge').classList.add('hidden');
-        document.getElementById('auth-status-badge').classList.remove('flex');
-        document.getElementById('logout-btn').classList.add('hidden');
-
-        document.getElementById('admin-status-display').innerHTML = '';
-        document.getElementById('access-id-input').value = ''; document.getElementById('access-key-input').value = '';
-        window.renderPage('dashboard');
+        document.getElementById('auth-info').classList.remove('hidden'); document.getElementById('auth-status-badge').classList.add('hidden'); document.getElementById('auth-status-badge').classList.remove('flex'); document.getElementById('logout-btn').classList.add('hidden'); document.getElementById('admin-status-display').innerHTML = ''; document.getElementById('access-id-input').value = ''; document.getElementById('access-key-input').value = ''; window.renderPage('dashboard');
     }
 
-    // Inicialização DB
     async function initializeFirebase() {
         try {
-            app = initializeApp(CUSTOM_FIREBASE_CONFIG); db = getFirestore(app); auth = getAuth(app);
-            await signInAnonymously(auth);
+            app = initializeApp(CUSTOM_FIREBASE_CONFIG); db = getFirestore(app); auth = getAuth(app); await signInAnonymously(auth);
             const authPill = document.getElementById('auth-info'); authPill.textContent = 'Conectado'; authPill.className = 'border border-blue-500 text-blue-500 px-3 py-1.5 rounded-full text-[10px] uppercase font-black tracking-wider shadow-lg shadow-blue-500/10';
-
             onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), (s) => { accessKeysData = {}; s.forEach(d => accessKeysData[d.id] = d.data()); });
             onSnapshot(collection(db, COLLECTIONS.NINJAS), (s) => { ninjasData = {}; s.forEach(d => ninjasData[d.id] = d.data()); if(currentPage==='dashboard') updateDashboard(); if(currentPage==='rank') window.renderScoreboard(false); if(currentPage==='evento') window.renderScoreboard(true); if(currentPage==='admin_panel') window.renderNinjasTable(); if(currentPage==='report_form') window.updateExecutorSelect(); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
             onSnapshot(collection(db, COLLECTIONS.REPORTS), (s) => { reportsData = []; s.forEach(d => reportsData.push(d.data())); window.updateTargetSuggestions(); if(currentPage==='dashboard') updateDashboard(); if(currentPage==='historico') window.renderReportsLogFiltered(); if(currentPage==='alvos') window.renderTargetsTable(1); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
             onSnapshot(collection(db, COLLECTIONS.EVENT_REPORTS), (s) => { eventReportsData = []; s.forEach(d => eventReportsData.push(d.data())); window.updateTargetSuggestions(); if(currentPage==='evento') window.renderScoreboard(true); if(currentPage==='historico') window.renderReportsLogFiltered(); if(currentPage==='alvos') window.renderTargetsTable(1); if(currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) window.renderNinjaProfile(sel.value,1); } });
             onSnapshot(collection(db, COLLECTIONS.PENDING_REPORTS), (s) => { pendingData = []; s.forEach(d => pendingData.push({ id: d.id, ...d.data() })); const b = document.getElementById('audit-badge'); if(b) { b.textContent = pendingData.length; pendingData.length>0 ? b.classList.remove('hidden') : b.classList.add('hidden'); } if(currentPage==='dashboard') updateDashboard(); if(currentPage==='audit_panel') window.renderAuditPanel(); });
-
             window.renderPage(currentPage);
         } catch (e) { showStatus(e.message, 'error'); }
     }
     initializeFirebase();
 </script>
-
 </body>
 </html>

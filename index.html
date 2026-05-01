@@ -107,6 +107,7 @@
   .chip-green  { color: #4ade80; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
   .chip-mute   { color: #94a3b8; border-color: rgba(148,163,184,0.3); background: rgba(148,163,184,0.05); }
   .chip-ops    { color: #60a5fa; border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
+  .chip-police { color: #38bdf8; border-color: rgba(14,165,233,0.4); background: rgba(14,165,233,0.08); }
 
   .stat-card { padding: 18px; }
   .progress-bar { height: 6px; background: #1e293b; border-radius: 999px; overflow: hidden; }
@@ -336,6 +337,7 @@
                 <option value="">Todos os núcleos</option>
                 <option value="ANBU">ANBU</option>
                 <option value="12 Guardiões">12 Guardiões</option>
+                <option value="Polícia">Polícia</option>
               </select>
               <button class="btn btn-ghost" onclick="exportRankCSV(false)"><i data-lucide="download" class="h-3.5 w-3.5"></i>CSV</button>
             </div>
@@ -607,7 +609,7 @@
 
           <div class="mt-6 grid md:grid-cols-5 gap-2 writer-only hidden">
             <input id="new-ninja-id" class="input md:col-span-2" placeholder="Nick do operador" />
-            <select id="new-ninja-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option></select>
+            <select id="new-ninja-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option></select>
             <select id="new-ninja-mastery-1" class="input"></select>
             <select id="new-ninja-mastery-2" class="input"></select>
             <input type="date" id="new-ninja-date" class="input md:col-span-4" />
@@ -704,12 +706,12 @@ let chartWeekly, chartKills;
 function normalizeReportData(docSnap) {
   const item = docSnap.data();
   const docId = docSnap.id;
-  const reportId = item.reportId || docId; // Garante que o ID do documento esteja acessível para o botão Excluir/Editar!
+  const reportId = item.reportId || docId;
 
   // Se o documento veio do Bot Discord (tem 'parsedTarget' mas não tem o array 'targets' oficial)
   if (!item.targets && item.parsedTarget) {
     const btBase = Number(item.parsedBt) || 0;
-    
+
     // Tenta encontrar o Nick do Killer baseando-se no ID do Discord salvo pelo bot
     let kId = null;
     if (item.authorId) {
@@ -722,15 +724,18 @@ function normalizeReportData(docSnap) {
       if (nickMatch) kId = nickMatch;
     }
 
+    // Monta assistsIds a partir dos parsedAssists (array de nicks já resolvidos pelo bot)
+    const assistIds = Array.isArray(item.parsedAssists) ? item.parsedAssists : [];
+
     return {
       ...item,
-      reportId: reportId,
+      reportId,
       isEvent: false,
-      // Converte as variáveis isoladas do bot para o Array oficial do HTML
-      targets: [{ name: item.parsedTarget, btBase: btBase, isSpecial: false, isOrg: false, isTrashTalk: false, total: btBase }],
+      targets: [{ name: item.parsedTarget, btBase, isSpecial: false, isOrg: false, isTrashTalk: false, total: btBase }],
       killerIds: kId ? [kId] : [],
-      assistIds: item.parsedAssists || [],
+      assistIds,
       healerIds: [],
+      executorIds: kId ? [kId] : [],
       totalPointsRaw: btBase,
       pointsPerKiller: btBase,
       pointsPerAssist: 0,
@@ -740,7 +745,7 @@ function normalizeReportData(docSnap) {
   }
 
   // Se for uma missão gerada no próprio painel
-  return { ...item, reportId: reportId };
+  return { ...item, reportId };
 }
 // ========================================================================
 
@@ -751,7 +756,11 @@ const normalizeId = (id) => String(id||'').trim().toLowerCase();
 const capitalizeName = (s) => !s ? '' : String(s).split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 const rankIcon = (n) => n===1?'🥇':n===2?'🥈':n===3?'🥉':`#${n}`;
 const fmt = (n) => Math.round(Number(n||0)).toLocaleString('pt-BR');
-const orgChip = (org) => `<span class="chip ${org==='12 Guardiões'?'chip-12g':'chip-anbu'}">${org||'ANBU'}</span>`;
+const orgChip = (org) => {
+  if (org === '12 Guardiões') return `<span class="chip chip-12g">${org}</span>`;
+  if (org === 'Polícia') return `<span class="chip chip-police">🚔 ${org}</span>`;
+  return `<span class="chip chip-anbu">${org||'ANBU'}</span>`;
+};
 const initials = (id) => capitalizeName(id).split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const ninjaAvatar = (n, size=40) => {
   if (n?.avatarUrl) return `<img src="${escapeHTML(n.avatarUrl)}" class="rounded-full object-cover" style="width:${size}px;height:${size}px" />`;
@@ -763,12 +772,12 @@ function getNinjaStats(id, isEvent) {
   const list = isEvent ? eventReportsData : reportsData;
   list.forEach(r => {
     const trg = r.targets?.length || 1;
-    if(r.killerIds?.includes(id)) k += trg;
-    if(r.assistIds?.includes(id)) a += trg;
-    if(r.healerIds?.includes(id)) h += trg;
-    if(r.executorIds?.includes(id) && (!r.killerIds || !r.killerIds.includes(id))) k += trg;
+    const isKiller = r.killerIds?.includes(id) || (r.executorIds?.includes(id) && (!r.killerIds || !r.killerIds.includes(id)));
+    if (isKiller) k += trg;
+    if (r.assistIds?.includes(id)) a += trg;
+    if (r.healerIds?.includes(id)) h += trg;
   });
-  return {k,a,h};
+  return {k, a, h};
 }
 
 // ============= TOASTS =============
@@ -807,7 +816,7 @@ window.openCustomModal = function(title, message, type, data = {}) {
       dyn.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div><label class="label">Status</label><select id="edit-status" class="input"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
-          <div><label class="label">Núcleo</label><select id="edit-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option></select></div>
+          <div><label class="label">Núcleo</label><select id="edit-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option></select></div>
           <div class="md:col-span-2"><label class="label">Data de Entrada</label><input type="date" id="edit-date" class="input"></div>
           <div><label class="label">Maestria Principal</label><select id="edit-m1" class="input">${MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
           <div><label class="label">Maestria Secundária</label><select id="edit-m2" class="input"><option value="">-- Nenhuma --</option>${MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
@@ -1203,10 +1212,10 @@ window.renderNinjaProfile = function(filterId, page=1) {
   let kC=0, aC=0, hC=0; const mHist=[]; const targetsCounter={}, parceiroMap={};
   all.forEach(r => {
     let part = false; const trg = r.targets?.length||1;
-    if (r.killerIds?.includes(filterId)) { kC+=trg; part=true; }
+    const isKiller = r.killerIds?.includes(filterId) || (r.executorIds?.includes(filterId) && (!r.killerIds || !r.killerIds.includes(filterId)));
+    if (isKiller) { kC+=trg; part=true; }
     if (r.assistIds?.includes(filterId)) { aC+=trg; part=true; }
     if (r.healerIds?.includes(filterId)) { hC+=trg; part=true; }
-    if (r.executorIds?.includes(filterId) && (!r.killerIds || !r.killerIds.includes(filterId))) { kC+=trg; part=true; }
     if (part) {
       mHist.push(r);
       (r.targets||[]).forEach(t => { if(t.name) { const k=t.name.trim().toLowerCase(); targetsCounter[k] = targetsCounter[k] || {name:t.name.trim(),count:0}; targetsCounter[k].count++; } });
@@ -1562,6 +1571,7 @@ function _gatherReportData() {
   return {
     reportId: currentReportId, isEvent, targets: targetsData,
     killerIds: selectedKillers, assistIds: selectedAssists, healerIds: selectedHealers,
+    executorIds: selectedKillers,
     totalPointsRaw,
     pointsPerKiller: totalPointsRaw,
     pointsPerAssist: (isEvent && selectedAssists.length>0) ? Math.floor(totalPointsRaw/3) : 0,
@@ -1681,9 +1691,12 @@ window.clearReportsLog = async function() {
       const eS = await getDocs(collection(db, COLLECTIONS.EVENT_REPORTS));
       const nS = await getDocs(collection(db, COLLECTIONS.NINJAS));
       const b = writeBatch(db);
-      rS.forEach(d => b.delete(d.ref)); eS.forEach(d => b.delete(d.ref));
+      rS.forEach(d => b.delete(d.ref));
+      eS.forEach(d => b.delete(d.ref));
       nS.forEach(d => { if (d.id) b.update(d.ref, { rankPoints:0, missionsCompleted:0, eventPoints:0, eventMissionsCompleted:0 }); });
-      await b.commit(); toast('Zerado!','success'); logActivity('reset_all');
+      await b.commit();
+      toast('Zerado!','success');
+      logActivity('reset_all');
     } catch(e) { toast(e.message,'error'); }
   }
 };
@@ -1696,17 +1709,27 @@ window.recalculateAllRanks = async function(internal=false) {
     const tmp = {};
     Object.values(ninjasData).forEach(n => { if (n.id) tmp[n.id] = { ...n, rankPoints:0, missionsCompleted:0, eventPoints:0, eventMissionsCompleted:0 }; });
     const proc = (r, isEvent) => {
-      const pf = isEvent?'eventPoints':'rankPoints'; const mf = isEvent?'eventMissionsCompleted':'missionsCompleted';
-      (r.killerIds||[]).forEach(id => { if (tmp[id]) { tmp[id][pf]+=Number(r.totalPointsRaw||0); tmp[id][mf]+=1; } });
-      (r.assistIds||[]).forEach(id => { if (tmp[id]) { tmp[id][pf]+= isEvent ? Math.floor((r.totalPointsRaw||0)/3) : 0; tmp[id][mf]+=1; } });
-      (r.healerIds||[]).forEach(id => { if (tmp[id]) { tmp[id][pf]+= isEvent ? Number(r.totalPointsRaw||0) : 0; tmp[id][mf]+=1; } });
-      if (r.executorIds && (!r.killerIds || r.killerIds.length===0)) r.executorIds.forEach(id => { if (tmp[id]) { tmp[id][pf]+=Number(r.totalPointsRaw||0); tmp[id][mf]+=1; } });
+      const pf = isEvent?'eventPoints':'rankPoints';
+      const mf = isEvent?'eventMissionsCompleted':'missionsCompleted';
+      const killers = r.killerIds?.length ? r.killerIds : (r.executorIds || []);
+      killers.forEach(id => { if (tmp[id]) { tmp[id][pf] += Number(r.totalPointsRaw||0); tmp[id][mf] += 1; } });
+      (r.assistIds||[]).forEach(id => { if (tmp[id]) { tmp[id][pf] += isEvent ? Math.floor((r.totalPointsRaw||0)/3) : 0; tmp[id][mf] += 1; } });
+      (r.healerIds||[]).forEach(id => { if (tmp[id]) { tmp[id][pf] += isEvent ? Number(r.totalPointsRaw||0) : 0; tmp[id][mf] += 1; } });
     };
-    reportsData.forEach(r => proc(r,false));
-    eventReportsData.forEach(r => proc(r,true));
+    reportsData.forEach(r => proc(r, false));
+    eventReportsData.forEach(r => proc(r, true));
     const b = writeBatch(db);
-    Object.values(tmp).forEach(n => { if (n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), { rankPoints:n.rankPoints||0, missionsCompleted:n.missionsCompleted||0, eventPoints:n.eventPoints||0, eventMissionsCompleted:n.eventMissionsCompleted||0 }); });
-    await b.commit(); toast('Ranks atualizados!','success'); logActivity('recalculate');
+    Object.values(tmp).forEach(n => {
+      if (n.id) b.update(doc(db, COLLECTIONS.NINJAS, n.id), {
+        rankPoints: n.rankPoints||0,
+        missionsCompleted: n.missionsCompleted||0,
+        eventPoints: n.eventPoints||0,
+        eventMissionsCompleted: n.eventMissionsCompleted||0
+      });
+    });
+    await b.commit();
+    toast('Ranks atualizados!','success');
+    logActivity('recalculate');
   } catch(e) { toast(e.message,'error'); }
 };
 
@@ -1771,10 +1794,10 @@ async function init() {
     });
 
     onSnapshot(collection(db, COLLECTIONS.REPORTS), s => {
-      // Uso da Função de Normalização para corrigir dados do Bot em tempo real
       reportsData = []; s.forEach(d => reportsData.push(normalizeReportData(d)));
       updateTargetSuggestions();
       if (currentPage==='dashboard') updateDashboard();
+      if (currentPage==='rank') renderScoreboard(false);
       if (currentPage==='historico') renderReportsLogFiltered();
       if (currentPage==='alvos') renderTargetsTable();
       if (currentPage==='conquistas') renderAchievements();
@@ -1782,10 +1805,10 @@ async function init() {
     });
 
     onSnapshot(collection(db, COLLECTIONS.EVENT_REPORTS), s => {
-      // Uso da Função de Normalização para corrigir dados do Bot em tempo real
       eventReportsData = []; s.forEach(d => eventReportsData.push(normalizeReportData(d)));
       updateTargetSuggestions();
       if (currentPage==='evento') renderScoreboard(true);
+      if (currentPage==='rank') renderScoreboard(false);
       if (currentPage==='historico') renderReportsLogFiltered();
       if (currentPage==='alvos') renderTargetsTable();
       if (currentPage==='conquistas') renderAchievements();

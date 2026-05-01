@@ -145,9 +145,6 @@
 
   .label { display: block; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px; }
 
-  .skel { background: linear-gradient(90deg, #1a1f2c 0%, #232a3b 50%, #1a1f2c 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
   /* Sidebar mobile */
   @media (max-width: 768px) {
     #sidebar { transform: translateX(-100%); transition: transform .3s; }
@@ -700,6 +697,53 @@ let firstLoad = { pending: true, reports: true };
 let lastTopId = null;
 
 let chartWeekly, chartKills;
+
+// ========================================================================
+// CAMADA DE NORMALIZAÇÃO AUTOMÁTICA (Conserta os dados que vêm do Bot)
+// ========================================================================
+function normalizeReportData(docSnap) {
+  const item = docSnap.data();
+  const docId = docSnap.id;
+  const reportId = item.reportId || docId; // Garante que o ID do documento esteja acessível para o botão Excluir/Editar!
+
+  // Se o documento veio do Bot Discord (tem 'parsedTarget' mas não tem o array 'targets' oficial)
+  if (!item.targets && item.parsedTarget) {
+    const btBase = Number(item.parsedBt) || 0;
+    
+    // Tenta encontrar o Nick do Killer baseando-se no ID do Discord salvo pelo bot
+    let kId = null;
+    if (item.authorId) {
+      const ninja = Object.values(ninjasData).find(n => n.discordId === item.authorId);
+      if (ninja) kId = ninja.id;
+    }
+    // Fallback: Tenta achar pelo Nome no Discord
+    if (!kId && item.authorTag) {
+      const nickMatch = Object.keys(ninjasData).find(nick => item.authorTag.toLowerCase().includes(nick.toLowerCase()));
+      if (nickMatch) kId = nickMatch;
+    }
+
+    return {
+      ...item,
+      reportId: reportId,
+      isEvent: false,
+      // Converte as variáveis isoladas do bot para o Array oficial do HTML
+      targets: [{ name: item.parsedTarget, btBase: btBase, isSpecial: false, isOrg: false, isTrashTalk: false, total: btBase }],
+      killerIds: kId ? [kId] : [],
+      assistIds: item.parsedAssists || [],
+      healerIds: [],
+      totalPointsRaw: btBase,
+      pointsPerKiller: btBase,
+      pointsPerAssist: 0,
+      pointsPerHealer: 0,
+      timestamp: item.timestamp || new Date().toISOString()
+    };
+  }
+
+  // Se for uma missão gerada no próprio painel
+  return { ...item, reportId: reportId };
+}
+// ========================================================================
+
 
 // ============= UTILS =============
 const escapeHTML = (s) => !s ? '' : String(s).replace(/[&<>'"]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[t]));
@@ -1727,7 +1771,8 @@ async function init() {
     });
 
     onSnapshot(collection(db, COLLECTIONS.REPORTS), s => {
-      reportsData = []; s.forEach(d => reportsData.push(d.data()));
+      // Uso da Função de Normalização para corrigir dados do Bot em tempo real
+      reportsData = []; s.forEach(d => reportsData.push(normalizeReportData(d)));
       updateTargetSuggestions();
       if (currentPage==='dashboard') updateDashboard();
       if (currentPage==='historico') renderReportsLogFiltered();
@@ -1737,7 +1782,8 @@ async function init() {
     });
 
     onSnapshot(collection(db, COLLECTIONS.EVENT_REPORTS), s => {
-      eventReportsData = []; s.forEach(d => eventReportsData.push(d.data()));
+      // Uso da Função de Normalização para corrigir dados do Bot em tempo real
+      eventReportsData = []; s.forEach(d => eventReportsData.push(normalizeReportData(d)));
       updateTargetSuggestions();
       if (currentPage==='evento') renderScoreboard(true);
       if (currentPage==='historico') renderReportsLogFiltered();

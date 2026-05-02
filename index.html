@@ -108,6 +108,8 @@
   .chip-mute   { color: #94a3b8; border-color: rgba(148,163,184,0.3); background: rgba(148,163,184,0.05); }
   .chip-ops    { color: #60a5fa; border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
   .chip-police { color: #38bdf8; border-color: rgba(14,165,233,0.4); background: rgba(14,165,233,0.08); }
+  .chip-medorg { color: #34d399; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
+  .chip-noorg  { color: #64748b; border-color: rgba(100,116,139,0.3); background: rgba(100,116,139,0.06); }
 
   .stat-card { padding: 18px; }
   .progress-bar { height: 6px; background: #1e293b; border-radius: 999px; overflow: hidden; }
@@ -338,6 +340,8 @@
                 <option value="ANBU">ANBU</option>
                 <option value="12 Guardiões">12 Guardiões</option>
                 <option value="Polícia">Polícia</option>
+                <option value="Médicos">Médicos</option>
+                <option value="Sem Org">Sem Org</option>
               </select>
               <button class="btn btn-ghost" onclick="exportRankCSV(false)"><i data-lucide="download" class="h-3.5 w-3.5"></i>CSV</button>
             </div>
@@ -609,7 +613,7 @@
 
           <div class="mt-6 grid md:grid-cols-5 gap-2 writer-only hidden">
             <input id="new-ninja-id" class="input md:col-span-2" placeholder="Nick do operador" />
-            <select id="new-ninja-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option></select>
+            <select id="new-ninja-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option><option value="Médicos">Médicos</option><option value="Sem Org">Sem Org</option></select>
             <select id="new-ninja-mastery-1" class="input"></select>
             <select id="new-ninja-mastery-2" class="input"></select>
             <input type="date" id="new-ninja-date" class="input md:col-span-4" />
@@ -758,8 +762,10 @@ const rankIcon = (n) => n===1?'🥇':n===2?'🥈':n===3?'🥉':`#${n}`;
 const fmt = (n) => Math.round(Number(n||0)).toLocaleString('pt-BR');
 const orgChip = (org) => {
   if (org === '12 Guardiões') return `<span class="chip chip-12g">${org}</span>`;
-  if (org === 'Polícia') return `<span class="chip chip-police">🚔 ${org}</span>`;
-  return `<span class="chip chip-anbu">${org||'ANBU'}</span>`;
+  if (org === 'Polícia')      return `<span class="chip chip-police">🚔 ${org}</span>`;
+  if (org === 'Médicos')      return `<span class="chip chip-medorg">➕ ${org}</span>`;
+  if (!org || org === 'Sem Org') return `<span class="chip chip-noorg">— Sem Org</span>`;
+  return `<span class="chip chip-anbu">${org}</span>`;
 };
 const initials = (id) => capitalizeName(id).split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const ninjaAvatar = (n, size=40) => {
@@ -816,7 +822,7 @@ window.openCustomModal = function(title, message, type, data = {}) {
       dyn.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div><label class="label">Status</label><select id="edit-status" class="input"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
-          <div><label class="label">Núcleo</label><select id="edit-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option></select></div>
+          <div><label class="label">Núcleo</label><select id="edit-org" class="input"><option value="ANBU">ANBU</option><option value="12 Guardiões">12 Guardiões</option><option value="Polícia">Polícia</option><option value="Médicos">Médicos</option><option value="Sem Org">Sem Org</option></select></div>
           <div class="md:col-span-2"><label class="label">Data de Entrada</label><input type="date" id="edit-date" class="input"></div>
           <div><label class="label">Maestria Principal</label><select id="edit-m1" class="input">${MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
           <div><label class="label">Maestria Secundária</label><select id="edit-m2" class="input"><option value="">-- Nenhuma --</option>${MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
@@ -824,7 +830,7 @@ window.openCustomModal = function(title, message, type, data = {}) {
           <div class="md:col-span-2"><label class="label">URL Avatar</label><input type="text" id="edit-photo" class="input" placeholder="https://..."></div>
         </div>`;
       document.getElementById('edit-status').value = data.isActive ? "true":"false";
-      document.getElementById('edit-org').value = data.org || "ANBU";
+      document.getElementById('edit-org').value = data.org || "Sem Org";
       document.getElementById('edit-date').value = data.entranceDate || "";
       document.getElementById('edit-m1').value = data.m1 || "Fogo";
       document.getElementById('edit-m2').value = data.m2 || "";
@@ -957,17 +963,18 @@ function updateDashboard() {
     document.getElementById('hero-avatar').innerHTML = top.avatarUrl ? `<img src="${escapeHTML(top.avatarUrl)}" class="w-full h-full object-cover rounded-2xl" />` : initials(top.id);
     document.getElementById('hero-name').textContent = capitalizeName(top.id);
     document.getElementById('hero-pts').textContent = fmt(top.rankPoints);
-    document.getElementById('hero-meta').innerHTML = `${orgChip(top.org)}<span class="chip chip-mute">${top.element||'S/ Maestria'}</span><span class="chip chip-gold">🥇 #1 Geral</span>`;
+    document.getElementById('hero-meta').innerHTML = `${orgChip(top.org)}<span class="chip chip-mute">${escapeHTML(top.element||'S/ Maestria')}</span><span class="chip chip-gold">🥇 #1 Geral</span>`;
   }
 
   const maxPts = ranked[0]?.rankPoints || 1;
   document.getElementById('homeRankPreview').innerHTML = ranked.slice(0,5).map((r,i) => {
     const w = Math.min(100, Math.max(5, (Number(r.rankPoints||0)/maxPts)*100));
-    return `<div class="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition" onclick="goToProfile('${r.id}')">
+    const safeId = escapeHTML(r.id);
+    return `<div class="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition" onclick="goToProfile('${safeId}')">
       <div class="w-7 h-7 rounded-full ${i===0?'bg-anbu':'bg-slate-800'} flex items-center justify-center text-[11px] font-black ${i===0?'text-white':'text-mute'}">${i+1}</div>
       ${ninjaAvatar(r, 32)}
       <div class="flex-1 min-w-0">
-        <div class="flex justify-between items-center"><span class="text-sm font-bold text-white truncate">${capitalizeName(r.id)}</span><span class="text-xs font-mono text-mute">${fmt(r.rankPoints)}</span></div>
+        <div class="flex justify-between items-center"><span class="text-sm font-bold text-white truncate">${escapeHTML(capitalizeName(r.id))}</span><span class="text-xs font-mono text-mute">${fmt(r.rankPoints)}</span></div>
         <div class="progress-bar mt-1"><div class="h-full ${i===0?'bg-anbu':'bg-ops'} rounded-full" style="width:${w}%"></div></div>
       </div>
     </div>`;
@@ -975,11 +982,11 @@ function updateDashboard() {
 
   const recent = [...reportsData].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5);
   document.getElementById('activityFeed').innerHTML = recent.map(a => {
-    const members = [...(a.killerIds||[]),...(a.assistIds||[])].slice(0,2).map(capitalizeName).join(', ') + (a.killerIds?.length>2?'…':'');
+    const members = [...(a.killerIds||[]),...(a.assistIds||[])].slice(0,2).map(id=>escapeHTML(capitalizeName(id))).join(', ') + (a.killerIds?.length>2?'…':'');
     return `<div class="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition">
       <div class="min-w-0"><div class="text-sm font-bold text-white truncate">${members||'Esquadrão'}</div>
-        <div class="text-[10px] text-mute uppercase tracking-wide mt-0.5">${new Date(a.timestamp).toLocaleDateString('pt-BR')} · ${capitalizeName(a.targets?.[0]?.name||'Alvo')}</div></div>
-      <div class="chip chip-green shrink-0">+${a.totalPointsRaw||0}</div>
+        <div class="text-[10px] text-mute uppercase tracking-wide mt-0.5">${new Date(a.timestamp).toLocaleDateString('pt-BR')} · ${escapeHTML(capitalizeName(a.targets?.[0]?.name||'Alvo'))}</div></div>
+      <div class="chip chip-green shrink-0">+${Number(a.totalPointsRaw||0)}</div>
     </div>`;
   }).join('') || '<p class="text-mute text-sm">Nenhuma atividade.</p>';
 
@@ -1033,7 +1040,7 @@ window.renderScoreboard = function(isEvent=false) {
 
   let list = Object.values(ninjasData).filter(n => n.isActive && n.id);
   if (search) list = list.filter(n => n.id.toLowerCase().includes(search));
-  if (!isEvent && nucleus) list = list.filter(n => (n.org||'ANBU') === nucleus);
+  if (!isEvent && nucleus) list = list.filter(n => (n.org||'Sem Org') === nucleus);
   list.sort((a,b) => Number(b[pointProp]||0) - Number(a[pointProp]||0));
   if (isEvent) list = list.filter(n => Number(n[pointProp]||0) > 0);
 
@@ -1042,12 +1049,13 @@ window.renderScoreboard = function(isEvent=false) {
     const podium = document.getElementById('rank-podium');
     podium.innerHTML = list.slice(0,3).map((n,i) => {
       const colors = ['from-anbu/30 to-transparent border-anbu/40','from-slate-500/20 to-transparent border-slate-400/30','from-orange-700/20 to-transparent border-orange-600/30'];
-      return `<div class="panel p-4 bg-gradient-to-br ${colors[i]} cursor-pointer panel-hover" onclick="goToProfile('${n.id}')">
+      const safeId = escapeHTML(n.id);
+      return `<div class="panel p-4 bg-gradient-to-br ${colors[i]} cursor-pointer panel-hover" onclick="goToProfile('${safeId}')">
         <div class="flex items-center gap-3">
           ${ninjaAvatar(n, 48)}
           <div class="flex-1 min-w-0">
             <div class="text-[10px] uppercase tracking-widest text-mute font-bold">${rankIcon(i+1)}</div>
-            <div class="text-base font-black text-white truncate">${capitalizeName(n.id)}</div>
+            <div class="text-base font-black text-white truncate">${escapeHTML(capitalizeName(n.id))}</div>
             ${orgChip(n.org)}
           </div>
           <div class="text-right">
@@ -1065,11 +1073,12 @@ window.renderScoreboard = function(isEvent=false) {
     const stats = getNinjaStats(r.id, isEvent);
     const total = stats.k + stats.a + stats.h || 1;
     const pK = (stats.k/total*100), pA = (stats.a/total*100), pH = (stats.h/total*100);
-    return `<tr class="group hover:bg-white/[0.03] transition cursor-pointer" onclick="goToProfile('${r.id}')">
+    const safeId = escapeHTML(r.id);
+    return `<tr class="group hover:bg-white/[0.03] transition cursor-pointer" onclick="goToProfile('${safeId}')">
       <td class="py-3 pl-2"><span class="${i<3 ? (isEvent?'text-gold':'text-anbuGlow')+' font-black':'text-mute font-bold'}">${rankIcon(i+1)}</span></td>
       <td class="py-3"><div class="flex items-center gap-3">
         ${ninjaAvatar(r, 36)}
-        <div><div class="text-sm font-bold text-white">${capitalizeName(r.id)}</div><div class="mt-0.5">${orgChip(r.org)}</div></div>
+        <div><div class="text-sm font-bold text-white">${escapeHTML(capitalizeName(r.id))}</div><div class="mt-0.5">${orgChip(r.org)}</div></div>
       </div></td>
       <td class="py-3"><div class="flex items-center gap-3 justify-center">
         <div class="text-center"><div class="text-sm font-bold text-anbuGlow font-mono">${stats.k}</div><div class="text-[9px] uppercase tracking-widest text-mute font-bold">K</div></div>
@@ -1151,12 +1160,13 @@ window.renderReportsLogFiltered = function(page=1) {
     const dt = d.timestamp ? new Date(d.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
     const tag = historyIsEvent ? '<span class="chip chip-gold ml-2">Evento</span>' : '';
     let mTxt = '<div class="flex flex-wrap gap-1">';
-    (d.killerIds||[]).forEach(id => mTxt += `<span class="tag tag-killer text-[10px] py-0.5">${capitalizeName(id)}</span>`);
-    (d.assistIds||[]).forEach(id => mTxt += `<span class="tag tag-assist text-[10px] py-0.5">${capitalizeName(id)}</span>`);
-    (d.healerIds||[]).forEach(id => mTxt += `<span class="tag tag-healer text-[10px] py-0.5">${capitalizeName(id)}</span>`);
+    (d.killerIds||[]).forEach(id => mTxt += `<span class="tag tag-killer text-[10px] py-0.5">${escapeHTML(capitalizeName(id))}</span>`);
+    (d.assistIds||[]).forEach(id => mTxt += `<span class="tag tag-assist text-[10px] py-0.5">${escapeHTML(capitalizeName(id))}</span>`);
+    (d.healerIds||[]).forEach(id => mTxt += `<span class="tag tag-healer text-[10px] py-0.5">${escapeHTML(capitalizeName(id))}</span>`);
     mTxt += '</div>';
-    const tTxt = (d.targets||[]).map(t=>capitalizeName(t.name)).join(', ') || 'N/A';
-    const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-1"><button onclick="event.stopPropagation();editReport('${d.reportId}',${historyIsEvent})" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button><button onclick="event.stopPropagation();deleteReport('${d.reportId}',${historyIsEvent})" class="btn btn-danger text-[10px] py-1 px-2">Del</button></div>` : '';
+    const tTxt = (d.targets||[]).map(t=>escapeHTML(capitalizeName(t.name))).join(', ') || 'N/A';
+    const safeRid = escapeHTML(d.reportId);
+    const btns = (isWriterMode||isMasterAdminMode) ? `<div class="mt-2 flex gap-1"><button onclick="event.stopPropagation();editReport('${safeRid}',${historyIsEvent})" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button><button onclick="event.stopPropagation();deleteReport('${safeRid}',${historyIsEvent})" class="btn btn-danger text-[10px] py-1 px-2">Del</button></div>` : '';
     return `<tr class="hover:bg-white/[0.02]"><td class="py-3 align-top text-xs font-mono text-mute">${dt}<br><span class="text-[9px] text-mute/60">${d.reportId}</span>${tag}${btns}</td><td class="py-3 align-top">${mTxt}</td><td class="py-3 align-top text-sm text-orange-300">${tTxt}</td><td class="py-3 align-top text-right pr-2 font-mono font-bold text-white">${d.totalPointsRaw||0}</td></tr>`;
   }).join('');
 
@@ -1185,7 +1195,7 @@ window.renderTargetsTable = function(page=1) {
   document.getElementById('targets-grid-top').innerHTML = sorted.slice(0,3).map((t,i) => `
     <div class="panel p-4 border-l-4 ${i===0?'border-anbu':i===1?'border-slate-400':'border-orange-600'} bg-gradient-to-br from-red-950/10 to-transparent">
       <div class="text-[10px] uppercase tracking-widest text-mute font-bold">${rankIcon(i+1)} Alvo</div>
-      <div class="text-xl font-black text-orange-300 mt-1 truncate">${capitalizeName(t.name)}</div>
+      <div class="text-xl font-black text-orange-300 mt-1 truncate">${escapeHTML(capitalizeName(t.name))}</div>
       <div class="flex justify-between mt-2 text-xs"><span class="text-anbuGlow font-bold">${t.count}× finalizado</span><span class="text-mute font-mono">BT ${t.totalBT}</span></div>
     </div>
   `).join('');
@@ -1194,7 +1204,7 @@ window.renderTargetsTable = function(page=1) {
   tbody.innerHTML = sorted.slice((page-1)*10, page*10).map((t,i) => `
     <tr class="hover:bg-white/[0.02]">
       <td class="py-3 text-center text-mute font-bold">${rankIcon((page-1)*10+i+1)}</td>
-      <td class="py-3 text-orange-300 font-bold">${capitalizeName(t.name)}</td>
+      <td class="py-3 text-orange-300 font-bold">${escapeHTML(capitalizeName(t.name))}</td>
       <td class="py-3 text-anbuGlow font-bold">${t.count}×</td>
       <td class="py-3 text-slate-300 font-mono">${t.totalBT}</td>
     </tr>
@@ -1283,7 +1293,7 @@ window.renderNinjaProfile = function(filterId, page=1) {
           <div class="space-y-2">
             ${topTargets.length===0 ? `<p class="text-mute/70 text-xs">Nenhum alvo abatido.</p>` :
               topTargets.slice(0,3).map((t,i)=>`<div class="flex justify-between items-center border-b border-white/5 pb-2 last:border-0">
-                <span class="text-sm font-semibold text-orange-300">${['🥇','🥈','🥉'][i]||'🎯'} ${capitalizeName(t.name)}</span>
+                <span class="text-sm font-semibold text-orange-300">${['🥇','🥈','🥉'][i]||'🎯'} ${escapeHTML(capitalizeName(t.name))}</span>
                 <span class="text-xs font-bold text-anbuGlow">${t.count}×</span></div>`).join('')}
           </div>
         </div>
@@ -1292,7 +1302,7 @@ window.renderNinjaProfile = function(filterId, page=1) {
           <div class="space-y-2">
             ${topParc.length===0 ? `<p class="text-mute/70 text-xs">Sem parceiros frequentes.</p>` :
               topParc.map(([id,c])=>`<div class="flex justify-between items-center border-b border-white/5 pb-2 last:border-0">
-                <span class="text-sm font-semibold text-ops cursor-pointer hover:underline" onclick="goToProfile('${id}')">${capitalizeName(id)}</span>
+                <span class="text-sm font-semibold text-ops cursor-pointer hover:underline" onclick="goToProfile('${escapeHTML(id)}')">${escapeHTML(capitalizeName(id))}</span>
                 <span class="text-xs text-mute">${c} missões</span></div>`).join('')}
           </div>
         </div>
@@ -1391,7 +1401,7 @@ window.renderAchievements = function() {
         <div class="flex-1">
           <div class="flex items-center gap-2"><h4 class="font-black text-white text-sm">${b.name}</h4>${b.holders.length?`<span class="chip chip-gold">${b.holders.length}</span>`:'<span class="chip chip-mute">Bloqueado</span>'}</div>
           <p class="text-xs text-mute mt-1">${b.desc}</p>
-          ${b.holders.length ? `<div class="flex flex-wrap gap-1 mt-3">${b.holders.slice(0,8).map(h => `<span class="text-[11px] cursor-pointer hover:underline text-anbuGlow font-bold" onclick="goToProfile('${h.id}')">${capitalizeName(h.id)}</span>`).join('<span class="text-mute">·</span>')}${b.holders.length>8?`<span class="text-mute text-[10px]">+${b.holders.length-8}</span>`:''}</div>` : ''}
+          ${b.holders.length ? `<div class="flex flex-wrap gap-1 mt-3">${b.holders.slice(0,8).map(h => `<span class="text-[11px] cursor-pointer hover:underline text-anbuGlow font-bold" onclick="goToProfile('${escapeHTML(h.id)}')">${escapeHTML(capitalizeName(h.id))}</span>`).join('<span class="text-mute">·</span>')}${b.holders.length>8?`<span class="text-mute text-[10px]">+${b.holders.length-8}</span>`:''}</div>` : ''}
         </div>
       </div>
     </div>
@@ -1421,13 +1431,13 @@ window.renderAuditPanel = function() {
   }
   tbody.innerHTML = pendingData.map(p => {
     const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
-    const badge = vinculado ? `<span class="chip chip-green">🔗 ${capitalizeName(vinculado.id)}</span>` : `<span class="chip chip-gold">⚠️ Sem vínculo</span>`;
+    const badge = vinculado ? `<span class="chip chip-green">🔗 ${escapeHTML(capitalizeName(vinculado.id))}</span>` : `<span class="chip chip-gold">⚠️ Sem vínculo</span>`;
     return `<tr class="hover:bg-white/[0.02]">
       <td class="py-3 pl-2 text-sm text-ops font-bold">${escapeHTML(p.authorTag||'')}</td>
       <td class="py-3">${badge}</td>
       <td class="py-3 text-xs text-slate-300 font-mono bg-black/30 p-2 rounded">${escapeHTML(p.rawText||'')}</td>
       <td class="py-3 text-xs text-mute">${new Date(p.timestamp).toLocaleString('pt-BR')}</td>
-      <td class="py-3 text-right pr-2 whitespace-nowrap"><button onclick="avaliarPending('${p.id}')" class="btn btn-primary text-[10px] py-1 px-2 mr-1">Revisar</button><button onclick="recusarPending('${p.id}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>
+      <td class="py-3 text-right pr-2 whitespace-nowrap"><button onclick="avaliarPending('${escapeHTML(p.id)}')" class="btn btn-primary text-[10px] py-1 px-2 mr-1">Revisar</button><button onclick="recusarPending('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>
     </tr>`;
   }).join('');
 };
@@ -1473,12 +1483,13 @@ window.renderNinjasTable = function() {
   tbody.innerHTML = Object.values(ninjasData).filter(n=>n.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(n => {
     const noPhoto = !n.avatarUrl ? `<span class="chip chip-anbu ml-1">S/Foto</span>` : '';
     const dateStr = n.entranceDate ? new Date(n.entranceDate).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '--/--/----';
-    const action = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode?'':'hidden'}"><div class="flex justify-end gap-1"><button onclick="editNinjaFull('${n.id}')" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button><button onclick="deleteNinja('${n.id}')" class="btn btn-danger text-[10px] py-1 px-2">Excluir</button></div></td>`;
+    const safeId = escapeHTML(n.id);
+    const action = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode?'':'hidden'}"><div class="flex justify-end gap-1"><button onclick="editNinjaFull('${safeId}')" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button><button onclick="deleteNinja('${safeId}')" class="btn btn-danger text-[10px] py-1 px-2">Excluir</button></div></td>`;
     return `<tr class="hover:bg-white/[0.02]">
-      <td class="py-3 pl-2 font-bold text-white">${capitalizeName(n.id)} ${n.discordId?'🟣':''} ${noPhoto}</td>
+      <td class="py-3 pl-2 font-bold text-white">${escapeHTML(capitalizeName(n.id))} ${n.discordId?'🟣':''} ${noPhoto}</td>
       <td class="py-3 text-xs">${orgChip(n.org)}<br><span class="text-mute mt-1 inline-block">📅 ${dateStr}</span></td>
-      <td class="py-3 text-[10px] uppercase font-bold text-mute">${n.element||'--'}</td>
-      <td class="py-3 text-xs font-mono text-mute">${n.discordId ? n.discordId.slice(0,6)+'...' : '--'}</td>
+      <td class="py-3 text-[10px] uppercase font-bold text-mute">${escapeHTML(n.element||'--')}</td>
+      <td class="py-3 text-xs font-mono text-mute">${n.discordId ? escapeHTML(n.discordId.slice(0,6))+'...' : '--'}</td>
       <td class="py-3 text-xs font-bold ${n.isActive?'text-medic':'text-anbuGlow'}">${n.isActive?'Ativo':'Inativo'}</td>
       ${action}
     </tr>`;
@@ -1734,12 +1745,28 @@ window.recalculateAllRanks = async function(internal=false) {
 };
 
 // ============= AUTH =============
-window.checkAccessKey = function() {
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+window.checkAccessKey = async function() {
   const id = document.getElementById('access-id-input').value.trim();
   const key = document.getElementById('access-key-input').value.trim();
-  if (accessKeysData[id] && accessKeysData[id].key === key) {
+  const entry = accessKeysData[id];
+  if (!entry) { toast('ID ou senha incorretos','error'); return; }
+
+  let ok = false;
+  if (entry.hash) {
+    const inputHash = await sha256hex(key);
+    ok = (inputHash === entry.hash);
+  } else if (entry.key) {
+    ok = (entry.key === key);
+  }
+
+  if (ok) {
     currentAccessId = id;
-    isMasterAdminMode = accessKeysData[id].level === 'master_admin';
+    isMasterAdminMode = entry.level === 'master_admin';
     isWriterMode = true;
     document.getElementById('auth-info').classList.add('hidden');
     document.getElementById('auth-status-badge').classList.remove('hidden');
@@ -1780,7 +1807,7 @@ async function init() {
     const pill = document.getElementById('auth-info');
     pill.textContent = 'Conectado'; pill.className = 'border border-blue-500/40 text-blue-400 px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider';
 
-    onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), s => { accessKeysData = {}; s.forEach(d => accessKeysData[d.id] = d.data()); });
+    onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), s => { accessKeysData = {}; s.forEach(d => { const raw = d.data(); accessKeysData[d.id] = { level: raw.level, hash: raw.hash, key: raw.key }; }); });
 
     onSnapshot(collection(db, COLLECTIONS.NINJAS), s => {
       ninjasData = {}; s.forEach(d => ninjasData[d.id] = d.data());

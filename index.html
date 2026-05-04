@@ -6,6 +6,11 @@
 <title>QG Forças Especiais — ANBU Tático</title>
 <meta name="description" content="Painel tático das Forças Especiais da Leaf — ranking, missões, conquistas e auditoria em tempo real." />
 
+<script>
+  // Suprime o aviso do Tailwind CDN — deve rodar ANTES do script do Tailwind
+  const _origWarn = console.warn;
+  console.warn = (...args) => { if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return; _origWarn(...args); };
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -564,11 +569,11 @@
             <table class="w-full text-left">
               <thead>
                 <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
-                  <th class="pb-3 pl-2">Autor</th>
+                  <th class="pb-3 pl-2">Autor / Tipo</th>
                   <th class="pb-3">Vínculo</th>
                   <th class="pb-3">Mensagem</th>
                   <th class="pb-3">Quando</th>
-                  <th class="pb-3 text-right pr-2">Ação</th>
+                  <th class="pb-3 text-right pr-2">Ações</th>
                 </tr>
               </thead>
               <tbody id="audit-table-body" class="divide-y divide-white/5"></tbody>
@@ -1431,15 +1436,116 @@ window.renderAuditPanel = function() {
   }
   tbody.innerHTML = pendingData.map(p => {
     const vinculado = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
-    const badge = vinculado ? `<span class="chip chip-green">🔗 ${escapeHTML(capitalizeName(vinculado.id))}</span>` : `<span class="chip chip-gold">⚠️ Sem vínculo</span>`;
-    return `<tr class="hover:bg-white/[0.02]">
-      <td class="py-3 pl-2 text-sm text-ops font-bold">${escapeHTML(p.authorTag||'')}</td>
+    const badge = vinculado
+      ? `<span class="chip chip-green">🔗 ${escapeHTML(capitalizeName(vinculado.id))}</span>`
+      : `<span class="chip chip-gold">⚠️ Sem vínculo</span>`;
+
+    const isDuplicate = p.tipo === 'duplicata_suspeita';
+    const rowBg = isDuplicate ? 'bg-yellow-900/10' : 'hover:bg-white/[0.02]';
+
+    // Badge de tipo
+    const tipoBadge = isDuplicate
+      ? `<span class="chip chip-gold ml-1">⚠️ Duplicata</span>`
+      : `<span class="chip chip-ops ml-1">🤖 Bot</span>`;
+
+    // Botão de deletar a missão original duplicada (só aparece em duplicatas)
+    const deleteDupBtn = (isDuplicate && p.reportId && (isWriterMode || isMasterAdminMode))
+      ? `<button onclick="deletarDuplicataOriginal('${escapeHTML(p.id)}','${escapeHTML(p.reportId)}')" class="btn btn-danger text-[10px] py-1 px-2 mr-1" title="Apaga o report original e remove esta pendência">🗑️ Del. Original</button>`
+      : '';
+
+    // Botão de aprovação rápida (só para missões com vínculo e sem duplicata)
+    const autoAprovarBtn = (!isDuplicate && vinculado && (isWriterMode || isMasterAdminMode))
+      ? `<button onclick="autoAprovarPending('${escapeHTML(p.id)}')" class="btn btn-ghost text-[10px] py-1 px-2 mr-1 border-medic/40 text-medic hover:text-white" title="Aprova e lança automaticamente">⚡ Auto</button>`
+      : '';
+
+    return `<tr class="${rowBg} transition">
+      <td class="py-3 pl-2">
+        <div class="text-sm text-ops font-bold">${escapeHTML(p.authorTag||'')}</div>
+        ${tipoBadge}
+      </td>
       <td class="py-3">${badge}</td>
-      <td class="py-3 text-xs text-slate-300 font-mono bg-black/30 p-2 rounded">${escapeHTML(p.rawText||'')}</td>
-      <td class="py-3 text-xs text-mute">${new Date(p.timestamp).toLocaleString('pt-BR')}</td>
-      <td class="py-3 text-right pr-2 whitespace-nowrap"><button onclick="avaliarPending('${escapeHTML(p.id)}')" class="btn btn-primary text-[10px] py-1 px-2 mr-1">Revisar</button><button onclick="recusarPending('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>
+      <td class="py-3">
+        <div class="text-xs text-slate-300 font-mono bg-black/30 px-2 py-1.5 rounded break-all">${escapeHTML(p.rawText||p.mensagem||'')}</div>
+        ${isDuplicate && p.parsedTarget ? `<div class="text-[10px] text-gold mt-1">BT ${p.parsedBt||'?'} → ${escapeHTML(p.parsedTarget)}</div>` : ''}
+      </td>
+      <td class="py-3 text-xs text-mute whitespace-nowrap">${p.timestamp ? new Date(p.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}</td>
+      <td class="py-3 text-right pr-2">
+        <div class="flex flex-wrap justify-end gap-1">
+          ${deleteDupBtn}
+          ${autoAprovarBtn}
+          <button onclick="avaliarPending('${escapeHTML(p.id)}')" class="btn btn-primary text-[10px] py-1 px-2">Revisar</button>
+          <button onclick="recusarPending('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
+};
+
+// ── Apaga o report original de uma duplicata + remove a pendência ──
+window.deletarDuplicataOriginal = async function(pendingId, reportId) {
+  if (!isWriterMode && !isMasterAdminMode) return;
+  const confirmMsg = `Isso vai apagar o report original <code>${escapeHTML(reportId)}</code> e remover esta pendência. O rank será recalculado.<br><br>Quer continuar?`;
+  if (!await openCustomModal('Deletar Duplicata Original', confirmMsg, 'confirm')) return;
+  try {
+    toast('Apagando duplicata...', 'info');
+    const batch = writeBatch(db);
+    // Deleta o report original
+    batch.delete(doc(db, COLLECTIONS.REPORTS, reportId));
+    // Remove a pendência
+    batch.delete(doc(db, COLLECTIONS.PENDING, pendingId));
+    await batch.commit();
+    // Recalcula rank
+    await recalculateAllRanks(true);
+    toast('Duplicata removida e rank recalculado!', 'success');
+    logActivity('duplicate_delete', reportId);
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── Aprovação rápida: lança o report do bot sem abrir o formulário ──
+window.autoAprovarPending = async function(pendingId) {
+  if (!isWriterMode && !isMasterAdminMode) return;
+  const p = pendingData.find(d => d.id === pendingId); if (!p) return;
+
+  // Resolve o killer
+  const killerNinja = Object.values(ninjasData).find(n => n.discordId && n.discordId === p.authorId);
+  if (!killerNinja) { toast('Vínculo Discord não encontrado. Use Revisar para vincular manualmente.', 'error'); return; }
+
+  const bt = Number(p.parsedBt) || 0;
+  if (!bt || !p.parsedTarget) { toast('BT ou alvo inválido. Use Revisar.', 'error'); return; }
+
+  const assists = Array.isArray(p.parsedAssists) ? p.parsedAssists : [];
+  const reportId = `BT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomUUID().substring(0,8)}`;
+
+  const reportData = {
+    reportId, isEvent: false,
+    targets: [{ name: p.parsedTarget, btBase: bt, isSpecial: false, isOrg: false, isTrashTalk: false, total: bt }],
+    killerIds: [killerNinja.id], assistIds: assists, healerIds: [], executorIds: [killerNinja.id],
+    totalPointsRaw: bt, pointsPerKiller: bt, pointsPerAssist: 0, pointsPerHealer: 0,
+    timestamp: p.timestamp || new Date().toISOString(),
+  };
+
+  try {
+    toast('Aprovando automaticamente...', 'info');
+    const batch = writeBatch(db);
+    batch.set(doc(db, COLLECTIONS.REPORTS, reportId), reportData);
+    batch.delete(doc(db, COLLECTIONS.PENDING, pendingId));
+    // Atualiza pontos do killer
+    batch.set(doc(db, COLLECTIONS.NINJAS, killerNinja.id), {
+      rankPoints: Number(ninjasData[killerNinja.id]?.rankPoints || 0) + bt,
+      missionsCompleted: Number(ninjasData[killerNinja.id]?.missionsCompleted || 0) + 1,
+    }, { merge: true });
+    // Atualiza assists (se existirem)
+    assists.forEach(id => {
+      if (ninjasData[id]) {
+        batch.set(doc(db, COLLECTIONS.NINJAS, id), {
+          missionsCompleted: Number(ninjasData[id]?.missionsCompleted || 0) + 1,
+        }, { merge: true });
+      }
+    });
+    await batch.commit();
+    toast(`✅ Aprovado! ${capitalizeName(killerNinja.id)} +${bt} pts`, 'success');
+    logActivity('audit_auto_approve', reportId, { pts: bt, killer: killerNinja.id });
+  } catch(e) { toast(e.message, 'error'); }
 };
 
 window.avaliarPending = function(id) {
@@ -1820,9 +1926,36 @@ async function init() {
       if (currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) renderNinjaProfile(sel.value,1); }
     });
 
+    // ── AUTO-RANK: detecta reports novos do bot e recalcula rank automaticamente ──
+    let _prevReportIds = new Set();
     onSnapshot(collection(db, COLLECTIONS.REPORTS), s => {
+      const newReports = [];
+      const currentIds = new Set();
+      s.forEach(d => {
+        currentIds.add(d.id);
+        const item = d.data();
+        // Report novo do bot: tem parsedTarget, não tem targets, e não estava na lista anterior
+        if (!_prevReportIds.has(d.id) && !item.targets && item.parsedTarget) {
+          newReports.push(d);
+        }
+      });
+      _prevReportIds = currentIds;
+
       reportsData = []; s.forEach(d => reportsData.push(normalizeReportData(d)));
       updateTargetSuggestions();
+
+      // Se chegou relatório novo do bot, recalcula rank e notifica
+      if (newReports.length > 0) {
+        recalculateAllRanks(true).then(() => {
+          newReports.forEach(d => {
+            const item = d.data();
+            const killer = Object.values(ninjasData).find(n => n.discordId === item.authorId);
+            const nome = killer ? capitalizeName(killer.id) : (item.authorTag || 'Desconhecido');
+            toast(`Rank atualizado! ${nome} registrou BT ${item.parsedBt} em ${item.parsedTarget}`, 'success', '⚔️ Bot Discord');
+          });
+        });
+      }
+
       if (currentPage==='dashboard') updateDashboard();
       if (currentPage==='rank') renderScoreboard(false);
       if (currentPage==='historico') renderReportsLogFiltered();

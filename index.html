@@ -203,6 +203,7 @@
         <a class="nav-item nav-link" data-page="alvos"><i data-lucide="crosshair" class="h-4 w-4"></i><span>Alvos Eliminados</span></a>
         <a class="nav-item nav-link" data-page="perfil"><i data-lucide="user-search" class="h-4 w-4"></i><span>Operadores</span></a>
         <a class="nav-item nav-link" data-page="conquistas"><i data-lucide="award" class="h-4 w-4"></i><span>Conquistas</span></a>
+        <a class="nav-item nav-link" data-page="delegacia"><i data-lucide="shield" class="h-4 w-4 text-sky-400"></i><span class="text-sky-300">Delegacia</span></a>
       </div>
 
       <div class="text-[10px] uppercase tracking-[0.2em] text-mute/60 px-3 mb-2 font-bold">Comando</div>
@@ -456,14 +457,31 @@
 
       <!-- ========= PERFIL ========= -->
       <section id="perfil" class="page hidden space-y-6">
-        <div class="max-w-md mx-auto">
-          <select id="ninja-filter-select" onchange="renderNinjaProfile(this.value, 1)" class="input">
-            <option value="">-- Selecione um Operador --</option>
-          </select>
+        <!-- Busca + Top 10 clicáveis -->
+        <div class="panel p-5">
+          <div class="flex flex-col md:flex-row gap-4 mb-4">
+            <div class="flex-1">
+              <label class="label">Buscar Operador</label>
+              <input id="perfil-search" class="input w-full" placeholder="Digite o nome..." oninput="renderPerfilSearch()" />
+            </div>
+            <div class="flex-1">
+              <label class="label">Ou selecione diretamente</label>
+              <select id="ninja-filter-select" onchange="renderNinjaProfile(this.value, 1)" class="input w-full">
+                <option value="">-- Selecione um Operador --</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-mute font-bold mb-3">🏆 Top 10 Rank — Clique para ver perfil</div>
+            <div id="perfil-top10" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"></div>
+          </div>
         </div>
         <div id="guardian-summary" class="hidden"></div>
         <div id="profile-history-container" class="panel p-6 hidden">
-          <h3 class="text-[10px] text-mute font-bold tracking-[0.18em] uppercase mb-4">Histórico Individual</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[10px] text-mute font-bold tracking-[0.18em] uppercase">Histórico Individual</h3>
+            <div id="profile-history-pag-top" class="flex gap-2 items-center"></div>
+          </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
@@ -477,6 +495,7 @@
               <tbody id="profile-history-log" class="divide-y divide-white/5"></tbody>
             </table>
           </div>
+          <div id="profile-history-pag" class="flex justify-center gap-2 mt-4"></div>
         </div>
       </section>
 
@@ -489,6 +508,102 @@
           <p class="text-xs text-mute mb-6">Medalhas automáticas concedidas aos operadores conforme suas estatísticas</p>
           <div id="achievements-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
+      </section>
+
+      <!-- ========= DELEGACIA ========= -->
+      <section id="delegacia" class="page hidden space-y-6">
+
+        <!-- Tabs -->
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="setDelegaciaTab('perfis')" id="del-tab-perfis" class="btn btn-primary text-xs">👮 Perfis</button>
+          <button onclick="setDelegaciaTab('registro')" id="del-tab-registro" class="btn btn-ghost text-xs">📋 Registro Policial</button>
+          <button onclick="setDelegaciaTab('conquistas')" id="del-tab-conquistas" class="btn btn-ghost text-xs">🏅 Conquistas Policiais</button>
+          <button onclick="setDelegaciaTab('bounty')" id="del-tab-bounty" class="btn btn-ghost text-xs">🏆 Bounty Policial</button>
+        </div>
+
+        <!-- Perfis de Policiais -->
+        <div id="del-perfis" class="del-tab space-y-6">
+          <!-- Top 10 com busca -->
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-sky-300 flex items-center gap-2 mb-1"><i data-lucide="shield" class="h-5 w-5"></i>Agentes da Polícia</h3>
+            <p class="text-xs text-mute mb-4">Top 10 por prisões · clique para ver perfil completo</p>
+            <div class="mb-4">
+              <input id="del-search-policial" class="input w-full md:w-80" placeholder="Buscar agente..." oninput="renderDelegaciaTop10()" />
+            </div>
+            <!-- Top 10 cards clicáveis -->
+            <div id="del-top10-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6"></div>
+          </div>
+          <!-- Perfil individual -->
+          <div id="del-profile-box" class="hidden"></div>
+        </div>
+
+        <!-- Registro Policial (prisões) -->
+        <div id="del-registro" class="del-tab hidden">
+          <div class="panel p-6">
+            <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+              <div>
+                <h3 class="text-lg font-black text-sky-300 flex items-center gap-2"><i data-lucide="clipboard-list" class="h-5 w-5"></i>Registro Policial</h3>
+                <p class="text-xs text-mute">Histórico de prisões registradas pelo bot</p>
+              </div>
+              <div class="filter flex flex-wrap gap-2">
+                <input id="del-reg-search" class="input" placeholder="Buscar preso ou agente..." oninput="renderRegistroPrisoes()" />
+                <select id="del-reg-date" class="input" onchange="renderRegistroPrisoes()">
+                  <option value="all">Todos os períodos</option>
+                  <option value="today">Hoje</option>
+                  <option value="week">Últimos 7 dias</option>
+                  <option value="month">Este mês</option>
+                </select>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
+                    <th class="pb-3 pl-2">Data</th>
+                    <th class="pb-3">Preso</th>
+                    <th class="pb-3 text-center">Crimes</th>
+                    <th class="pb-3">Agente</th>
+                    <th class="pb-3 text-right pr-2 writer-only hidden">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="del-reg-body" class="divide-y divide-white/5"></tbody>
+              </table>
+            </div>
+            <div id="del-reg-pag" class="flex justify-center gap-2 mt-4"></div>
+          </div>
+        </div>
+
+        <!-- Conquistas Policiais -->
+        <div id="del-conquistas" class="del-tab hidden">
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-sky-300 flex items-center gap-2 mb-1"><i data-lucide="badge" class="h-5 w-5"></i>Conquistas Policiais</h3>
+            <p class="text-xs text-mute mb-6">Medalhas concedidas aos agentes com base no histórico de prisões</p>
+            <div id="del-conquistas-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </div>
+        </div>
+
+        <!-- Bounty Policial -->
+        <div id="del-bounty" class="del-tab hidden">
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-sky-300 flex items-center gap-2 mb-1"><i data-lucide="trophy" class="h-5 w-5"></i>Bounty Policial</h3>
+            <p class="text-xs text-mute mb-6">Ranking dos agentes por número de prisões</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
+                    <th class="pb-3 pl-2">Rank</th>
+                    <th class="pb-3">Agente</th>
+                    <th class="pb-3 text-center">Prisões</th>
+                    <th class="pb-3 text-center">Crimes Totais</th>
+                    <th class="pb-3 text-right pr-2">Kills</th>
+                  </tr>
+                </thead>
+                <tbody id="del-bounty-body" class="divide-y divide-white/5"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ========= REGISTRAR MISSÃO ========= -->
@@ -626,6 +741,30 @@
           </div>
 
           <div class="overflow-x-auto mt-6">
+            <!-- Filtros admin -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <input id="admin-search-name" class="input flex-1 min-w-[160px]" placeholder="Buscar por nome..." oninput="renderNinjasTable()" />
+              <select id="admin-filter-org" class="input" onchange="renderNinjasTable()">
+                <option value="">Todas as orgs</option>
+                <option value="ANBU">ANBU</option>
+                <option value="12 Guardiões">12 Guardiões</option>
+                <option value="Polícia">Polícia</option>
+                <option value="Médicos">Médicos</option>
+                <option value="Sem Org">Sem Org</option>
+              </select>
+              <select id="admin-filter-date" class="input" onchange="renderNinjasTable()">
+                <option value="">Qualquer entrada</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="90d">Últimos 90 dias</option>
+                <option value="180d">Últimos 6 meses</option>
+                <option value="1y">Último ano</option>
+              </select>
+              <select id="admin-filter-status" class="input" onchange="renderNinjasTable()">
+                <option value="">Todos os status</option>
+                <option value="active">Ativos</option>
+                <option value="inactive">Inativos</option>
+              </select>
+            </div>
             <table class="w-full text-left">
               <thead>
                 <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
@@ -691,6 +830,7 @@ const COLLECTIONS = {
   NINJAS:         `artifacts/${CFG.projectId}/public/data/ninjas`,
   ACCESS_KEYS:    `artifacts/${CFG.projectId}/public/data/access_keys`,
   ACTIVITY_LOG:   `artifacts/${CFG.projectId}/public/data/activity_log`,
+  PRISOES:        `artifacts/${CFG.projectId}/public/data/delegacia_prisoes`,
 };
 const MAESTRIAS = ["Fogo","Água","Vento","Terra","Raio","Med (Chakra)","Med (Int)","WM","TAI"];
 
@@ -702,8 +842,10 @@ let selectedKillers=[], selectedAssists=[], selectedHealers=[];
 let targetEntryCount = 0;
 window.isEditingMode = false;
 
-let ninjasData = {}, reportsData = [], eventReportsData = [], pendingData = [], accessKeysData = {}, activityData = [];
+let ninjasData = {}, reportsData = [], eventReportsData = [], pendingData = [], accessKeysData = {}, activityData = [], prisoesData = [];
 let historyIsEvent = false;
+let currentDelegaciaTab = 'perfis';
+let currentDelProfileId = null;
 let firstLoad = { pending: true, reports: true };
 let lastTopId = null;
 
@@ -881,6 +1023,7 @@ const pageMeta = {
   alvos:       ['Lista Negra', 'Ameaças neutralizadas pelo esquadrão'],
   perfil:      ['Dossiê Tático', 'Métricas individuais detalhadas'],
   conquistas:  ['Conquistas', 'Medalhas automáticas dos operadores'],
+  delegacia:   ['Delegacia', 'Registro policial · prisões · perfis dos agentes'],
   report_form: ['Registrar Missão', 'Lançamento oficial no banco de dados'],
   audit_panel: ['Auditoria Bot', 'Revisão de logs do servidor Discord'],
   atividade:   ['Atividade', 'Log de auditoria do sistema'],
@@ -922,10 +1065,12 @@ function forceChangePage(pageName) {
   if (pageName === 'alvos')       renderTargetsTable();
   if (pageName === 'conquistas')  renderAchievements();
   if (pageName === 'atividade')   renderActivityLog();
+  if (pageName === 'delegacia')   renderDelegacia();
   if (pageName === 'perfil') {
     const sel = document.getElementById('ninja-filter-select');
     sel.innerHTML = '<option value="">-- Selecione um Operador --</option>' +
       Object.values(ninjasData).filter(n=>n.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(n=>`<option value="${n.id}">${capitalizeName(n.id)}</option>`).join('');
+    renderPerfilTop10();
     if (sel.value) renderNinjaProfile(sel.value, 1);
   }
   if (pageName === 'report_form') {
@@ -1223,6 +1368,10 @@ window.renderNinjaProfile = function(filterId, page=1) {
   if (!filterId) { sumDiv.classList.add('hidden'); histDiv.classList.add('hidden'); return; }
   const n = ninjasData[filterId]; if (!n) return;
 
+  // sync select
+  const sel = document.getElementById('ninja-filter-select');
+  if (sel && sel.value !== filterId) sel.value = filterId;
+
   const all = [...reportsData, ...eventReportsData];
   let kC=0, aC=0, hC=0; const mHist=[]; const targetsCounter={}, parceiroMap={};
   all.forEach(r => {
@@ -1247,9 +1396,10 @@ window.renderNinjaProfile = function(filterId, page=1) {
   const pK = Math.round(kC/total*100), pA = Math.round(aC/total*100), pH = Math.round(hC/total*100);
   const totalMissions = (n.missionsCompleted||0)+(n.eventMissionsCompleted||0);
   const dateStr = n.entranceDate ? new Date(n.entranceDate).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '--/--/----';
+  const prisoesDoPerfil = prisoesData.filter(p => normalizeId(p.agenteId||'') === normalizeId(filterId) || normalizeId(p.agente||'') === normalizeId(filterId));
 
-  // Conquistas do operador
   const badges = computeAchievements().filter(b => b.holders.some(h => h.id === filterId)).map(b => `<span class="chip chip-gold" title="${escapeHTML(b.desc)}">${b.icon} ${escapeHTML(b.name)}</span>`).join(' ');
+  const badgesPol = computeConquistasPoliciais().filter(b => b.holders.some(h => h.id === filterId)).map(b => `<span class="chip chip-police" title="${escapeHTML(b.desc)}">${b.icon} ${escapeHTML(b.name)}</span>`).join(' ');
 
   sumDiv.innerHTML = `
     <div class="panel p-6 md:p-8 space-y-6">
@@ -1264,6 +1414,7 @@ window.renderNinjaProfile = function(filterId, page=1) {
             <span class="chip chip-mute">${n.element||'S/ Maestria'}</span>
             ${n.discordId?'<span class="chip chip-ops">🔗 Discord</span>':''}
             ${rankPos>0?`<span class="chip chip-gold">🥇 #${rankPos}</span>`:''}
+            ${prisoesDoPerfil.length>0?`<span class="chip chip-police">🚔 ${prisoesDoPerfil.length} prisões</span>`:''}
           </div>
         </div>
         <div class="text-right">
@@ -1289,7 +1440,7 @@ window.renderNinjaProfile = function(filterId, page=1) {
 
       <div>
         <h4 class="text-[10px] text-mute uppercase tracking-[0.18em] font-bold mb-3 flex items-center gap-2"><i data-lucide="award" class="h-3.5 w-3.5"></i>Conquistas Desbloqueadas</h4>
-        <div class="flex flex-wrap gap-2">${badges || '<span class="text-mute text-xs">Sem conquistas ainda. Continue operando!</span>'}</div>
+        <div class="flex flex-wrap gap-2">${badges || '<span class="text-mute text-xs">Sem conquistas ainda.</span>'}${badgesPol}</div>
       </div>
 
       <div class="grid md:grid-cols-2 gap-4">
@@ -1312,26 +1463,79 @@ window.renderNinjaProfile = function(filterId, page=1) {
           </div>
         </div>
       </div>
+      ${prisoesDoPerfil.length>0 ? `
+      <div>
+        <h4 class="text-[10px] text-mute uppercase tracking-[0.18em] font-bold mb-3 flex items-center gap-2"><i data-lucide="shield" class="h-3.5 w-3.5 text-sky-400"></i>Últimas Prisões Efetuadas</h4>
+        <div class="space-y-2">
+          ${[...prisoesDoPerfil].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(p=>`
+            <div class="flex items-center justify-between bg-bg border border-sky-500/10 rounded-lg px-4 py-2">
+              <div><span class="text-sm font-bold text-sky-300">${escapeHTML(capitalizeName(p.preso||''))}</span><span class="text-xs text-mute ml-2">${new Date(p.timestamp).toLocaleDateString('pt-BR',{timeZone:'UTC'})}</span></div>
+              <span class="chip chip-police">${p.crimes||0} crimes</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
     </div>`;
   sumDiv.classList.remove('hidden');
 
-  const tbody = document.getElementById('profile-history-log');
+  // Histórico paginado
   mHist.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-  if (mHist.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-mute">Sem missões.</td></tr>`;
-  } else {
-    tbody.innerHTML = mHist.slice(0,15).map(d => {
-      let mTxt = '<div class="flex flex-col gap-0.5">';
-      if (d.killerIds?.length) mTxt += `<span class="text-[10px] text-anbuGlow font-bold uppercase">K: ${d.killerIds.map(capitalizeName).join(', ')}</span>`;
-      if (d.assistIds?.length) mTxt += `<span class="text-[10px] text-orange-400 font-bold uppercase">A: ${d.assistIds.map(capitalizeName).join(', ')}</span>`;
-      if (d.healerIds?.length) mTxt += `<span class="text-[10px] text-medic font-bold uppercase">H: ${d.healerIds.map(capitalizeName).join(', ')}</span>`;
-      mTxt += '</div>';
-      const role = d.killerIds?.includes(filterId)?'<span class="text-anbuGlow text-[10px] font-black">[K]</span>':d.assistIds?.includes(filterId)?'<span class="text-orange-400 text-[10px] font-black">[A]</span>':'<span class="text-medic text-[10px] font-black">[H]</span>';
-      return `<tr class="hover:bg-white/[0.02]"><td class="py-3 text-xs font-mono text-mute align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-mute/60">${d.reportId}</span></td><td class="py-3 align-top">${mTxt}</td><td class="py-3 text-sm text-orange-300 align-top">${(d.targets||[]).map(t=>capitalizeName(t.name)).join(', ')||'N/A'}</td><td class="py-3 text-right text-sm font-bold text-white align-top">${d.totalPointsRaw||0} ${role}</td></tr>`;
-    }).join('');
-  }
+  const PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(mHist.length / PER_PAGE));
+  if (page < 1) page = 1; if (page > totalPages) page = totalPages;
+
+  const renderHistPage = (pg) => {
+    const tbody = document.getElementById('profile-history-log');
+    const slice = mHist.slice((pg-1)*PER_PAGE, pg*PER_PAGE);
+    if (slice.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-mute">Sem missões.</td></tr>`;
+    } else {
+      tbody.innerHTML = slice.map(d => {
+        let mTxt = '<div class="flex flex-col gap-0.5">';
+        if (d.killerIds?.length) mTxt += `<span class="text-[10px] text-anbuGlow font-bold uppercase">K: ${d.killerIds.map(capitalizeName).join(', ')}</span>`;
+        if (d.assistIds?.length) mTxt += `<span class="text-[10px] text-orange-400 font-bold uppercase">A: ${d.assistIds.map(capitalizeName).join(', ')}</span>`;
+        if (d.healerIds?.length) mTxt += `<span class="text-[10px] text-medic font-bold uppercase">H: ${d.healerIds.map(capitalizeName).join(', ')}</span>`;
+        mTxt += '</div>';
+        const role = d.killerIds?.includes(filterId)?'<span class="text-anbuGlow text-[10px] font-black">[K]</span>':d.assistIds?.includes(filterId)?'<span class="text-orange-400 text-[10px] font-black">[A]</span>':'<span class="text-medic text-[10px] font-black">[H]</span>';
+        return `<tr class="hover:bg-white/[0.02]"><td class="py-3 text-xs font-mono text-mute align-top">${new Date(d.timestamp).toLocaleDateString('pt-BR')}<br><span class="text-[9px] text-mute/60">${d.reportId}</span></td><td class="py-3 align-top">${mTxt}</td><td class="py-3 text-sm text-orange-300 align-top">${(d.targets||[]).map(t=>capitalizeName(t.name)).join(', ')||'N/A'}</td><td class="py-3 text-right text-sm font-bold text-white align-top">${d.totalPointsRaw||0} ${role}</td></tr>`;
+      }).join('');
+    }
+    const pagHtml = totalPages <= 1 ? '' : `<button onclick="renderNinjaProfile('${filterId}',${pg-1})" class="btn btn-ghost text-xs" ${pg===1?'disabled':''}>◀</button><span class="px-3 py-1.5 text-xs font-bold text-mute">Pág ${pg}/${totalPages}</span><button onclick="renderNinjaProfile('${filterId}',${pg+1})" class="btn btn-ghost text-xs" ${pg===totalPages?'disabled':''}>▶</button>`;
+    document.getElementById('profile-history-pag').innerHTML = pagHtml;
+    document.getElementById('profile-history-pag-top').innerHTML = pagHtml;
+  };
+
+  renderHistPage(page);
   histDiv.classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
+};
+
+// Top 10 perfil quick access
+window.renderPerfilTop10 = function() {
+  const top10 = Object.values(ninjasData).filter(n=>n.isActive&&n.id).sort((a,b)=>Number(b.rankPoints||0)-Number(a.rankPoints||0)).slice(0,10);
+  document.getElementById('perfil-top10').innerHTML = top10.map((n,i) => `
+    <div onclick="renderNinjaProfile('${escapeHTML(n.id)}',1)" class="panel panel-hover cursor-pointer p-3 flex flex-col items-center gap-2 text-center border hover:border-sky-500/30">
+      ${ninjaAvatar(n, 40)}
+      <div>
+        <div class="text-[10px] font-black text-mute">#${i+1}</div>
+        <div class="text-xs font-bold text-white truncate max-w-[80px]">${escapeHTML(capitalizeName(n.id))}</div>
+        <div class="text-[10px] text-anbuGlow font-mono">${fmt(n.rankPoints)} pts</div>
+      </div>
+    </div>`).join('');
+};
+
+window.renderPerfilSearch = function() {
+  const q = (document.getElementById('perfil-search')?.value||'').toLowerCase().trim();
+  const sel = document.getElementById('ninja-filter-select');
+  if (!q) { renderPerfilTop10(); return; }
+  const matches = Object.values(ninjasData).filter(n=>n.id&&n.id.toLowerCase().includes(q)).slice(0,10);
+  document.getElementById('perfil-top10').innerHTML = matches.length === 0
+    ? '<p class="col-span-5 text-mute text-xs py-2">Nenhum operador encontrado.</p>'
+    : matches.map(n => `
+        <div onclick="renderNinjaProfile('${escapeHTML(n.id)}',1)" class="panel panel-hover cursor-pointer p-3 flex flex-col items-center gap-2 text-center border hover:border-sky-500/30">
+          ${ninjaAvatar(n, 40)}
+          <div class="text-xs font-bold text-white truncate max-w-[80px]">${escapeHTML(capitalizeName(n.id))}</div>
+          <div class="text-[10px] text-anbuGlow font-mono">${fmt(n.rankPoints)} pts</div>
+        </div>`).join('');
 };
 
 // ============= CONQUISTAS =============
@@ -1411,6 +1615,224 @@ window.renderAchievements = function() {
       </div>
     </div>
   `).join('');
+};
+
+// ============= DELEGACIA =============
+window.setDelegaciaTab = function(tab) {
+  currentDelegaciaTab = tab;
+  document.querySelectorAll('.del-tab').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`del-${tab}`)?.classList.remove('hidden');
+  ['perfis','registro','conquistas','bounty'].forEach(t => {
+    const btn = document.getElementById(`del-tab-${t}`);
+    if (btn) btn.className = t === tab ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs';
+  });
+  if (tab === 'perfis')    renderDelegaciaTop10();
+  if (tab === 'registro')  renderRegistroPrisoes();
+  if (tab === 'conquistas') renderConquistasPoliciais();
+  if (tab === 'bounty')    renderBountyPolicial();
+};
+
+window.renderDelegacia = function() {
+  setDelegaciaTab(currentDelegaciaTab || 'perfis');
+};
+
+// Top10 policiais por prisões
+window.renderDelegaciaTop10 = function() {
+  const search = (document.getElementById('del-search-policial')?.value||'').toLowerCase().trim();
+  const policiais = Object.values(ninjasData).filter(n => n.isActive && n.id && (!search || n.id.toLowerCase().includes(search)));
+  const prisoesMap = {};
+  prisoesData.forEach(p => {
+    const aid = normalizeId(p.agenteId || p.agente || '');
+    if (!prisoesMap[aid]) prisoesMap[aid] = { count: 0, crimes: 0 };
+    prisoesMap[aid].count++;
+    prisoesMap[aid].crimes += Number(p.crimes || 0);
+  });
+  const sorted = policiais.map(n => ({ ...n, prisoes: (prisoesMap[n.id]?.count||0), crimes: (prisoesMap[n.id]?.crimes||0) }))
+    .sort((a,b)=>b.prisoes-a.prisoes||Number(b.rankPoints||0)-Number(a.rankPoints||0))
+    .slice(0, 10);
+
+  document.getElementById('del-top10-grid').innerHTML = sorted.length === 0
+    ? '<p class="col-span-5 text-mute text-xs py-2">Nenhum agente encontrado.</p>'
+    : sorted.map((n,i) => `
+      <div onclick="renderDelPerfil('${escapeHTML(n.id)}')" class="panel panel-hover cursor-pointer p-3 flex flex-col items-center gap-2 text-center border hover:border-sky-500/40">
+        ${ninjaAvatar(n, 44)}
+        <div>
+          <div class="text-[10px] font-black text-mute">#${i+1}</div>
+          <div class="text-xs font-bold text-white truncate max-w-[80px]">${escapeHTML(capitalizeName(n.id))}</div>
+          <div class="text-[10px] text-sky-300 font-mono">🚔 ${n.prisoes} prisões</div>
+        </div>
+      </div>`).join('');
+};
+
+window.renderDelPerfil = function(id) {
+  currentDelProfileId = id;
+  const n = ninjasData[id]; if (!n) return;
+  const prisoesDoAgente = prisoesData.filter(p => normalizeId(p.agenteId||p.agente||'') === normalizeId(id));
+  const kills = getNinjaStats(id, false).k + getNinjaStats(id, true).k;
+  const totalCrimes = prisoesDoAgente.reduce((s,p)=>s+Number(p.crimes||0),0);
+  const ranked = Object.values(ninjasData).filter(x=>x.isActive&&x.id).sort((a,b)=>Number(b.rankPoints||0)-Number(a.rankPoints||0));
+  const rankPos = ranked.findIndex(x=>x.id===id)+1;
+  const badgesPol = computeConquistasPoliciais().filter(b=>b.holders.some(h=>h.id===id)).map(b=>`<span class="chip chip-police" title="${escapeHTML(b.desc)}">${b.icon} ${escapeHTML(b.name)}</span>`).join(' ');
+  const box = document.getElementById('del-profile-box');
+  box.innerHTML = `
+    <div class="panel p-6 space-y-6 border-t-4 border-sky-500/50">
+      <div class="flex flex-col md:flex-row md:items-center gap-6">
+        ${ninjaAvatar(n, 72)}
+        <div class="flex-1">
+          <h3 class="text-2xl font-black text-white">${escapeHTML(capitalizeName(id))}</h3>
+          <div class="flex flex-wrap gap-2 mt-2">
+            ${orgChip(n.org)}
+            <span class="chip chip-police">🚔 Polícia</span>
+            ${rankPos>0?`<span class="chip chip-gold">🏆 #${rankPos} Geral</span>`:''}
+            ${n.discordId?'<span class="chip chip-ops">🔗 Discord</span>':''}
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-bg border border-sky-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-sky-300 font-mono">${prisoesDoAgente.length}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Prisões</div></div>
+        <div class="bg-bg border border-sky-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-anbuGlow font-mono">${kills}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Kills</div></div>
+        <div class="bg-bg border border-sky-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-orange-400 font-mono">${totalCrimes}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Crimes</div></div>
+        <div class="bg-bg border border-sky-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-medic font-mono">${fmt(n.rankPoints)}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Pts Rank</div></div>
+      </div>
+      ${badgesPol ? `<div><h4 class="text-[10px] text-mute uppercase tracking-widest font-bold mb-2">🏅 Conquistas Policiais</h4><div class="flex flex-wrap gap-2">${badgesPol}</div></div>` : ''}
+      <div>
+        <h4 class="text-[10px] text-mute uppercase tracking-widest font-bold mb-3">📋 Últimas Prisões</h4>
+        ${prisoesDoAgente.length === 0 ? '<p class="text-mute text-xs">Nenhuma prisão registrada.</p>' : `
+        <table class="w-full text-left">
+          <thead><tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5"><th class="pb-2">Data</th><th class="pb-2">Preso</th><th class="pb-2 text-center">Crimes</th></tr></thead>
+          <tbody class="divide-y divide-white/5">
+            ${[...prisoesDoAgente].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,10).map(p=>`
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-2 text-xs text-mute font-mono">${new Date(p.timestamp).toLocaleDateString('pt-BR',{timeZone:'UTC'})}</td>
+                <td class="py-2 text-sm font-bold text-white">${escapeHTML(capitalizeName(p.preso||''))}</td>
+                <td class="py-2 text-center"><span class="chip chip-police">${p.crimes||0}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+  box.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+};
+
+window.renderRegistroPrisoes = function(page=1) {
+  const tbody = document.getElementById('del-reg-body'); if (!tbody) return;
+  const search = (document.getElementById('del-reg-search')?.value||'').toLowerCase().trim();
+  const dateFilter = document.getElementById('del-reg-date')?.value||'all';
+  let cut = null; const now = new Date();
+  if (dateFilter==='today') cut = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  else if (dateFilter==='week') cut = new Date(now-7*86400000);
+  else if (dateFilter==='month') cut = new Date(now.getFullYear(),now.getMonth(),1);
+
+  let filtered = prisoesData.filter(p => {
+    const ok1 = !search || (p.preso||'').toLowerCase().includes(search) || (p.agente||'').toLowerCase().includes(search) || (p.agenteId||'').includes(search);
+    const ok2 = !cut || new Date(p.timestamp) >= cut;
+    return ok1 && ok2;
+  }).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+
+  const PER = 15;
+  const totalPages = Math.max(1, Math.ceil(filtered.length/PER));
+  if (page<1) page=1; if (page>totalPages) page=totalPages;
+
+  if (filtered.length===0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-mute">Nenhuma prisão encontrada.</td></tr>`;
+    document.getElementById('del-reg-pag').innerHTML = ''; return;
+  }
+
+  tbody.innerHTML = filtered.slice((page-1)*PER, page*PER).map(p => {
+    const dt = new Date(p.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const agenteNome = p.agenteId ? (Object.values(ninjasData).find(n=>n.discordId===p.agenteId)?.id || p.agente || p.agenteId) : (p.agente || '?');
+    const delBtn = (isWriterMode||isMasterAdminMode) ? `<td class="py-3 text-right pr-2 writer-only"><button onclick="deletarPrisao('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>` : '<td></td>';
+    return `<tr class="hover:bg-white/[0.02]">
+      <td class="py-3 pl-2 text-xs font-mono text-mute">${dt}</td>
+      <td class="py-3 text-sm font-bold text-white">${escapeHTML(capitalizeName(p.preso||''))}</td>
+      <td class="py-3 text-center"><span class="chip chip-police">${p.crimes||0}</span></td>
+      <td class="py-3"><span class="text-xs font-bold text-sky-300">${escapeHTML(capitalizeName(agenteNome))}</span></td>
+      ${delBtn}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('del-reg-pag').innerHTML = totalPages<=1 ? '' :
+    `<button onclick="renderRegistroPrisoes(${page-1})" class="btn btn-ghost text-xs" ${page===1?'disabled':''}>◀</button>
+     <span class="px-3 py-1.5 text-xs font-bold text-mute">Pág ${page}/${totalPages}</span>
+     <button onclick="renderRegistroPrisoes(${page+1})" class="btn btn-ghost text-xs" ${page===totalPages?'disabled':''}>▶</button>`;
+};
+
+window.deletarPrisao = async function(id) {
+  if (!isWriterMode && !isMasterAdminMode) return;
+  if (!await openCustomModal('Apagar Prisão','Remover este registro de prisão?','confirm')) return;
+  try { await deleteDoc(doc(db, COLLECTIONS.PRISOES, id)); toast('Prisão removida','success'); logActivity('prisao_delete', id); }
+  catch(e) { toast(e.message,'error'); }
+};
+
+// Conquistas policiais
+function computeConquistasPoliciais() {
+  const prisoesMap = {};
+  prisoesData.forEach(p => {
+    const aid = normalizeId(p.agenteId||p.agente||'');
+    if (!aid) return;
+    if (!prisoesMap[aid]) prisoesMap[aid] = { count:0, crimes:0 };
+    prisoesMap[aid].count++;
+    prisoesMap[aid].crimes += Number(p.crimes||0);
+  });
+  const getNinja = id => Object.values(ninjasData).find(n=>normalizeId(n.id)===id);
+  const defs = [
+    { id:'primeiraVoz', name:'Primeira Prisão',    icon:'🔒', desc:'Realizou sua primeira prisão',      test: (id,m) => (m?.count||0) >= 1 },
+    { id:'recruta',     name:'Recruta Policial',   icon:'👮', desc:'5 prisões realizadas',              test: (id,m) => (m?.count||0) >= 5 },
+    { id:'detetive',    name:'Detetive',           icon:'🔍', desc:'20 prisões realizadas',             test: (id,m) => (m?.count||0) >= 20 },
+    { id:'investigador',name:'Investigador',       icon:'🗂️',  desc:'50 prisões realizadas',             test: (id,m) => (m?.count||0) >= 50 },
+    { id:'xerife',      name:'Xerife',             icon:'⭐', desc:'100 prisões realizadas',            test: (id,m) => (m?.count||0) >= 100 },
+    { id:'maiorCrime',  name:'Acumulador de Crimes',icon:'📜', desc:'100 crimes processados no total',  test: (id,m) => (m?.crimes||0) >= 100 },
+  ];
+  return defs.map(d => ({
+    ...d,
+    holders: Object.keys(prisoesMap).filter(id => d.test(id, prisoesMap[id])).map(id => getNinja(id)).filter(Boolean)
+  }));
+}
+
+window.renderConquistasPoliciais = function() {
+  const grid = document.getElementById('del-conquistas-grid'); if (!grid) return;
+  const list = computeConquistasPoliciais();
+  grid.innerHTML = list.map(b => `
+    <div class="panel p-5 panel-hover ${b.holders.length?'border-l-4 border-l-sky-500':''}">
+      <div class="flex items-start gap-3">
+        <div class="text-3xl ${b.holders.length?'':'opacity-30 grayscale'}">${b.icon}</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2"><h4 class="font-black text-white text-sm">${b.name}</h4>${b.holders.length?`<span class="chip chip-police">${b.holders.length}</span>`:'<span class="chip chip-mute">Bloqueado</span>'}</div>
+          <p class="text-xs text-mute mt-1">${b.desc}</p>
+          ${b.holders.length?`<div class="flex flex-wrap gap-1 mt-3">${b.holders.slice(0,8).map(h=>`<span class="text-[11px] cursor-pointer hover:underline text-sky-300 font-bold" onclick="renderDelPerfil('${escapeHTML(h.id)}')">${escapeHTML(capitalizeName(h.id))}</span>`).join('<span class="text-mute">·</span>')}${b.holders.length>8?`<span class="text-mute text-[10px]">+${b.holders.length-8}</span>`:''}</div>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+};
+
+window.renderBountyPolicial = function() {
+  const tbody = document.getElementById('del-bounty-body'); if (!tbody) return;
+  const prisoesMap = {};
+  prisoesData.forEach(p => {
+    const aid = normalizeId(p.agenteId||p.agente||'');
+    if (!aid) return;
+    if (!prisoesMap[aid]) prisoesMap[aid] = { count:0, crimes:0 };
+    prisoesMap[aid].count++;
+    prisoesMap[aid].crimes += Number(p.crimes||0);
+  });
+  const list = Object.values(ninjasData).filter(n=>n.id).map(n => ({
+    ...n,
+    prisoes: prisoesMap[n.id]?.count||0,
+    crimes:  prisoesMap[n.id]?.crimes||0,
+    kills:   getNinjaStats(n.id,false).k + getNinjaStats(n.id,true).k,
+  })).filter(n=>n.prisoes>0).sort((a,b)=>b.prisoes-a.prisoes||b.crimes-a.crimes);
+
+  tbody.innerHTML = list.length===0
+    ? `<tr><td colspan="5" class="py-6 text-center text-mute">Nenhuma prisão registrada.</td></tr>`
+    : list.map((n,i) => `
+      <tr class="hover:bg-white/[0.02] cursor-pointer" onclick="setDelegaciaTab('perfis');renderDelPerfil('${escapeHTML(n.id)}')">
+        <td class="py-3 pl-2 font-black ${i<3?'text-gold':'text-mute'}">${rankIcon(i+1)}</td>
+        <td class="py-3"><div class="flex items-center gap-3">${ninjaAvatar(n,32)}<div><div class="text-sm font-bold text-white">${escapeHTML(capitalizeName(n.id))}</div><div class="mt-0.5">${orgChip(n.org)}</div></div></div></td>
+        <td class="py-3 text-center text-sky-300 font-bold font-mono">${n.prisoes}</td>
+        <td class="py-3 text-center text-orange-400 font-mono">${n.crimes}</td>
+        <td class="py-3 text-right pr-2 text-anbuGlow font-mono font-bold">${n.kills}</td>
+      </tr>`).join('');
 };
 
 // ============= ATIVIDADE =============
@@ -1586,7 +2008,29 @@ window.recusarPending = async function(id) {
 // ============= ADMIN / NINJAS =============
 window.renderNinjasTable = function() {
   const tbody = document.getElementById('ninjas-cadastro'); if (!tbody) return;
-  tbody.innerHTML = Object.values(ninjasData).filter(n=>n.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(n => {
+  const searchName = (document.getElementById('admin-search-name')?.value||'').toLowerCase().trim();
+  const filterOrg  = document.getElementById('admin-filter-org')?.value||'';
+  const filterDate = document.getElementById('admin-filter-date')?.value||'';
+  const filterStatus = document.getElementById('admin-filter-status')?.value||'';
+
+  const now = Date.now();
+  const dateCutMap = { '30d': 30, '90d': 90, '180d': 180, '1y': 365 };
+  const dateCutDays = dateCutMap[filterDate];
+
+  let list = Object.values(ninjasData).filter(n => {
+    if (!n.id) return false;
+    if (searchName && !n.id.toLowerCase().includes(searchName)) return false;
+    if (filterOrg && (n.org||'Sem Org') !== filterOrg) return false;
+    if (filterStatus === 'active' && !n.isActive) return false;
+    if (filterStatus === 'inactive' && n.isActive) return false;
+    if (dateCutDays && n.entranceDate) {
+      const entryTs = new Date(n.entranceDate).getTime();
+      if (now - entryTs > dateCutDays * 86400000) return false;
+    }
+    return true;
+  }).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+
+  tbody.innerHTML = list.map(n => {
     const noPhoto = !n.avatarUrl ? `<span class="chip chip-anbu ml-1">S/Foto</span>` : '';
     const dateStr = n.entranceDate ? new Date(n.entranceDate).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '--/--/----';
     const safeId = escapeHTML(n.id);
@@ -1599,7 +2043,8 @@ window.renderNinjasTable = function() {
       <td class="py-3 text-xs font-bold ${n.isActive?'text-medic':'text-anbuGlow'}">${n.isActive?'Ativo':'Inativo'}</td>
       ${action}
     </tr>`;
-  }).join('');
+  }).join('') || `<tr><td colspan="6" class="py-6 text-center text-mute">Nenhum operador encontrado com esses filtros.</td></tr>`;
+
   document.getElementById('new-ninja-mastery-1').innerHTML = MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('');
   document.getElementById('new-ninja-mastery-2').innerHTML = '<option value="">2ª (Opcional)</option>'+MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('');
   document.getElementById('new-ninja-date').value = new Date().toISOString().split('T')[0];
@@ -1989,6 +2434,12 @@ async function init() {
       activityData = []; s.forEach(d => activityData.push({ id:d.id, ...d.data() }));
       activityData.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
       if (currentPage==='atividade') renderActivityLog();
+    });
+
+    onSnapshot(collection(db, COLLECTIONS.PRISOES), s => {
+      prisoesData = []; s.forEach(d => prisoesData.push({ id:d.id, ...d.data() }));
+      if (currentPage==='delegacia') renderDelegacia();
+      if (currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) renderNinjaProfile(sel.value,1); }
     });
 
     forceChangePage('dashboard');

@@ -204,6 +204,7 @@
         <a class="nav-item nav-link" data-page="perfil"><i data-lucide="user-search" class="h-4 w-4"></i><span>Operadores</span></a>
         <a class="nav-item nav-link" data-page="conquistas"><i data-lucide="award" class="h-4 w-4"></i><span>Conquistas</span></a>
         <a class="nav-item nav-link" data-page="delegacia"><i data-lucide="shield" class="h-4 w-4 text-sky-400"></i><span class="text-sky-300">Delegacia</span></a>
+        <a class="nav-item nav-link" data-page="org_medica"><i data-lucide="heart-pulse" class="h-4 w-4 text-emerald-400"></i><span class="text-emerald-300">Org Médica</span></a>
       </div>
 
       <div class="text-[10px] uppercase tracking-[0.2em] text-mute/60 px-3 mb-2 font-bold">Comando</div>
@@ -563,7 +564,7 @@
                     <th class="pb-3">Preso</th>
                     <th class="pb-3 text-center">Crimes</th>
                     <th class="pb-3">Agente</th>
-                    <th class="pb-3 text-right pr-2 writer-only hidden">Ações</th>
+                    <th class="pb-3 text-right pr-2 admin-only hidden">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="del-reg-body" class="divide-y divide-white/5"></tbody>
@@ -599,6 +600,99 @@
                   </tr>
                 </thead>
                 <tbody id="del-bounty-body" class="divide-y divide-white/5"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========= ORG MÉDICA ========= -->
+      <section id="org_medica" class="page hidden space-y-6">
+
+        <!-- Tabs -->
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="setMedicaTab('perfis')" id="med-tab-perfis" class="btn btn-primary text-xs">🏥 Perfis</button>
+          <button onclick="setMedicaTab('registro')" id="med-tab-registro" class="btn btn-ghost text-xs">📋 Registro Médico</button>
+          <button onclick="setMedicaTab('conquistas')" id="med-tab-conquistas" class="btn btn-ghost text-xs">🏅 Conquistas Médicas</button>
+          <button onclick="setMedicaTab('bounty')" id="med-tab-bounty" class="btn btn-ghost text-xs">🏆 Ranking Médico</button>
+        </div>
+
+        <!-- Perfis de Médicos -->
+        <div id="med-perfis" class="med-tab space-y-6">
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-emerald-300 flex items-center gap-2 mb-1"><i data-lucide="heart-pulse" class="h-5 w-5"></i>Membros da Org Médica</h3>
+            <p class="text-xs text-mute mb-4">Apenas operadores membros da organização "Médicos" · clique para ver perfil completo</p>
+            <div class="mb-4">
+              <input id="med-search-medico" class="input w-full md:w-80" placeholder="Buscar médico..." oninput="renderMedicaTop10()" />
+            </div>
+            <div id="med-top10-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6"></div>
+          </div>
+          <div id="med-profile-box" class="hidden"></div>
+        </div>
+
+        <!-- Registro Médico (atendimentos) -->
+        <div id="med-registro" class="med-tab hidden">
+          <div class="panel p-6">
+            <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+              <div>
+                <h3 class="text-lg font-black text-emerald-300 flex items-center gap-2"><i data-lucide="clipboard-list" class="h-5 w-5"></i>Registro Médico</h3>
+                <p class="text-xs text-mute">Histórico de atendimentos registrados</p>
+              </div>
+              <div class="filter flex flex-wrap gap-2">
+                <input id="med-reg-search" class="input" placeholder="Buscar paciente ou médico..." oninput="renderRegistroAtendimentos()" />
+                <select id="med-reg-date" class="input" onchange="renderRegistroAtendimentos()">
+                  <option value="all">Todos os períodos</option>
+                  <option value="today">Hoje</option>
+                  <option value="week">Últimos 7 dias</option>
+                  <option value="month">Este mês</option>
+                </select>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
+                    <th class="pb-3 pl-2">Data</th>
+                    <th class="pb-3">Paciente</th>
+                    <th class="pb-3 text-center">Tipo</th>
+                    <th class="pb-3">Médico</th>
+                    <th class="pb-3 text-right pr-2 admin-only hidden">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="med-reg-body" class="divide-y divide-white/5"></tbody>
+              </table>
+            </div>
+            <div id="med-reg-pag" class="flex justify-center gap-2 mt-4"></div>
+          </div>
+        </div>
+
+        <!-- Conquistas Médicas -->
+        <div id="med-conquistas" class="med-tab hidden">
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-emerald-300 flex items-center gap-2 mb-1"><i data-lucide="badge" class="h-5 w-5"></i>Conquistas Médicas</h3>
+            <p class="text-xs text-mute mb-6">Medalhas concedidas aos médicos com base no histórico de atendimentos e heals</p>
+            <div id="med-conquistas-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </div>
+        </div>
+
+        <!-- Ranking Médico -->
+        <div id="med-bounty" class="med-tab hidden">
+          <div class="panel p-6">
+            <h3 class="text-lg font-black text-emerald-300 flex items-center gap-2 mb-1"><i data-lucide="trophy" class="h-5 w-5"></i>Ranking Médico</h3>
+            <p class="text-xs text-mute mb-6">Ranking exclusivo de médicos por número de atendimentos e heals</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5">
+                    <th class="pb-3 pl-2">Rank</th>
+                    <th class="pb-3">Médico</th>
+                    <th class="pb-3 text-center">Atendimentos</th>
+                    <th class="pb-3 text-center">Heals Totais</th>
+                    <th class="pb-3 text-right pr-2">BT Total</th>
+                  </tr>
+                </thead>
+                <tbody id="med-bounty-body" class="divide-y divide-white/5"></tbody>
               </table>
             </div>
           </div>
@@ -782,7 +876,6 @@
 
           <div class="mt-6 flex flex-wrap gap-2 writer-only hidden">
             <button onclick="recalculateAllRanks()" class="btn btn-ghost"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>Recalcular Ranks</button>
-            <button onclick="clearReportsLog()" class="btn btn-danger admin-only hidden"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i>Zerar Tudo</button>
           </div>
         </div>
       </section>
@@ -831,20 +924,23 @@ const COLLECTIONS = {
   ACCESS_KEYS:    `artifacts/${CFG.projectId}/public/data/access_keys`,
   ACTIVITY_LOG:   `artifacts/${CFG.projectId}/public/data/activity_log`,
   PRISOES:        `artifacts/${CFG.projectId}/public/data/delegacia_prisoes`,
+  ATENDIMENTOS:   `artifacts/${CFG.projectId}/public/data/medica_atendimentos`,
 };
 const MAESTRIAS = ["Fogo","Água","Vento","Terra","Raio","Med (Chakra)","Med (Int)","WM","TAI"];
 
 let app, db, auth;
-let isMasterAdminMode = false, isWriterMode = false;
+let isMasterAdminMode = false, isWriterMode = false, isPoliceAdminMode = false, isMedicAdminMode = false;
 let currentPage = 'dashboard', currentAccessId = 'ANONYMOUS';
 let currentReportId = '', processingPendingId = null;
 let selectedKillers=[], selectedAssists=[], selectedHealers=[];
 let targetEntryCount = 0;
 window.isEditingMode = false;
 
-let ninjasData = {}, reportsData = [], eventReportsData = [], pendingData = [], accessKeysData = {}, activityData = [], prisoesData = [];
+let ninjasData = {}, reportsData = [], eventReportsData = [], pendingData = [], accessKeysData = {}, activityData = [], prisoesData = [], atendimentosData = [];
 let historyIsEvent = false;
 let currentDelegaciaTab = 'perfis';
+let currentMedicaTab = 'perfis';
+let currentMedicaProfileId = null;
 let currentDelProfileId = null;
 let firstLoad = { pending: true, reports: true };
 let lastTopId = null;
@@ -1004,6 +1100,11 @@ window.openCustomModal = function(title, message, type, data = {}) {
       document.getElementById('edit-m2').value = data.m2 || "";
       document.getElementById('edit-discord').value = data.discordId || "";
       document.getElementById('edit-photo').value = data.avatarUrl || "";
+      // Bloqueia mudança de org para admins restritos
+      const editOrgSel = document.getElementById('edit-org');
+      if (!isMasterAdminMode) {
+        [...editOrgSel.options].forEach(o => { o.disabled = o.value !== (data.org || 'Sem Org'); });
+      }
       confirmBtn.textContent = 'Salvar';
       confirmBtn.onclick = () => closeCustomModal({
         isActive: document.getElementById('edit-status').value === "true",
@@ -1045,6 +1146,7 @@ const pageMeta = {
   perfil:      ['Dossiê Tático', 'Métricas individuais detalhadas'],
   conquistas:  ['Conquistas', 'Medalhas automáticas dos operadores'],
   delegacia:   ['Delegacia', 'Registro policial · prisões · perfis dos agentes'],
+  org_medica:  ['Org Médica', 'Registro médico · atendimentos · perfis dos médicos'],
   report_form: ['Registrar Missão', 'Lançamento oficial no banco de dados'],
   audit_panel: ['Auditoria Bot', 'Revisão de logs do servidor Discord'],
   atividade:   ['Atividade', 'Log de auditoria do sistema'],
@@ -1087,6 +1189,7 @@ function forceChangePage(pageName) {
   if (pageName === 'conquistas')  renderAchievements();
   if (pageName === 'atividade')   renderActivityLog();
   if (pageName === 'delegacia')   renderDelegacia();
+  if (pageName === 'org_medica')  renderOrgMedica();
   if (pageName === 'perfil') {
     const sel = document.getElementById('ninja-filter-select');
     sel.innerHTML = '<option value="">-- Selecione um Operador --</option>' +
@@ -1108,8 +1211,7 @@ function forceChangePage(pageName) {
   if (pageName === 'audit_panel') renderAuditPanel();
 
   document.querySelectorAll('.writer-only').forEach(el => el.classList.toggle('hidden', !isWriterMode));
-  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isMasterAdminMode));
-
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !(isMasterAdminMode || isPoliceAdminMode || isMedicAdminMode)));
   if (window.lucide) lucide.createIcons();
 }
 
@@ -1775,7 +1877,10 @@ window.renderRegistroPrisoes = function(page=1) {
   tbody.innerHTML = filtered.slice((page-1)*PER, page*PER).map(p => {
     const dt = new Date(p.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const agenteNome = getAgenteNick(p) || p.agente || '?';
-    const delBtn = (isWriterMode||isMasterAdminMode) ? `<td class="py-3 text-right pr-2 writer-only"><button onclick="deletarPrisao('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>` : '<td></td>';
+    
+    const canDeletePrisao = isMasterAdminMode || isPoliceAdminMode;
+    const delBtn = canDeletePrisao ? `<td class="py-3 text-right pr-2 admin-only"><button onclick="deletarPrisao('${escapeHTML(p.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>` : '<td class="admin-only hidden"></td>';
+    
     return `<tr class="hover:bg-white/[0.02]">
       <td class="py-3 pl-2 text-xs font-mono text-mute">${dt}</td>
       <td class="py-3 text-sm font-bold text-white">${escapeHTML(capitalizeName(p.preso||''))}</td>
@@ -1792,7 +1897,7 @@ window.renderRegistroPrisoes = function(page=1) {
 };
 
 window.deletarPrisao = async function(id) {
-  if (!isWriterMode && !isMasterAdminMode) return;
+  if (!isMasterAdminMode && !isPoliceAdminMode) return;
   if (!await openCustomModal('Apagar Prisão','Remover este registro de prisão?','confirm')) return;
   try { await deleteDoc(doc(db, COLLECTIONS.PRISOES, id)); toast('Prisão removida','success'); logActivity('prisao_delete', id); }
   catch(e) { toast(e.message,'error'); }
@@ -2075,7 +2180,18 @@ window.renderNinjasTable = function() {
     const noPhoto = !n.avatarUrl ? `<span class="chip chip-anbu ml-1">S/Foto</span>` : '';
     const dateStr = n.entranceDate ? new Date(n.entranceDate).toLocaleDateString('pt-BR',{timeZone:'UTC'}) : '--/--/----';
     const safeId = escapeHTML(n.id);
-    const action = `<td class="py-3 pr-2 text-right admin-only ${isMasterAdminMode?'':'hidden'}"><div class="flex justify-end gap-1"><button onclick="editNinjaFull('${safeId}')" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button><button onclick="deleteNinja('${safeId}')" class="btn btn-danger text-[10px] py-1 px-2">Excluir</button></div></td>`;
+    
+    // VERIFICAÇÃO DE PODER: Se for Master, pode tudo. PoliceAdmin só mexe em "Polícia". MedicAdmin só mexe em "Médicos"
+    const podeEditar = isMasterAdminMode || (isPoliceAdminMode && n.org === 'Polícia') || (isMedicAdminMode && n.org === 'Médicos');
+    const anyAdmin = isMasterAdminMode || isPoliceAdminMode || isMedicAdminMode;
+    
+    const action = `<td class="py-3 pr-2 text-right admin-only ${anyAdmin ? '':'hidden'}">
+      <div class="flex justify-end gap-1 ${podeEditar ? '' : 'hidden'}">
+        <button onclick="editNinjaFull('${safeId}')" class="btn btn-ghost text-[10px] py-1 px-2">Editar</button>
+        <button onclick="deleteNinja('${safeId}')" class="btn btn-danger text-[10px] py-1 px-2">Excluir</button>
+      </div>
+    </td>`;
+    
     return `<tr class="hover:bg-white/[0.02]">
       <td class="py-3 pl-2 font-bold text-white">${escapeHTML(capitalizeName(n.id))} ${n.discordId?'🟣':''} ${noPhoto}</td>
       <td class="py-3 text-xs">${orgChip(n.org)}<br><span class="text-mute mt-1 inline-block">📅 ${dateStr}</span></td>
@@ -2089,10 +2205,27 @@ window.renderNinjasTable = function() {
   document.getElementById('new-ninja-mastery-1').innerHTML = MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('');
   document.getElementById('new-ninja-mastery-2').innerHTML = '<option value="">2ª (Opcional)</option>'+MAESTRIAS.map(m=>`<option value="${m}">${m}</option>`).join('');
   document.getElementById('new-ninja-date').value = new Date().toISOString().split('T')[0];
+  // Pré-seleciona org e restringe dropdown conforme nível do admin
+  const orgSel = document.getElementById('new-ninja-org');
+  if (isMedicAdminMode && !isMasterAdminMode) {
+    orgSel.value = 'Médicos';
+    [...orgSel.options].forEach(o => { o.disabled = o.value !== 'Médicos'; });
+  } else if (isPoliceAdminMode && !isMasterAdminMode) {
+    orgSel.value = 'Polícia';
+    [...orgSel.options].forEach(o => { o.disabled = o.value !== 'Polícia'; });
+  } else {
+    [...orgSel.options].forEach(o => { o.disabled = false; });
+  }
 };
 
 window.editNinjaFull = async function(id) {
-  const n = ninjasData[id]; let cM1='Fogo', cM2='';
+  const n = ninjasData[id];
+  if (!isMasterAdminMode && !(isPoliceAdminMode && n.org === 'Polícia') && !(isMedicAdminMode && n.org === 'Médicos')) {
+      toast('Acesso negado: você não gerencia esta organização.', 'error');
+      return;
+  }
+  
+  let cM1='Fogo', cM2='';
   if (n.element) { const p = n.element.split(' / '); cM1 = p[0]; if (p.length>1) cM2 = p[1]; }
   const res = await openCustomModal('Editar Operador', `Modifique os dados de ${capitalizeName(id)}`, 'ninjaFullEdit', { isActive:n.isActive, org:n.org, entranceDate:n.entranceDate, m1:cM1, m2:cM2, discordId:n.discordId, avatarUrl:n.avatarUrl });
   if (res) {
@@ -2102,12 +2235,22 @@ window.editNinjaFull = async function(id) {
 };
 
 window.addNinja = async function() {
-  if (!isMasterAdminMode) return;
+  if (!isMasterAdminMode && !isPoliceAdminMode && !isMedicAdminMode) return;
+  const org = document.getElementById('new-ninja-org').value;
+  
+  if (isPoliceAdminMode && org !== 'Polícia') {
+      toast('Acesso negado: Você só pode cadastrar novos Policiais.', 'error');
+      return;
+  }
+  if (isMedicAdminMode && org !== 'Médicos') {
+      toast('Acesso negado: Você só pode cadastrar novos Médicos.', 'error');
+      return;
+  }
+
   const id = document.getElementById('new-ninja-id').value.trim(); const norm = normalizeId(id);
   if (!id) return; if (ninjasData[norm]) { toast('Operador já existe','error'); return; }
   const m1 = document.getElementById('new-ninja-mastery-1').value;
   const m2 = document.getElementById('new-ninja-mastery-2').value;
-  const org = document.getElementById('new-ninja-org').value;
   const entranceDate = document.getElementById('new-ninja-date').value || new Date().toISOString().split('T')[0];
   let el = m1; if (m2 && m2 !== m1) el += ` / ${m2}`;
   try {
@@ -2117,6 +2260,11 @@ window.addNinja = async function() {
 };
 
 window.deleteNinja = async function(id) {
+  const n = ninjasData[id];
+  if (!isMasterAdminMode && !(isPoliceAdminMode && n.org === 'Polícia') && !(isMedicAdminMode && n.org === 'Médicos')) {
+      toast('Acesso negado: você não pode excluir este operador.', 'error');
+      return;
+  }
   if (await openCustomModal('Apagar?', `Apagar ${capitalizeName(id)}?`, 'confirm')) {
     try { await deleteDoc(doc(db, COLLECTIONS.NINJAS, id)); toast('Removido','success'); logActivity('ninja_delete', id); } catch(e){ toast(e.message,'error'); }
   }
@@ -2336,6 +2484,249 @@ window.recalculateAllRanks = async function(internal=false) {
   } catch(e) { toast(e.message,'error'); }
 };
 
+// ============= ORG MÉDICA =============
+window.setMedicaTab = function(tab) {
+  currentMedicaTab = tab;
+  document.querySelectorAll('.med-tab').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`med-${tab}`)?.classList.remove('hidden');
+  ['perfis','registro','conquistas','bounty'].forEach(t => {
+    const btn = document.getElementById(`med-tab-${t}`);
+    if (btn) btn.className = t === tab ? 'btn btn-primary text-xs' : 'btn btn-ghost text-xs';
+  });
+  if (tab === 'perfis')    renderMedicaTop10();
+  if (tab === 'registro')  renderRegistroAtendimentos();
+  if (tab === 'conquistas') renderConquistasMedicas();
+  if (tab === 'bounty')    renderBountyMedico();
+};
+
+window.renderOrgMedica = function() {
+  setMedicaTab(currentMedicaTab || 'perfis');
+};
+
+// Top10 médicos por heals
+window.renderMedicaTop10 = function() {
+  const search = (document.getElementById('med-search-medico')?.value||'').toLowerCase().trim();
+  const medicos = Object.values(ninjasData).filter(n => n.isActive && n.id && n.org === 'Médicos' && (!search || n.id.toLowerCase().includes(search)));
+
+  const atMap = {};
+  atendimentosData.forEach(a => {
+    const aid = normalizeId(a.medico || '');
+    if (!aid) return;
+    if (!atMap[aid]) atMap[aid] = { count: 0, tipo: 0 };
+    atMap[aid].count++;
+  });
+  // Also count heals from reports
+  const healMap = {};
+  [...reportsData, ...eventReportsData].forEach(r => {
+    (r.healerIds||[]).forEach(id => { const trg = r.targets?.length||1; healMap[id] = (healMap[id]||0)+trg; });
+  });
+
+  const sorted = medicos.map(n => ({ ...n, atendimentos: (atMap[normalizeId(n.id)]?.count||0), heals: (healMap[normalizeId(n.id)]||0) }))
+    .sort((a,b) => b.heals - a.heals || b.atendimentos - a.atendimentos || Number(b.rankPoints||0)-Number(a.rankPoints||0))
+    .slice(0, 10);
+
+  document.getElementById('med-top10-grid').innerHTML = sorted.length === 0
+    ? '<p class="col-span-5 text-mute text-xs py-2">Nenhum médico encontrado.</p>'
+    : sorted.map((n,i) => `
+      <div onclick="renderMedicaPerfil('${escapeHTML(n.id)}')" class="panel panel-hover cursor-pointer p-3 flex flex-col items-center gap-2 text-center border hover:border-emerald-500/40">
+        ${ninjaAvatar(n, 44)}
+        <div>
+          <div class="text-[10px] font-black text-mute">#${i+1}</div>
+          <div class="text-xs font-bold text-white truncate max-w-[80px]">${escapeHTML(capitalizeName(n.id))}</div>
+          <div class="text-[10px] text-emerald-300 font-mono">💚 ${n.heals} heals</div>
+        </div>
+      </div>`).join('');
+};
+
+window.renderMedicaPerfil = function(id) {
+  currentMedicaProfileId = id;
+  const n = ninjasData[id]; if (!n) return;
+  const targetIdNorm = normalizeId(id);
+  const atendimentosDoMedico = atendimentosData.filter(a => normalizeId(a.medico||'') === targetIdNorm);
+  
+  const heals = getNinjaStats(id, false).h + getNinjaStats(id, true).h;
+  const totalEventos = atendimentosDoMedico.length;
+  const totalBT = n.rankPoints || 0;
+  
+  const ranked = Object.values(ninjasData).filter(x=>x.isActive&&x.id).sort((a,b)=>Number(b.rankPoints||0)-Number(a.rankPoints||0));
+  const rankPos = ranked.findIndex(x=>x.id===id)+1;
+  const badgesMed = computeConquistasMedicas().filter(b=>b.holders.some(h=>h.id===id)).map(b=>`<span class="chip chip-green" title="${escapeHTML(b.desc)}">${b.icon} ${escapeHTML(b.name)}</span>`).join(' ');
+  const box = document.getElementById('med-profile-box');
+  
+  box.innerHTML = `
+    <div class="panel p-6 space-y-6 border-t-4 border-emerald-500/50">
+      <div class="flex flex-col md:flex-row md:items-center gap-6">
+        ${ninjaAvatar(n, 72)}
+        <div class="flex-1">
+          <h3 class="text-2xl font-black text-white">${escapeHTML(capitalizeName(id))}</h3>
+          <div class="flex flex-wrap gap-2 mt-2">
+            ${orgChip(n.org)}
+            ${rankPos>0?`<span class="chip chip-gold">🏆 #${rankPos} Geral</span>`:''}
+            ${n.discordId?'<span class="chip chip-ops">🔗 Discord</span>':''}
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-bg border border-emerald-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-emerald-300 font-mono">${totalEventos}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Atendimentos</div></div>
+        <div class="bg-bg border border-emerald-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-medic font-mono">${heals}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Heals em Missões</div></div>
+        <div class="bg-bg border border-emerald-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-anbuGlow font-mono">${getNinjaStats(id,false).k + getNinjaStats(id,true).k}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">Kills Registradas</div></div>
+        <div class="bg-bg border border-emerald-500/20 p-4 rounded-xl text-center"><div class="text-2xl font-bold text-medic font-mono">${fmt(totalBT)}</div><div class="text-[10px] text-mute uppercase font-bold mt-1">BT Total</div></div>
+      </div>
+      ${badgesMed ? `<div><h4 class="text-[10px] text-mute uppercase tracking-widest font-bold mb-2">🏅 Conquistas Médicas</h4><div class="flex flex-wrap gap-2">${badgesMed}</div></div>` : ''}
+      <div>
+        <h4 class="text-[10px] text-mute uppercase tracking-widest font-bold mb-3">📋 Últimos Atendimentos</h4>
+        ${atendimentosDoMedico.length === 0 ? '<p class="text-mute text-xs">Nenhum atendimento registrado.</p>' : `
+        <table class="w-full text-left">
+          <thead><tr class="text-[10px] uppercase tracking-widest text-mute border-b border-white/5"><th class="pb-2">Data</th><th class="pb-2">Paciente</th><th class="pb-2 text-center">Tipo</th></tr></thead>
+          <tbody class="divide-y divide-white/5">
+            ${[...atendimentosDoMedico].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,10).map(a=>`
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-2 text-xs text-mute font-mono">${new Date(a.timestamp).toLocaleDateString('pt-BR',{timeZone:'UTC'})}</td>
+                <td class="py-2 text-sm font-bold text-white">${escapeHTML(capitalizeName(a.paciente||''))}</td>
+                <td class="py-2 text-center"><span class="chip chip-green">${escapeHTML(a.tipo||'Atendimento')}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+  box.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+};
+
+window.renderRegistroAtendimentos = function(page=1) {
+  const tbody = document.getElementById('med-reg-body'); if (!tbody) return;
+  const search = (document.getElementById('med-reg-search')?.value||'').toLowerCase().trim();
+  const dateFilter = document.getElementById('med-reg-date')?.value||'all';
+  let cut = null; const now = new Date();
+  if (dateFilter==='today') cut = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  else if (dateFilter==='week') cut = new Date(now-7*86400000);
+  else if (dateFilter==='month') cut = new Date(now.getFullYear(),now.getMonth(),1);
+
+  let filtered = atendimentosData.filter(a => {
+    const medicoNome = a.medico || '';
+    const ok1 = !search || (a.paciente||'').toLowerCase().includes(search) || medicoNome.toLowerCase().includes(search);
+    const ok2 = !cut || new Date(a.timestamp) >= cut;
+    return ok1 && ok2;
+  }).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+
+  const PER = 15;
+  const totalPages = Math.max(1, Math.ceil(filtered.length/PER));
+  if (page<1) page=1; if (page>totalPages) page=totalPages;
+
+  if (filtered.length===0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-mute">Nenhum atendimento encontrado.</td></tr>`;
+    document.getElementById('med-reg-pag').innerHTML = ''; return;
+  }
+
+  tbody.innerHTML = filtered.slice((page-1)*PER, page*PER).map(a => {
+    const dt = new Date(a.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const canDelete = isMasterAdminMode || isMedicAdminMode;
+    const delBtn = canDelete ? `<td class="py-3 text-right pr-2 admin-only"><button onclick="deletarAtendimento('${escapeHTML(a.id)}')" class="btn btn-danger text-[10px] py-1 px-2">Del</button></td>` : '<td class="admin-only hidden"></td>';
+    return `<tr class="hover:bg-white/[0.02]">
+      <td class="py-3 pl-2 text-xs font-mono text-mute">${dt}</td>
+      <td class="py-3 text-sm font-bold text-white">${escapeHTML(capitalizeName(a.paciente||''))}</td>
+      <td class="py-3 text-center"><span class="chip chip-green">${escapeHTML(a.tipo||'Atendimento')}</span></td>
+      <td class="py-3"><span class="text-xs font-bold text-emerald-300">${escapeHTML(capitalizeName(a.medico||''))}</span></td>
+      ${delBtn}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('med-reg-pag').innerHTML = totalPages<=1 ? '' :
+    `<button onclick="renderRegistroAtendimentos(${page-1})" class="btn btn-ghost text-xs" ${page===1?'disabled':''}>◀</button>
+     <span class="px-3 py-1.5 text-xs font-bold text-mute">Pág ${page}/${totalPages}</span>
+     <button onclick="renderRegistroAtendimentos(${page+1})" class="btn btn-ghost text-xs" ${page===totalPages?'disabled':''}>▶</button>`;
+};
+
+window.deletarAtendimento = async function(id) {
+  if (!isMasterAdminMode && !isMedicAdminMode) return;
+  if (!await openCustomModal('Apagar Atendimento','Remover este registro de atendimento?','confirm')) return;
+  try { await deleteDoc(doc(db, COLLECTIONS.ATENDIMENTOS, id)); toast('Atendimento removido','success'); logActivity('atendimento_delete', id); }
+  catch(e) { toast(e.message,'error'); }
+};
+
+function computeConquistasMedicas() {
+  const healMap = {};
+  const atMap = {};
+  [...reportsData, ...eventReportsData].forEach(r => {
+    (r.healerIds||[]).forEach(id => { const trg = r.targets?.length||1; if (!healMap[id]) healMap[id] = 0; healMap[id] += trg; });
+  });
+  atendimentosData.forEach(a => {
+    const aid = normalizeId(a.medico||'');
+    if (!aid) return;
+    if (!atMap[aid]) atMap[aid] = 0;
+    atMap[aid]++;
+  });
+
+  const defs = [
+    { id:'primeiraAjuda',  name:'Primeira Ajuda',      icon:'🩹', desc:'Realizou seu primeiro heal',          test: (id) => (healMap[id]||0) >= 1 },
+    { id:'socorrista',     name:'Socorrista',           icon:'🚑', desc:'10 heals em missões',                test: (id) => (healMap[id]||0) >= 10 },
+    { id:'medico',         name:'Médico',               icon:'👨‍⚕️', desc:'50 heals em missões',               test: (id) => (healMap[id]||0) >= 50 },
+    { id:'cirurgiao',      name:'Cirurgião',            icon:'🔬', desc:'100 heals em missões',              test: (id) => (healMap[id]||0) >= 100 },
+    { id:'chefeMedico',    name:'Chefe Médico',         icon:'🏥', desc:'200 heals em missões',              test: (id) => (healMap[id]||0) >= 200 },
+    { id:'primeiroAtend',  name:'Primeiro Atendimento', icon:'➕', desc:'1 atendimento registrado',          test: (id) => (atMap[id]||0) >= 1 },
+    { id:'clinica',        name:'Clínica Geral',        icon:'💊', desc:'20 atendimentos registrados',        test: (id) => (atMap[id]||0) >= 20 },
+    { id:'hospital',       name:'Diretor de Hospital',  icon:'🏨', desc:'50 atendimentos registrados',       test: (id) => (atMap[id]||0) >= 50 },
+  ];
+  return defs.map(d => ({
+    ...d,
+    holders: Object.values(ninjasData)
+      .filter(n => n.id && n.org === 'Médicos' && d.test(normalizeId(n.id)))
+      .filter(Boolean)
+  }));
+}
+
+window.renderConquistasMedicas = function() {
+  const grid = document.getElementById('med-conquistas-grid'); if (!grid) return;
+  const list = computeConquistasMedicas();
+  grid.innerHTML = list.map(b => `
+    <div class="panel p-5 panel-hover ${b.holders.length?'border-l-4 border-l-emerald-500':''}">
+      <div class="flex items-start gap-3">
+        <div class="text-3xl ${b.holders.length?'':'opacity-30 grayscale'}">${b.icon}</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2"><h4 class="font-black text-white text-sm">${b.name}</h4>${b.holders.length?`<span class="chip chip-green">${b.holders.length}</span>`:'<span class="chip chip-mute">Bloqueado</span>'}</div>
+          <p class="text-xs text-mute mt-1">${b.desc}</p>
+          ${b.holders.length?`<div class="flex flex-wrap gap-1 mt-3">${b.holders.slice(0,8).map(h=>`<span class="text-[11px] cursor-pointer hover:underline text-emerald-300 font-bold" onclick="renderMedicaPerfil('${escapeHTML(h.id)}')">${escapeHTML(capitalizeName(h.id))}</span>`).join('<span class="text-mute">·</span>')}${b.holders.length>8?`<span class="text-mute text-[10px]">+${b.holders.length-8}</span>`:''}</div>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+};
+
+window.renderBountyMedico = function() {
+  const tbody = document.getElementById('med-bounty-body'); if (!tbody) return;
+  const healMap = {};
+  const atMap = {};
+  [...reportsData, ...eventReportsData].forEach(r => {
+    (r.healerIds||[]).forEach(id => { const trg = r.targets?.length||1; if (!healMap[id]) healMap[id] = 0; healMap[id] += trg; });
+  });
+  atendimentosData.forEach(a => {
+    const aid = normalizeId(a.medico||'');
+    if (!aid) return;
+    if (!atMap[aid]) atMap[aid] = 0;
+    atMap[aid]++;
+  });
+
+  const list = Object.values(ninjasData)
+    .filter(n => n.id && n.org === 'Médicos')
+    .map(n => ({
+      ...n,
+      heals:        healMap[normalizeId(n.id)] || 0,
+      atendimentos: atMap[normalizeId(n.id)] || 0,
+      bt:           n.rankPoints || 0,
+    }))
+    .sort((a,b) => b.heals - a.heals || b.atendimentos - a.atendimentos || b.bt - a.bt);
+
+  tbody.innerHTML = list.length===0
+    ? `<tr><td colspan="5" class="py-6 text-center text-mute">Nenhum médico registrado.</td></tr>`
+    : list.map((n,i) => `
+      <tr class="hover:bg-white/[0.02] cursor-pointer" onclick="setMedicaTab('perfis');renderMedicaPerfil('${escapeHTML(n.id)}')">
+        <td class="py-3 pl-2 font-black ${i<3?'text-gold':'text-mute'}">${rankIcon(i+1)}</td>
+        <td class="py-3"><div class="flex items-center gap-3">${ninjaAvatar(n,32)}<div><div class="text-sm font-bold text-white">${escapeHTML(capitalizeName(n.id))}</div><div class="mt-0.5">${orgChip(n.org)}</div></div></div></td>
+        <td class="py-3 text-center text-emerald-300 font-bold font-mono">${n.atendimentos}</td>
+        <td class="py-3 text-center text-medic font-mono">${n.heals}</td>
+        <td class="py-3 text-right pr-2 text-anbuGlow font-mono font-bold">${fmt(n.bt)}</td>
+      </tr>`).join('');
+};
+
 // ============= AUTH =============
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -2359,21 +2750,32 @@ window.checkAccessKey = async function() {
   if (ok) {
     currentAccessId = id;
     isMasterAdminMode = entry.level === 'master_admin';
+    isPoliceAdminMode = entry.level === 'police_admin'; // NOVO NÍVEL
+    isMedicAdminMode = entry.level === 'medic_admin'; // NÍVEL MÉDICO
     isWriterMode = true;
+    
+    // Salva sessão no cache do browser
+    try { localStorage.setItem('anbu_session', JSON.stringify({ id, level: entry.level })); } catch(e) {}
+    
     document.getElementById('auth-info').classList.add('hidden');
     document.getElementById('auth-status-badge').classList.remove('hidden');
     document.getElementById('auth-status-badge').classList.add('flex');
     document.getElementById('logout-btn').classList.remove('hidden');
-    document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-medic border border-green-500/30 rounded-xl font-bold flex items-center justify-center gap-2">✅ Acesso liberado (${escapeHTML(id)})</div>`;
+    
+    let nivelText = isMasterAdminMode ? 'Comandante' : (isPoliceAdminMode ? 'Líder da Polícia' : (isMedicAdminMode ? 'Líder Médico' : 'Agente'));
+    document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-medic border border-green-500/30 rounded-xl font-bold flex items-center justify-center gap-2">✅ Acesso liberado (${escapeHTML(id)} - ${nivelText})</div>`;
     document.getElementById('auth-area').classList.add('hidden');
+    
     forceChangePage('admin_panel');
     toast('Acesso liberado','success');
     logActivity('login');
   } else { toast('ID ou senha incorretos','error'); }
 };
+
 window.logout = function() {
   logActivity('logout');
-  currentAccessId='ANONYMOUS'; isMasterAdminMode=false; isWriterMode=false;
+  currentAccessId='ANONYMOUS'; isMasterAdminMode=false; isWriterMode=false; isPoliceAdminMode=false; isMedicAdminMode=false;
+  try { localStorage.removeItem('anbu_session'); } catch(e) {}
   document.getElementById('auth-info').classList.remove('hidden');
   document.getElementById('auth-status-badge').classList.add('hidden');
   document.getElementById('auth-status-badge').classList.remove('flex');
@@ -2399,7 +2801,34 @@ async function init() {
     const pill = document.getElementById('auth-info');
     pill.textContent = 'Conectado'; pill.className = 'border border-blue-500/40 text-blue-400 px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider';
 
-    onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), s => { accessKeysData = {}; s.forEach(d => { const raw = d.data(); accessKeysData[d.id] = { level: raw.level, hash: raw.hash, key: raw.key }; }); });
+    onSnapshot(collection(db, COLLECTIONS.ACCESS_KEYS), s => {
+      accessKeysData = {}; s.forEach(d => { const raw = d.data(); accessKeysData[d.id] = { level: raw.level, hash: raw.hash, key: raw.key }; });
+      // Restaura sessão do cache após carregar as chaves
+      try {
+        const saved = localStorage.getItem('anbu_session');
+        if (saved && !isWriterMode) {
+          const sess = JSON.parse(saved);
+          const entry = accessKeysData[sess.id];
+          if (entry && entry.level === sess.level) {
+            currentAccessId = sess.id;
+            isMasterAdminMode = sess.level === 'master_admin';
+            isPoliceAdminMode = sess.level === 'police_admin';
+            isMedicAdminMode  = sess.level === 'medic_admin';
+            isWriterMode = true;
+            document.getElementById('auth-info').classList.add('hidden');
+            document.getElementById('auth-status-badge').classList.remove('hidden');
+            document.getElementById('auth-status-badge').classList.add('flex');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            let nivelText = isMasterAdminMode ? 'Comandante' : (isPoliceAdminMode ? 'Líder da Polícia' : (isMedicAdminMode ? 'Líder Médico' : 'Agente'));
+            document.getElementById('admin-status-display').innerHTML = `<div class="p-3 bg-green-900/20 text-medic border border-green-500/30 rounded-xl font-bold flex items-center justify-center gap-2">✅ Sessão restaurada (${escapeHTML(sess.id)} - ${nivelText})</div>`;
+            document.getElementById('auth-area').classList.add('hidden');
+            document.querySelectorAll('.writer-only').forEach(el => el.classList.toggle('hidden', !isWriterMode));
+            document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !(isMasterAdminMode || isPoliceAdminMode || isMedicAdminMode)));
+            toast(`Sessão restaurada: ${escapeHTML(sess.id)}`, 'success');
+          }
+        }
+      } catch(e) {}
+    });
 
     onSnapshot(collection(db, COLLECTIONS.NINJAS), s => {
       ninjasData = {}; s.forEach(d => ninjasData[d.id] = d.data());
@@ -2481,6 +2910,12 @@ async function init() {
     onSnapshot(collection(db, COLLECTIONS.PRISOES), s => {
       prisoesData = []; s.forEach(d => prisoesData.push({ id:d.id, ...d.data() }));
       if (currentPage==='delegacia') renderDelegacia();
+      if (currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) renderNinjaProfile(sel.value,1); }
+    });
+
+    onSnapshot(collection(db, COLLECTIONS.ATENDIMENTOS), s => {
+      atendimentosData = []; s.forEach(d => atendimentosData.push({ id:d.id, ...d.data() }));
+      if (currentPage==='org_medica') renderOrgMedica();
       if (currentPage==='perfil') { const sel=document.getElementById('ninja-filter-select'); if(sel?.value) renderNinjaProfile(sel.value,1); }
     });
 
